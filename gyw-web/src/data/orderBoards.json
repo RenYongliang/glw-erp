@@ -1,0 +1,4130 @@
+{
+  "sales": {
+    "orders": [
+      {
+        "id": "XSDD260825-06",
+        "name": "示例：无锡简道云-第4份销售订单",
+        "partner": "示例：无锡简道云",
+        "warehouse": "",
+        "amount": 560000.0,
+        "owner": "张睿",
+        "signed": "2026-08-25",
+        "delivery": "2026-08-25",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 100.0,
+            "price": 1600.0,
+            "amount": 160000.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 100.0,
+            "price": 1500.0,
+            "amount": 150000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 100.0,
+            "price": 1300.0,
+            "amount": 130000.0
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 100.0,
+            "price": 680.0,
+            "amount": 68000.0
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 100.0,
+            "price": 680.0,
+            "amount": 68000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-08-25",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD260825-05",
+        "name": "示例：无锡帆软-第4份销售订单",
+        "partner": "示例：无锡帆软",
+        "warehouse": "",
+        "amount": 570000.0,
+        "owner": "张睿",
+        "signed": "2026-08-20",
+        "delivery": "2026-08-22",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 100.0,
+            "price": 1600.0,
+            "amount": 160000.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 100.0,
+            "price": 1500.0,
+            "amount": 150000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 100.0,
+            "price": 1300.0,
+            "amount": 130000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 100.0,
+            "price": 1400.0,
+            "amount": 140000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-08-22",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD260825-04",
+        "name": "示例：杭州简道云-第2份销售订单",
+        "partner": "示例：杭州简道云",
+        "warehouse": "",
+        "amount": 960000.0,
+        "owner": "张睿",
+        "signed": "2026-07-25",
+        "delivery": "2026-07-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 100.0,
+            "price": 1600.0,
+            "amount": 160000.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 100.0,
+            "price": 1500.0,
+            "amount": 150000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 100.0,
+            "price": 1300.0,
+            "amount": 130000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 300.0,
+            "price": 1400.0,
+            "amount": 420000.0
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 100.0,
+            "price": 680.0,
+            "amount": 68000.0
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 100.0,
+            "price": 680.0,
+            "amount": 68000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-07-27",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD260825-03",
+        "name": "示例：上海帆软-第6份销售订单",
+        "partner": "示例：上海帆软",
+        "warehouse": "",
+        "amount": 560000.0,
+        "owner": "张睿",
+        "signed": "2026-07-01",
+        "delivery": "2026-07-12",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 100.0,
+            "price": 1600.0,
+            "amount": 160000.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 100.0,
+            "price": 1500.0,
+            "amount": 150000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 100.0,
+            "price": 1300.0,
+            "amount": 130000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 100.0,
+            "price": 1400.0,
+            "amount": 140000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-07-08",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD260825-01",
+        "name": "示例：厦门帆软-第1份销售订单",
+        "partner": "示例：厦门帆软",
+        "warehouse": "",
+        "amount": 143000.0,
+        "owner": "张睿",
+        "signed": "2026-06-17",
+        "delivery": "2026-06-24",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 33.0,
+            "price": 1600.0,
+            "amount": 52800.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 21.0,
+            "price": 1500.0,
+            "amount": 31500.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 15.0,
+            "price": 1300.0,
+            "amount": 19500.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 30.0,
+            "price": 1400.0,
+            "amount": 42000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-06-22",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD260825-02",
+        "name": "示例：杭州帆软-第3份销售订单",
+        "partner": "示例：杭州帆软",
+        "warehouse": "",
+        "amount": 1700000.0,
+        "owner": "张睿",
+        "signed": "2026-06-04",
+        "delivery": "2026-06-18",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 300.0,
+            "price": 1600.0,
+            "amount": 480000.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 300.0,
+            "price": 1500.0,
+            "amount": 450000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 300.0,
+            "price": 1300.0,
+            "amount": 390000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 300.0,
+            "price": 1400.0,
+            "amount": 420000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-06-15",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD240722-01",
+        "name": "示例：上海帆软-第4份销售订单",
+        "partner": "示例：上海帆软",
+        "warehouse": "",
+        "amount": 9150.0,
+        "owner": "张睿",
+        "signed": "2024-07-22",
+        "delivery": "2024-07-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 3.0,
+            "price": 1210.0,
+            "amount": 3630.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 4.0,
+            "price": 1380.0,
+            "amount": 5520.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2024-07-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230921-01",
+        "name": "示例：上海帆软-第3份销售订单",
+        "partner": "示例：上海帆软",
+        "warehouse": "",
+        "amount": 140000.0,
+        "owner": "张睿",
+        "signed": "2023-09-21",
+        "delivery": "2023-09-28",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 50.0,
+            "price": 1448.92,
+            "amount": 72446.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 50.0,
+            "price": 1351.02,
+            "amount": 67551.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230918-02",
+        "name": "示例：无锡简道云-第3份销售订单",
+        "partner": "示例：无锡简道云",
+        "warehouse": "",
+        "amount": 24000.0,
+        "owner": "张睿",
+        "signed": "2023-09-18",
+        "delivery": "2023-09-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 10.0,
+            "price": 1278.71,
+            "amount": 12787.1
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 10.0,
+            "price": 1121.19,
+            "amount": 11211.9
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-02",
+        "name": "示例：杭州帆软-第2份销售订单",
+        "partner": "示例：杭州帆软",
+        "warehouse": "",
+        "amount": 506000.0,
+        "owner": "张睿",
+        "signed": "2023-08-25",
+        "delivery": "2023-08-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 50.0,
+            "price": 632.64,
+            "amount": 31632.0
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 20.0,
+            "price": 637.58,
+            "amount": 12751.6
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 20.0,
+            "price": 1502.52,
+            "amount": 30050.4
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 200.0,
+            "price": 1423.44,
+            "amount": 284688.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 10.0,
+            "price": 1245.51,
+            "amount": 12455.1
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 100.0,
+            "price": 1344.36,
+            "amount": 134436.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-08-25",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-01",
+        "name": "示例：无锡帆软-第3份销售订单",
+        "partner": "示例：无锡帆软",
+        "warehouse": "",
+        "amount": 130000.0,
+        "owner": "张睿",
+        "signed": "2023-08-25",
+        "delivery": "2023-08-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 20.0,
+            "price": 601.22,
+            "amount": 12024.4
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 20.0,
+            "price": 606.14,
+            "amount": 12122.8
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 20.0,
+            "price": 1458.69,
+            "amount": 29173.8
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 20.0,
+            "price": 1360.13,
+            "amount": 27202.6
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 20.0,
+            "price": 1192.58,
+            "amount": 23851.6
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 20.0,
+            "price": 1281.28,
+            "amount": 25625.6
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-08-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-04",
+        "name": "示例：无锡简道云-第2份销售订单",
+        "partner": "示例：无锡简道云",
+        "warehouse": "",
+        "amount": 425000.0,
+        "owner": "张睿",
+        "signed": "2023-07-28",
+        "delivery": "2023-07-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 90.0,
+            "price": 602.38,
+            "amount": 54214.2
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 22.0,
+            "price": 607.31,
+            "amount": 13360.82
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 80.0,
+            "price": 1461.5,
+            "amount": 116920.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 11.0,
+            "price": 1362.75,
+            "amount": 14990.25
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 135.0,
+            "price": 1194.88,
+            "amount": 161308.8
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 50.0,
+            "price": 1283.75,
+            "amount": 64187.5
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-07-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-03",
+        "name": "示例：无锡帆软-第2份销售订单",
+        "partner": "示例：无锡帆软",
+        "warehouse": "",
+        "amount": 46000.0,
+        "owner": "张睿",
+        "signed": "2023-07-25",
+        "delivery": "2023-07-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 10.0,
+            "price": 592.01,
+            "amount": 5920.1
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 10.0,
+            "price": 596.86,
+            "amount": 5968.6
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 15.0,
+            "price": 1436.34,
+            "amount": 21545.1
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 5.0,
+            "price": 1339.29,
+            "amount": 6696.45
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 5.0,
+            "price": 1174.31,
+            "amount": 5871.55
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-08-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-06",
+        "name": "示例：杭州简道云-第1份销售订单",
+        "partner": "示例：杭州简道云",
+        "warehouse": "",
+        "amount": 56000.0,
+        "owner": "张睿",
+        "signed": "2023-06-29",
+        "delivery": "2023-06-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 10.0,
+            "price": 672.79,
+            "amount": 6727.9
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 10.0,
+            "price": 672.79,
+            "amount": 6727.9
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 10.0,
+            "price": 1583.04,
+            "amount": 15830.4
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 10.0,
+            "price": 1286.22,
+            "amount": 12862.2
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 10.0,
+            "price": 1385.16,
+            "amount": 13851.6
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-30",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-05",
+        "name": "示例：上海帆软-第2份销售订单",
+        "partner": "示例：上海帆软",
+        "warehouse": "",
+        "amount": 300000.0,
+        "owner": "张睿",
+        "signed": "2023-06-29",
+        "delivery": "2023-06-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 100.0,
+            "price": 1207.34,
+            "amount": 120734.0
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 80.0,
+            "price": 1476.74,
+            "amount": 118139.2
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 50.0,
+            "price": 613.65,
+            "amount": 30682.5
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 50.0,
+            "price": 608.66,
+            "amount": 30433.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-29",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-10",
+        "name": "示例：上海帆软-第1份销售订单",
+        "partner": "示例：上海帆软",
+        "warehouse": "",
+        "amount": 62000.0,
+        "owner": "张睿",
+        "signed": "2023-05-30",
+        "delivery": "2023-05-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 60.0,
+            "price": 603.17,
+            "amount": 36190.2
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 20.0,
+            "price": 608.11,
+            "amount": 12162.2
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 10.0,
+            "price": 1364.54,
+            "amount": 13645.4
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-05-30",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-09",
+        "name": "示例：杭州帆软-第1份销售订单",
+        "partner": "示例：杭州帆软",
+        "warehouse": "",
+        "amount": 58000.0,
+        "owner": "张睿",
+        "signed": "2023-05-30",
+        "delivery": "2023-05-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 10.0,
+            "price": 623.87,
+            "amount": 6238.7
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 60.0,
+            "price": 628.75,
+            "amount": 37725.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 10.0,
+            "price": 1403.71,
+            "amount": 14037.1
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-05-30",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-08",
+        "name": "示例：无锡帆软-第1份销售订单",
+        "partner": "示例：无锡帆软",
+        "warehouse": "",
+        "amount": 122000.0,
+        "owner": "张睿",
+        "signed": "2023-05-30",
+        "delivery": "2023-05-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 30.0,
+            "price": 1456.17,
+            "amount": 43685.1
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 60.0,
+            "price": 605.1,
+            "amount": 36306.0
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 70.0,
+            "price": 600.18,
+            "amount": 42012.6
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-30",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "XSDD230827-07",
+        "name": "示例：无锡简道云-第1份销售订单",
+        "partner": "示例：无锡简道云",
+        "warehouse": "",
+        "amount": 139000.0,
+        "owner": "张睿",
+        "signed": "2023-05-30",
+        "delivery": "2023-05-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 60.0,
+            "price": 1187.74,
+            "amount": 71264.4
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 50.0,
+            "price": 1354.61,
+            "amount": 67730.5
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-05-30",
+            "note": ""
+          }
+        ]
+      }
+    ],
+    "execution": [
+      {
+        "id": "XSDD260825-06",
+        "name": "示例：无锡简道云-第4份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 130000.0,
+        "paid": 130000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-06",
+        "name": "示例：无锡简道云-第4份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 150000.0,
+        "paid": 150000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-06",
+        "name": "示例：无锡简道云-第4份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 160000.0,
+        "paid": 160000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-06",
+        "name": "示例：无锡简道云-第4份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 68000.0,
+        "paid": 68000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-06",
+        "name": "示例：无锡简道云-第4份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 68000.0,
+        "paid": 68000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-05",
+        "name": "示例：无锡帆软-第4份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 140000.0,
+        "paid": 0.0,
+        "unpaid": 140000.0
+      },
+      {
+        "id": "XSDD260825-05",
+        "name": "示例：无锡帆软-第4份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 130000.0,
+        "paid": 0.0,
+        "unpaid": 130000.0
+      },
+      {
+        "id": "XSDD260825-05",
+        "name": "示例：无锡帆软-第4份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 150000.0,
+        "paid": 0.0,
+        "unpaid": 150000.0
+      },
+      {
+        "id": "XSDD260825-05",
+        "name": "示例：无锡帆软-第4份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 160000.0,
+        "paid": 0.0,
+        "unpaid": 160000.0
+      },
+      {
+        "id": "XSDD260825-04",
+        "name": "示例：杭州简道云-第2份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 300.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-04",
+        "name": "示例：杭州简道云-第2份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 100.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-04",
+        "name": "示例：杭州简道云-第2份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 100.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-04",
+        "name": "示例：杭州简道云-第2份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 100.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-04",
+        "name": "示例：杭州简道云-第2份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 100.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-04",
+        "name": "示例：杭州简道云-第2份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 100.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-03",
+        "name": "示例：上海帆软-第6份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 100.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-03",
+        "name": "示例：上海帆软-第6份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 100.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-03",
+        "name": "示例：上海帆软-第6份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 100.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-03",
+        "name": "示例：上海帆软-第6份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 100.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-02",
+        "name": "示例：杭州帆软-第3份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 420000.0,
+        "paid": 420000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-02",
+        "name": "示例：杭州帆软-第3份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 390000.0,
+        "paid": 390000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-02",
+        "name": "示例：杭州帆软-第3份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 450000.0,
+        "paid": 450000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-02",
+        "name": "示例：杭州帆软-第3份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 480000.0,
+        "paid": 480000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-01",
+        "name": "示例：厦门帆软-第1份销售订单",
+        "partner": "示例：厦门帆软",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 30.0,
+        "returnedBefore": 0.0,
+        "shipped": 30.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 30.0,
+        "unsettled": 0.0,
+        "payable": 42000.0,
+        "paid": 42000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-01",
+        "name": "示例：厦门帆软-第1份销售订单",
+        "partner": "示例：厦门帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 15.0,
+        "returnedBefore": 0.0,
+        "shipped": 15.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 15.0,
+        "unsettled": 0.0,
+        "payable": 19500.0,
+        "paid": 19500.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-01",
+        "name": "示例：厦门帆软-第1份销售订单",
+        "partner": "示例：厦门帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 21.0,
+        "returnedBefore": 0.0,
+        "shipped": 21.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 21.0,
+        "unsettled": 0.0,
+        "payable": 31500.0,
+        "paid": 31500.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD260825-01",
+        "name": "示例：厦门帆软-第1份销售订单",
+        "partner": "示例：厦门帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 33.0,
+        "returnedBefore": 0.0,
+        "shipped": 33.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 33.0,
+        "unsettled": 0.0,
+        "payable": 52800.0,
+        "paid": 52800.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD240722-01",
+        "name": "示例：上海帆软-第4份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 3.0,
+        "returnedBefore": 0.0,
+        "shipped": 3.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 3.0,
+        "unsettled": 0.0,
+        "payable": 3630.0,
+        "paid": 3630.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD240722-01",
+        "name": "示例：上海帆软-第4份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 4.0,
+        "returnedBefore": 0.0,
+        "shipped": 4.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 4.0,
+        "unsettled": 0.0,
+        "payable": 5520.0,
+        "paid": 5520.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230921-01",
+        "name": "示例：上海帆软-第3份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 50.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230921-01",
+        "name": "示例：上海帆软-第3份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 50.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230918-02",
+        "name": "示例：无锡简道云-第3份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "exchanged": 1.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 11211.9,
+        "paid": 11211.9,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230918-02",
+        "name": "示例：无锡简道云-第3份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 1.0,
+        "exchanged": 1.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 9.0,
+        "unsettled": 0.0,
+        "payable": 11508.39,
+        "paid": 11508.39,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-10",
+        "name": "示例：上海帆软-第1份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 13645.4,
+        "paid": 13645.4,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-10",
+        "name": "示例：上海帆软-第1份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 20.0,
+        "returnedAfter": 1.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 19.0,
+        "unsettled": 0.0,
+        "payable": 11554.09,
+        "paid": 11554.09,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-10",
+        "name": "示例：上海帆软-第1份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 60.0,
+        "returnedBefore": 0.0,
+        "shipped": 60.0,
+        "returnedAfter": 3.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 57.0,
+        "unsettled": 0.0,
+        "payable": 34380.69,
+        "paid": 34380.69,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-09",
+        "name": "示例：杭州帆软-第1份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 1.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 9.0,
+        "unsettled": 0.0,
+        "payable": 12633.39,
+        "paid": 12633.39,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-09",
+        "name": "示例：杭州帆软-第1份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 60.0,
+        "returnedBefore": 0.0,
+        "shipped": 60.0,
+        "returnedAfter": 2.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 58.0,
+        "unsettled": 0.0,
+        "payable": 36467.5,
+        "paid": 36467.5,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-09",
+        "name": "示例：杭州帆软-第1份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 1.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 9.0,
+        "unsettled": 0.0,
+        "payable": 5614.83,
+        "paid": 5614.83,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-08",
+        "name": "示例：无锡帆软-第1份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 30.0,
+        "returnedBefore": 0.0,
+        "shipped": 30.0,
+        "returnedAfter": 0.0,
+        "exchanged": 2.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 30.0,
+        "unsettled": 0.0,
+        "payable": 43685.1,
+        "paid": 43685.1,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-08",
+        "name": "示例：无锡帆软-第1份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 60.0,
+        "returnedBefore": 0.0,
+        "shipped": 60.0,
+        "returnedAfter": 0.0,
+        "exchanged": 2.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 60.0,
+        "unsettled": 0.0,
+        "payable": 36306.0,
+        "paid": 36306.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-08",
+        "name": "示例：无锡帆软-第1份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 70.0,
+        "returnedBefore": 0.0,
+        "shipped": 70.0,
+        "returnedAfter": 0.0,
+        "exchanged": 2.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 70.0,
+        "unsettled": 0.0,
+        "payable": 42012.6,
+        "paid": 42012.6,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-07",
+        "name": "示例：无锡简道云-第1份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 60.0,
+        "returnedBefore": 0.0,
+        "shipped": 60.0,
+        "returnedAfter": 0.0,
+        "exchanged": 5.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 60.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-07",
+        "name": "示例：无锡简道云-第1份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "exchanged": 5.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 50.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-06",
+        "name": "示例：杭州简道云-第1份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 13851.6,
+        "paid": 13851.6,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-06",
+        "name": "示例：杭州简道云-第1份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 12862.2,
+        "paid": 12862.2,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-06",
+        "name": "示例：杭州简道云-第1份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 15830.4,
+        "paid": 15830.4,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-06",
+        "name": "示例：杭州简道云-第1份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 6727.9,
+        "paid": 6727.9,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-06",
+        "name": "示例：杭州简道云-第1份销售订单",
+        "partner": "示例：杭州简道云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 6727.9,
+        "paid": 6727.9,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-05",
+        "name": "示例：上海帆软-第2份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 10.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 90.0,
+        "unsettled": 0.0,
+        "payable": 108660.6,
+        "paid": 0.0,
+        "unpaid": 108660.6
+      },
+      {
+        "id": "XSDD230827-05",
+        "name": "示例：上海帆软-第2份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 80.0,
+        "returnedBefore": 0.0,
+        "shipped": 80.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 80.0,
+        "unsettled": 0.0,
+        "payable": 118139.2,
+        "paid": 0.0,
+        "unpaid": 118139.2
+      },
+      {
+        "id": "XSDD230827-05",
+        "name": "示例：上海帆软-第2份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 30682.5,
+        "paid": 0.0,
+        "unpaid": 30682.5
+      },
+      {
+        "id": "XSDD230827-05",
+        "name": "示例：上海帆软-第2份销售订单",
+        "partner": "示例：上海帆软",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 30433.0,
+        "paid": 0.0,
+        "unpaid": 30433.0
+      },
+      {
+        "id": "XSDD230827-04",
+        "name": "示例：无锡简道云-第2份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 64187.5,
+        "paid": 64187.5,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-04",
+        "name": "示例：无锡简道云-第2份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 135.0,
+        "returnedBefore": 0.0,
+        "shipped": 135.0,
+        "returnedAfter": 5.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 130.0,
+        "unsettled": 0.0,
+        "payable": 155334.4,
+        "paid": 155334.4,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-04",
+        "name": "示例：无锡简道云-第2份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 11.0,
+        "returnedBefore": 0.0,
+        "shipped": 11.0,
+        "returnedAfter": 6.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 5.0,
+        "unsettled": 0.0,
+        "payable": 6813.75,
+        "paid": 6813.75,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-04",
+        "name": "示例：无锡简道云-第2份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 80.0,
+        "returnedBefore": 0.0,
+        "shipped": 80.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 80.0,
+        "unsettled": 0.0,
+        "payable": 116920.0,
+        "paid": 116920.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-04",
+        "name": "示例：无锡简道云-第2份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 22.0,
+        "returnedBefore": 0.0,
+        "shipped": 22.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 22.0,
+        "unsettled": 0.0,
+        "payable": 13360.82,
+        "paid": 13360.82,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-04",
+        "name": "示例：无锡简道云-第2份销售订单",
+        "partner": "示例：无锡简道云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 90.0,
+        "returnedBefore": 0.0,
+        "shipped": 90.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 90.0,
+        "unsettled": 0.0,
+        "payable": 54214.2,
+        "paid": 54214.2,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-03",
+        "name": "示例：无锡帆软-第2份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 5.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 5.0,
+        "frozen": 5.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-03",
+        "name": "示例：无锡帆软-第2份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 5.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 5.0,
+        "frozen": 5.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-03",
+        "name": "示例：无锡帆软-第2份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 15.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 15.0,
+        "frozen": 15.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-03",
+        "name": "示例：无锡帆软-第2份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 10.0,
+        "frozen": 10.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-03",
+        "name": "示例：无锡帆软-第2份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 10.0,
+        "frozen": 10.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-02",
+        "name": "示例：杭州帆软-第2份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 134436.0,
+        "paid": 134436.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-02",
+        "name": "示例：杭州帆软-第2份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 10.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-02",
+        "name": "示例：杭州帆软-第2份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 200.0,
+        "returnedBefore": 0.0,
+        "shipped": 200.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 200.0,
+        "unsettled": 0.0,
+        "payable": 284688.0,
+        "paid": 284688.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-02",
+        "name": "示例：杭州帆软-第2份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 20.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 20.0,
+        "unsettled": 0.0,
+        "payable": 30050.4,
+        "paid": 30050.4,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-02",
+        "name": "示例：杭州帆软-第2份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 20.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 20.0,
+        "unsettled": 0.0,
+        "payable": 12751.6,
+        "paid": 12751.6,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-02",
+        "name": "示例：杭州帆软-第2份销售订单",
+        "partner": "示例：杭州帆软",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 0.0,
+        "frozen": 0.0,
+        "planned": 0.0,
+        "unplanned": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 31632.0,
+        "paid": 31632.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-01",
+        "name": "示例：无锡帆软-第3份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 20.0,
+        "frozen": 0.0,
+        "planned": 20.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-01",
+        "name": "示例：无锡帆软-第3份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 20.0,
+        "frozen": 0.0,
+        "planned": 20.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-01",
+        "name": "示例：无锡帆软-第3份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 20.0,
+        "frozen": 0.0,
+        "planned": 20.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-01",
+        "name": "示例：无锡帆软-第3份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 20.0,
+        "frozen": 0.0,
+        "planned": 20.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-01",
+        "name": "示例：无锡帆软-第3份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 20.0,
+        "frozen": 0.0,
+        "planned": 20.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "XSDD230827-01",
+        "name": "示例：无锡帆软-第3份销售订单",
+        "partner": "示例：无锡帆软",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 20.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "exchanged": 0.0,
+        "pending": 20.0,
+        "frozen": 0.0,
+        "planned": 20.0,
+        "unplanned": 0.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      }
+    ]
+  },
+  "purchase": {
+    "orders": [
+      {
+        "id": "CGDD260825-06",
+        "name": "示例：无锡道友云-第9份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "无锡仓",
+        "amount": 137000.0,
+        "owner": "张睿",
+        "signed": "2026-08-12",
+        "delivery": "2026-08-14",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 100.0,
+            "price": 750.0,
+            "amount": 75000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 100.0,
+            "price": 620.0,
+            "amount": 62000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-08-14",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD260825-05",
+        "name": "示例：上海道友云-第8份采购订单",
+        "partner": "示例：上海道友云",
+        "warehouse": "杭州仓",
+        "amount": 68000.0,
+        "owner": "张睿",
+        "signed": "2026-08-01",
+        "delivery": "2026-08-08",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 100.0,
+            "price": 320.0,
+            "amount": 32000.0
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 100.0,
+            "price": 360.0,
+            "amount": 36000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-08-08",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD260825-04",
+        "name": "示例：无锡道友云-第8份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "杭州仓",
+        "amount": 271000.0,
+        "owner": "张睿",
+        "signed": "2026-07-01",
+        "delivery": "2026-07-08",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 200.0,
+            "price": 750.0,
+            "amount": 150000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 200.0,
+            "price": 620.0,
+            "amount": 124000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-07-08",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD260825-03",
+        "name": "示例：杭州道友云-第9份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "杭州仓",
+        "amount": 290000.0,
+        "owner": "张睿",
+        "signed": "2026-07-01",
+        "delivery": "2026-07-08",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 200.0,
+            "price": 790.0,
+            "amount": 158000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 200.0,
+            "price": 675.0,
+            "amount": 135000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-07-08",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD260825-02",
+        "name": "示例：无锡道友云-第7份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "无锡仓",
+        "amount": 400000.0,
+        "owner": "张睿",
+        "signed": "2026-06-08",
+        "delivery": "2026-06-12",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 300.0,
+            "price": 750.0,
+            "amount": 225000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 300.0,
+            "price": 620.0,
+            "amount": 186000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-06-12",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD260825-01",
+        "name": "示例：杭州道友云-第8份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "无锡仓",
+        "amount": 430000.0,
+        "owner": "张睿",
+        "signed": "2026-06-08",
+        "delivery": "2026-06-12",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 300.0,
+            "price": 790.0,
+            "amount": 237000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 300.0,
+            "price": 675.0,
+            "amount": 202500.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2026-06-12",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD240722-01",
+        "name": "示例：杭州道友云-第7份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "无锡仓",
+        "amount": 57035.0,
+        "owner": "张睿",
+        "signed": "2024-07-22",
+        "delivery": "2024-07-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 33.0,
+            "price": 675.0,
+            "amount": 22275.0
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 44.0,
+            "price": 790.0,
+            "amount": 34760.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2024-07-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230918-01",
+        "name": "示例：杭州道友云-第6份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "杭州仓",
+        "amount": 6500.0,
+        "owner": "张睿",
+        "signed": "2023-09-18",
+        "delivery": "2023-09-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 10.0,
+            "price": 675.0,
+            "amount": 6750.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-10",
+        "name": "示例：上海道友云-第6份采购订单",
+        "partner": "示例：上海道友云",
+        "warehouse": "杭州仓",
+        "amount": 66000.0,
+        "owner": "张睿",
+        "signed": "2023-08-25",
+        "delivery": "2023-08-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 100.0,
+            "price": 320.0,
+            "amount": 32000.0
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 100.0,
+            "price": 360.0,
+            "amount": 36000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-08-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-09",
+        "name": "示例：杭州道友云-第5份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "无锡仓",
+        "amount": 142000.0,
+        "owner": "张睿",
+        "signed": "2023-08-25",
+        "delivery": "2023-08-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 100.0,
+            "price": 790.0,
+            "amount": 79000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 100.0,
+            "price": 675.0,
+            "amount": 67500.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-08-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-16",
+        "name": "示例：无锡道友云-第3份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "无锡仓",
+        "amount": 260000.0,
+        "owner": "张睿",
+        "signed": "2023-08-24",
+        "delivery": "2023-08-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 122.0,
+            "price": 620.0,
+            "amount": 75640.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 253.0,
+            "price": 750.0,
+            "amount": 189750.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-08-25",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-02",
+        "name": "示例：杭州道友云-第3份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "杭州仓",
+        "amount": 71000.0,
+        "owner": "张睿",
+        "signed": "2023-07-26",
+        "delivery": "2023-07-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 50.0,
+            "price": 675.0,
+            "amount": 33750.0
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 50.0,
+            "price": 790.0,
+            "amount": 39500.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-07-29",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-15",
+        "name": "示例：杭州道友云-第2份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "杭州仓",
+        "amount": 192000.0,
+        "owner": "张睿",
+        "signed": "2023-07-24",
+        "delivery": "2023-08-01",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 115.0,
+            "price": 790.0,
+            "amount": 90850.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 156.0,
+            "price": 675.0,
+            "amount": 105300.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-07-28",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-17",
+        "name": "示例：上海道友云-第7份采购订单",
+        "partner": "示例：上海道友云",
+        "warehouse": "杭州仓",
+        "amount": 33000.0,
+        "owner": "张睿",
+        "signed": "2023-06-26",
+        "delivery": "2023-06-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 50.0,
+            "price": 320.0,
+            "amount": 16000.0
+          },
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 50.0,
+            "price": 360.0,
+            "amount": 18000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-30",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-06",
+        "name": "示例：上海道友云-第3份采购订单",
+        "partner": "示例：上海道友云",
+        "warehouse": "无锡仓",
+        "amount": 83000.0,
+        "owner": "张睿",
+        "signed": "2023-06-23",
+        "delivery": "2023-06-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 113.0,
+            "price": 360.0,
+            "amount": 40680.0
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 138.0,
+            "price": 320.0,
+            "amount": 44160.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-25",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-03",
+        "name": "示例：上海道友云-第4份采购订单",
+        "partner": "示例：上海道友云",
+        "warehouse": "杭州仓",
+        "amount": 66000.0,
+        "owner": "张睿",
+        "signed": "2023-06-23",
+        "delivery": "2023-06-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 100.0,
+            "price": 360.0,
+            "amount": 36000.0
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 100.0,
+            "price": 320.0,
+            "amount": 32000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-27",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-12",
+        "name": "示例：杭州道友云-第4份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "无锡仓",
+        "amount": 143000.0,
+        "owner": "张睿",
+        "signed": "2023-06-14",
+        "delivery": "2023-06-16",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 100.0,
+            "price": 790.0,
+            "amount": 79000.0
+          },
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 100.0,
+            "price": 675.0,
+            "amount": 67500.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-16",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-11",
+        "name": "示例：无锡道友云-第5份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "无锡仓",
+        "amount": 13000.0,
+        "owner": "张睿",
+        "signed": "2023-06-01",
+        "delivery": "2023-06-02",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 10.0,
+            "price": 620.0,
+            "amount": 6200.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 10.0,
+            "price": 750.0,
+            "amount": 7500.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-06-05",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-05",
+        "name": "示例：杭州道友云-第1份采购订单",
+        "partner": "示例：杭州道友云",
+        "warehouse": "无锡仓",
+        "amount": 191000.0,
+        "owner": "张睿",
+        "signed": "2023-05-23",
+        "delivery": "2023-05-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MQM8790-HS2R",
+            "code": "CP0002",
+            "quantity": 139.0,
+            "price": 675.0,
+            "amount": 93825.0
+          },
+          {
+            "product": "Dusun Pi4",
+            "code": "CP0004",
+            "quantity": 128.0,
+            "price": 790.0,
+            "amount": 101120.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-05-31",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-14",
+        "name": "示例：无锡道友云-第2份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "无锡仓",
+        "amount": 132000.0,
+        "owner": "张睿",
+        "signed": "2023-05-17",
+        "delivery": "2023-05-19",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 100.0,
+            "price": 620.0,
+            "amount": 62000.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 100.0,
+            "price": 750.0,
+            "amount": 75000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-05-20",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-13",
+        "name": "示例：无锡道友云-第4份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "杭州仓",
+        "amount": 66000.0,
+        "owner": "张睿",
+        "signed": "2023-05-09",
+        "delivery": "2023-05-11",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 50.0,
+            "price": 620.0,
+            "amount": 31000.0
+          },
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 50.0,
+            "price": 750.0,
+            "amount": 37500.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-05-11",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-08",
+        "name": "示例：上海道友云-第2份采购订单",
+        "partner": "示例：上海道友云",
+        "warehouse": "杭州仓",
+        "amount": 77000.0,
+        "owner": "张睿",
+        "signed": "2023-05-09",
+        "delivery": "2023-05-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 122.0,
+            "price": 360.0,
+            "amount": 43920.0
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 109.0,
+            "price": 320.0,
+            "amount": 34880.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-05-20",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-04",
+        "name": "示例：无锡道友云-第1份采购订单",
+        "partner": "示例：无锡道友云",
+        "warehouse": "无锡仓",
+        "amount": 106000.0,
+        "owner": "张睿",
+        "signed": "2023-04-23",
+        "delivery": "2023-04-30",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "Catalyst 8300",
+            "code": "CP0003",
+            "quantity": 100.0,
+            "price": 750.0,
+            "amount": 75000.0
+          },
+          {
+            "product": "MTQ8200-HS2F",
+            "code": "CP0001",
+            "quantity": 50.0,
+            "price": 620.0,
+            "amount": 31000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-04-30",
+            "note": ""
+          }
+        ]
+      },
+      {
+        "id": "CGDD230827-07",
+        "name": "示例：上海道友云-第1份采购订单",
+        "partner": "示例：上海道友云",
+        "warehouse": "无锡仓",
+        "amount": 66000.0,
+        "owner": "张睿",
+        "signed": "2023-03-24",
+        "delivery": "2023-03-31",
+        "approval": "审批通过",
+        "lines": [
+          {
+            "product": "UPS",
+            "code": "CP0005",
+            "quantity": 100.0,
+            "price": 360.0,
+            "amount": 36000.0
+          },
+          {
+            "product": "ST1L05",
+            "code": "CP0006",
+            "quantity": 100.0,
+            "price": 320.0,
+            "amount": 32000.0
+          }
+        ],
+        "plans": [
+          {
+            "batch": "整批",
+            "date": "2023-03-30",
+            "note": ""
+          }
+        ]
+      }
+    ],
+    "execution": [
+      {
+        "id": "CGDD260825-06",
+        "name": "示例：无锡道友云-第9份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "pending": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-06",
+        "name": "示例：无锡道友云-第9份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "pending": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-05",
+        "name": "示例：上海道友云-第8份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 36000.0,
+        "paid": 0.0,
+        "unpaid": 36000.0
+      },
+      {
+        "id": "CGDD260825-05",
+        "name": "示例：上海道友云-第8份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 32000.0,
+        "paid": 0.0,
+        "unpaid": 32000.0
+      },
+      {
+        "id": "CGDD260825-04",
+        "name": "示例：无锡道友云-第8份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 200.0,
+        "returnedBefore": 0.0,
+        "shipped": 200.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 200.0,
+        "unsettled": 0.0,
+        "payable": 122648.0,
+        "paid": 122648.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-04",
+        "name": "示例：无锡道友云-第8份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 200.0,
+        "returnedBefore": 0.0,
+        "shipped": 200.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 200.0,
+        "unsettled": 0.0,
+        "payable": 148366.0,
+        "paid": 148366.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-03",
+        "name": "示例：杭州道友云-第9份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 200.0,
+        "returnedBefore": 0.0,
+        "shipped": 200.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 200.0,
+        "unsettled": 0.0,
+        "payable": 133624.0,
+        "paid": 133624.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-03",
+        "name": "示例：杭州道友云-第9份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 200.0,
+        "returnedBefore": 0.0,
+        "shipped": 200.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 200.0,
+        "unsettled": 0.0,
+        "payable": 156388.0,
+        "paid": 156388.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-02",
+        "name": "示例：无锡道友云-第7份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 181014.0,
+        "paid": 181014.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-02",
+        "name": "示例：无锡道友云-第7份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 218970.0,
+        "paid": 218970.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-01",
+        "name": "示例：杭州道友云-第8份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 198126.0,
+        "paid": 198126.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD260825-01",
+        "name": "示例：杭州道友云-第8份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 300.0,
+        "returnedBefore": 0.0,
+        "shipped": 300.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 300.0,
+        "unsettled": 0.0,
+        "payable": 231882.0,
+        "paid": 231882.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD240722-01",
+        "name": "示例：杭州道友云-第7份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 33.0,
+        "returnedBefore": 0.0,
+        "shipped": 33.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 33.0,
+        "unsettled": 0.0,
+        "payable": 22275.0,
+        "paid": 22275.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD240722-01",
+        "name": "示例：杭州道友云-第7份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 44.0,
+        "returnedBefore": 0.0,
+        "shipped": 44.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 44.0,
+        "unsettled": 0.0,
+        "payable": 34760.0,
+        "paid": 34760.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230918-01",
+        "name": "示例：杭州道友云-第6份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 9.0,
+        "returnedAfter": 1.0,
+        "pending": 1.0,
+        "settled": 8.0,
+        "unsettled": 0.0,
+        "payable": 5200.24,
+        "paid": 5200.24,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-17",
+        "name": "示例：上海道友云-第7份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 40.0,
+        "returnedAfter": 0.0,
+        "pending": 10.0,
+        "settled": 40.0,
+        "unsettled": 0.0,
+        "payable": 6988.4,
+        "paid": 0.0,
+        "unpaid": 6988.4
+      },
+      {
+        "id": "CGDD230827-17",
+        "name": "示例：上海道友云-第7份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 40.0,
+        "returnedAfter": 0.0,
+        "pending": 10.0,
+        "settled": 40.0,
+        "unsettled": 0.0,
+        "payable": 6211.8,
+        "paid": 0.0,
+        "unpaid": 6211.8
+      },
+      {
+        "id": "CGDD230827-16",
+        "name": "示例：无锡道友云-第3份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 122.0,
+        "returnedBefore": 0.0,
+        "shipped": 122.0,
+        "returnedAfter": 5.0,
+        "pending": 0.0,
+        "settled": 117.0,
+        "unsettled": 0.0,
+        "payable": 71066.97,
+        "paid": 71066.97,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-16",
+        "name": "示例：无锡道友云-第3份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 253.0,
+        "returnedBefore": 0.0,
+        "shipped": 253.0,
+        "returnedAfter": 13.0,
+        "pending": 0.0,
+        "settled": 240.0,
+        "unsettled": 0.0,
+        "payable": 176347.2,
+        "paid": 176347.2,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-15",
+        "name": "示例：杭州道友云-第2份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 156.0,
+        "returnedBefore": 11.0,
+        "shipped": 145.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 145.0,
+        "unsettled": 0.0,
+        "payable": 95800.05,
+        "paid": 95800.05,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-15",
+        "name": "示例：杭州道友云-第2份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 115.0,
+        "returnedBefore": 3.0,
+        "shipped": 112.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 112.0,
+        "unsettled": 0.0,
+        "payable": 86604.0,
+        "paid": 86604.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-14",
+        "name": "示例：无锡道友云-第2份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 2.0,
+        "pending": 0.0,
+        "settled": 98.0,
+        "unsettled": 0.0,
+        "payable": 58542.26,
+        "paid": 58542.26,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-14",
+        "name": "示例：无锡道友云-第2份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 8.0,
+        "pending": 0.0,
+        "settled": 92.0,
+        "unsettled": 0.0,
+        "payable": 66481.96,
+        "paid": 66481.96,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-13",
+        "name": "示例：无锡道友云-第4份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 29868.5,
+        "paid": 29868.5,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-13",
+        "name": "示例：无锡道友云-第4份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 36131.5,
+        "paid": 36131.5,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-12",
+        "name": "示例：杭州道友云-第4份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 65887.0,
+        "paid": 65887.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-12",
+        "name": "示例：杭州道友云-第4份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 77112.0,
+        "paid": 77112.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-11",
+        "name": "示例：无锡道友云-第5份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 5883.2,
+        "paid": 5883.2,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-11",
+        "name": "示例：无锡道友云-第5份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 10.0,
+        "returnedBefore": 0.0,
+        "shipped": 10.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 10.0,
+        "unsettled": 0.0,
+        "payable": 7116.8,
+        "paid": 7116.8,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-10",
+        "name": "示例：上海道友云-第6份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "pending": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-10",
+        "name": "示例：上海道友云-第6份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 0.0,
+        "returnedAfter": 0.0,
+        "pending": 100.0,
+        "settled": 0.0,
+        "unsettled": 0.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-09",
+        "name": "示例：杭州道友云-第5份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 90.0,
+        "returnedAfter": 0.0,
+        "pending": 10.0,
+        "settled": 0.0,
+        "unsettled": 90.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-09",
+        "name": "示例：杭州道友云-第5份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 0.0,
+        "unsettled": 100.0,
+        "payable": 0.0,
+        "paid": 0.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-08",
+        "name": "示例：上海道友云-第2份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 122.0,
+        "returnedBefore": 10.0,
+        "shipped": 112.0,
+        "returnedAfter": 1.0,
+        "pending": 0.0,
+        "settled": 111.0,
+        "unsettled": 0.0,
+        "payable": 39048.69,
+        "paid": 39048.69,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-08",
+        "name": "示例：上海道友云-第2份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 109.0,
+        "returnedBefore": 7.0,
+        "shipped": 102.0,
+        "returnedAfter": 1.0,
+        "pending": 0.0,
+        "settled": 101.0,
+        "unsettled": 0.0,
+        "payable": 31582.7,
+        "paid": 31582.7,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-07",
+        "name": "示例：上海道友云-第1份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 5.0,
+        "pending": 0.0,
+        "settled": 95.0,
+        "unsettled": 0.0,
+        "payable": 33194.9,
+        "paid": 33194.9,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-07",
+        "name": "示例：上海道友云-第1份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 4.0,
+        "pending": 0.0,
+        "settled": 96.0,
+        "unsettled": 0.0,
+        "payable": 29816.64,
+        "paid": 29816.64,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-06",
+        "name": "示例：上海道友云-第3份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 113.0,
+        "returnedBefore": 11.0,
+        "shipped": 102.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 102.0,
+        "unsettled": 0.0,
+        "payable": 35923.38,
+        "paid": 35923.38,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-06",
+        "name": "示例：上海道友云-第3份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 138.0,
+        "returnedBefore": 12.0,
+        "shipped": 126.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 126.0,
+        "unsettled": 0.0,
+        "payable": 39445.56,
+        "paid": 39445.56,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-05",
+        "name": "示例：杭州道友云-第1份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 139.0,
+        "returnedBefore": 14.0,
+        "shipped": 125.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 125.0,
+        "unsettled": 0.0,
+        "payable": 82671.25,
+        "paid": 82671.25,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-05",
+        "name": "示例：杭州道友云-第1份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 128.0,
+        "returnedBefore": 14.0,
+        "shipped": 114.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 114.0,
+        "unsettled": 0.0,
+        "payable": 88240.56,
+        "paid": 88240.56,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-04",
+        "name": "示例：无锡道友云-第1份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "MTQ8200-HS2F",
+        "code": "CP0001",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 31000.0,
+        "paid": 31000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-04",
+        "name": "示例：无锡道友云-第1份采购订单",
+        "partner": "示例：无锡道友云",
+        "product": "Catalyst 8300",
+        "code": "CP0003",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 75000.0,
+        "paid": 75000.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-03",
+        "name": "示例：上海道友云-第4份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "UPS",
+        "code": "CP0005",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 34942.0,
+        "paid": 34942.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-03",
+        "name": "示例：上海道友云-第4份采购订单",
+        "partner": "示例：上海道友云",
+        "product": "ST1L05",
+        "code": "CP0006",
+        "quantity": 100.0,
+        "returnedBefore": 0.0,
+        "shipped": 100.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 100.0,
+        "unsettled": 0.0,
+        "payable": 31059.0,
+        "paid": 31059.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-02",
+        "name": "示例：杭州道友云-第3份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "MQM8790-HS2R",
+        "code": "CP0002",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 32714.0,
+        "paid": 32714.0,
+        "unpaid": 0.0
+      },
+      {
+        "id": "CGDD230827-02",
+        "name": "示例：杭州道友云-第3份采购订单",
+        "partner": "示例：杭州道友云",
+        "product": "Dusun Pi4",
+        "code": "CP0004",
+        "quantity": 50.0,
+        "returnedBefore": 0.0,
+        "shipped": 50.0,
+        "returnedAfter": 0.0,
+        "pending": 0.0,
+        "settled": 50.0,
+        "unsettled": 0.0,
+        "payable": 38287.5,
+        "paid": 38287.5,
+        "unpaid": 0.0
+      }
+    ]
+  }
+}

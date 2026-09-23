@@ -1,0 +1,62 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+spring:
+  application:
+    name: gyw-backend
+  profiles:
+    default: mock
+  datasource:
+    # 占位配置；mock profile 不初始化 DataSource。
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/gyw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:gyw_mock}
+    password: ${DB_PASSWORD:mock-password-change-me}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:mock-password-change-me}
+      database: ${REDIS_DATABASE:0}
+      connect-timeout: 3s
+      timeout: 3s
+      repositories:
+        enabled: false
+  sql:
+    init:
+      mode: never
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gyw.backend.user.entity
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+app:
+  jwt:
+    issuer: gyw-backend
+    # 真实 profile 必须设置该变量；mock profile 单独提供演示密钥。
+    secret: ${JWT_SECRET:}
+    access-ttl: 8h
+    remember-ttl: 7d
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+logging:
+  level:
+    root: INFO
+    com.gyw.backend: INFO
+  pattern:
+    level: '%5p [traceId=%X{traceId}]'

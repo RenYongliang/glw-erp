@@ -1,0 +1,22 @@
+@baseUrl = http://localhost:8080
+
+### 登录（将响应 data.accessToken 填到下方 token）
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{"username":"admin","password":"Admin123!","remember":false}
+
+### 当前用户
+@token = replace-with-access-token
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{token}}
+
+### 登出后，同一 Token 调用 me 应返回 HTTP 401
+POST {{baseUrl}}/api/users/logout
+Authorization: Bearer {{token}}
+
+### 错误密码（40101）
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{"username":"admin","password":"wrong-password"}
