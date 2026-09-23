@@ -1,6 +1,6 @@
-package com.glw.backend.user.dto;
+package com.glw.backend.model.vo;
 
-import com.glw.backend.user.model.UserView;
+import com.glw.backend.model.entity.UserView;
 
 import java.time.Instant;
 

@@ -2,7 +2,10 @@ package com.glw.backend.user.service;
 
 import com.glw.backend.auth.*;
 import com.glw.backend.common.*;
-import com.glw.backend.user.dto.*;
+import com.glw.backend.model.entity.Account;
+import com.glw.backend.model.entity.UserView;
+import com.glw.backend.model.dto.LoginRequest;
+import com.glw.backend.model.vo.LoginResponse;
 import com.glw.backend.user.model.*;
 import com.glw.backend.user.repository.AccountRepository;
 

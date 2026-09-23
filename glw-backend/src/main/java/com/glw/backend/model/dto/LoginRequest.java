@@ -1,4 +1,4 @@
-package com.glw.backend.user.dto;
+package com.glw.backend.model.dto;
 
 import jakarta.validation.constraints.*;
 

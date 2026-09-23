@@ -2,8 +2,9 @@ package com.glw.backend.user.controller;
 
 import com.glw.backend.auth.AuthPrincipal;
 import com.glw.backend.common.ApiResponse;
-import com.glw.backend.user.dto.*;
-import com.glw.backend.user.model.UserView;
+import com.glw.backend.model.dto.LoginRequest;
+import com.glw.backend.model.vo.LoginResponse;
+import com.glw.backend.model.entity.UserView;
 import com.glw.backend.user.service.UserService;
 
 import jakarta.validation.Valid;

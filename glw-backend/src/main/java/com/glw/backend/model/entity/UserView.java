@@ -1,4 +1,4 @@
-package com.glw.backend.user.model;
+package com.glw.backend.model.entity;
 
 /** 用字符串返回用户 ID，避免前端 JavaScript 大整数精度丢失。 */
 public record UserView(String id, String username, String name, String role, String department) {

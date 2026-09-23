@@ -1,4 +1,4 @@
-package com.glw.backend.user.entity;
+package com.glw.backend.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 

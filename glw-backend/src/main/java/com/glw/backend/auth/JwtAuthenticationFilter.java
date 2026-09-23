@@ -1,6 +1,8 @@
 package com.glw.backend.auth;
 
 import com.glw.backend.common.ErrorCode;
+import com.glw.backend.model.entity.Account;
+import com.glw.backend.model.entity.UserView;
 import com.glw.backend.user.model.*;
 import com.glw.backend.user.repository.AccountRepository;
 

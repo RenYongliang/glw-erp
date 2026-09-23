@@ -1,4 +1,4 @@
-package com.glw.backend.user.model;
+package com.glw.backend.model.entity;
 
 /** 内部凭据对象，禁止直接用作接口响应。 */
 public record Account(
