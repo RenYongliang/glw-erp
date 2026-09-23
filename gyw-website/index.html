@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="光联微电子有限公司，连接芯片与应用的电子元器件分销伙伴。探索产品选型、应用领域与供应链服务。"
+    />
+    <meta name="theme-color" content="#0a202c" />
+    <title>光联微电子有限公司 · 连接每一颗芯，点亮无限可能</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <svg
+      class="icon-defs"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <symbol id="arrow" viewBox="0 0 24 24">
+          <path d="M4 12h15m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="diagonal" viewBox="0 0 24 24">
+          <path d="M6 18 18 6M6 6h12v12" />
+        </symbol>
+        <symbol id="search" viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 5 5" />
+        </symbol>
+        <symbol id="chip" viewBox="0 0 32 32">
+          <rect x="8" y="8" width="16" height="16" rx="2" />
+          <path d="M12 2v6m8-6v6m-8 16v6m8-6v6M2 12h6m-6 8h6m16-8h6m-6 8h6" />
+          <rect x="12" y="12" width="8" height="8" />
+        </symbol>
+        <symbol id="check" viewBox="0 0 24 24">
+          <path d="m5 12 4 4L19 6" />
+        </symbol>
+        <symbol id="shield" viewBox="0 0 32 32">
+          <path d="m16 3 11 4v9c0 7-11 13-11 13S5 23 5 16V7Z" />
+          <path d="m11 15 4 4 7-8" />
+        </symbol>
+        <symbol id="network" viewBox="0 0 32 32">
+          <circle cx="16" cy="7" r="4" />
+          <circle cx="7" cy="24" r="4" />
+          <circle cx="25" cy="24" r="4" />
+          <path d="m14 11-5 9m9-9 5 9M11 24h10" />
+        </symbol>
+        <symbol id="box" viewBox="0 0 32 32">
+          <path
+            d="m16 3 12 7v13l-12 7-12-7V10Zm0 13 12-6M16 16 4 10m12 6v14M10 6l12 7v5"
+          />
+        </symbol>
+        <symbol id="close" viewBox="0 0 24 24">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </symbol>
+        <symbol id="download" viewBox="0 0 24 24">
+          <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+        </symbol>
+        <symbol id="chevron" viewBox="0 0 24 24">
+          <path d="m6 9 6 6 6-6" />
+        </symbol>
+      </defs>
+    </svg>
+    <a class="skip-link" href="#main">跳转到正文</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="#home" aria-label="光联微首页"
+          ><span class="brand-symbol" aria-hidden="true"
+            ><i></i><i></i><i></i></span
+          ><span class="brand-type"
+            ><strong>光联微<span>GLW</span></strong
+            ><small>GUANG LIAN WEI</small></span
+          ></a
+        >
+        <nav class="main-nav" aria-label="主导航" id="main-nav">
+          <a href="#home" class="active" aria-current="location">首页</a
+          ><a href="#products">产品中心</a><a href="#applications">应用领域</a
+          ><a href="#services">供应链服务</a><a href="#about">关于光联微</a
+          ><a href="#insights">选型观察</a>
+        </nav>
+        <div class="header-actions">
+          <button class="icon-button search-trigger" aria-label="搜索产品">
+            <svg class="icon"><use href="#search" /></svg></button
+          ><button class="button button-dark header-contact" data-inquiry>
+            联系我们<svg class="icon"><use href="#diagonal" /></svg></button
+          ><button
+            class="menu-toggle icon-button"
+            aria-label="打开导航菜单"
+            aria-controls="main-nav"
+            aria-expanded="false"
+          >
+            <span></span><span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+    <main id="main">
+      <section class="hero" id="home" aria-labelledby="hero-title">
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <div class="eyebrow">
+              <span class="status-dot"></span> YOUR CONNECTION TO WHAT’S NEXT
+            </div>
+            <h1 id="hero-title">
+              连接每一颗芯<span
+                >点亮无限可能<span class="title-dot">.</span></span
+              >
+            </h1>
+            <p>
+              从一颗元器件，到一个新可能。<br />光联微，让产品选型与供应链协同更加简单。
+            </p>
+            <div class="hero-actions">
+              <a class="button button-mint" href="#products"
+                >探索产品中心<svg class="icon"><use href="#arrow" /></svg></a
+              ><button class="button button-outline" data-inquiry>
+                获取选型支持<svg class="icon"><use href="#diagonal" /></svg>
+              </button>
+            </div>
+            <div class="hero-labels">
+              <span>电子元器件分销</span><i></i><span>产品选型支持</span><i></i
+              ><span>供应链协同</span>
+            </div>
+          </div>
+          <div class="hero-visual">
+            <img
+              src="assets/hero-chip.svg"
+              width="900"
+              height="720"
+              alt="光联微芯片概念视觉，青绿色电路连接四周"
+            />
+            <div class="visual-caption">
+              <span class="caption-line"></span
+              ><span
+                >微小之处 · 创造价值<small
+                  >SMALL COMPONENTS. BIG POSSIBILITIES.</small
+                ></span
+              >
+            </div>
+          </div>
+          <div class="hero-bottom">
+            <span>GUANG LIAN WEI / COMPONENTS & CONNECTIONS</span
+            ><a href="#products">向下探索<span>↓</span></a>
+          </div>
+        </div>
+      </section>
+
+      <div class="finder-wrap container">
+        <form class="product-finder" id="finder-form" role="search">
+          <div class="finder-label">
+            <svg class="icon"><use href="#chip" /></svg>
+            <div>
+              <strong>寻找适合您的元器件</strong
+              ><span>从产品类别开始，找到更多可能</span>
+            </div>
+          </div>
+          <label class="finder-input"
+            ><svg class="icon"><use href="#search" /></svg
+            ><span class="sr-only">搜索产品类别或关键词</span
+            ><input
+              id="product-search"
+              type="search"
+              placeholder="搜索 MCU、存储、电源管理…"
+              autocomplete="off"
+              maxlength="100" /></label
+          ><button class="button button-dark" type="submit">
+            搜索产品<svg class="icon"><use href="#arrow" /></svg>
+          </button>
+        </form>
+      </div>
+
+      <section
+        class="section products-section"
+        id="products"
+        aria-labelledby="products-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">01 / PRODUCT PORTFOLIO</p>
+              <h2 id="products-title">从核心器件，构建产品可能</h2>
+            </div>
+            <p class="heading-description">
+              围绕您的应用需求，<br />探索从控制、存储到连接的元器件选择。
+            </p>
+          </div>
+          <div class="product-toolbar">
+            <div class="product-tabs" role="group" aria-label="产品分类">
+              <button class="active" data-category="all" aria-pressed="true">
+                全部产品</button
+              ><button data-category="mcu" aria-pressed="false">微控制器</button
+              ><button data-category="memory" aria-pressed="false">
+                存储芯片</button
+              ><button data-category="power" aria-pressed="false">
+                电源管理</button
+              ><button data-category="analog" aria-pressed="false">
+                模拟与接口</button
+              ><button data-category="sensor" aria-pressed="false">
+                传感器</button
+              ><button data-category="passive" aria-pressed="false">
+                被动元件
+              </button>
+            </div>
+            <p class="result-count" id="result-count" aria-live="polite">
+              06 / 产品方向
+            </p>
+          </div>
+          <div class="product-grid" id="product-grid"></div>
+          <div class="empty-state" id="empty-state" hidden>
+            <svg class="icon"><use href="#search" /></svg>
+            <h3>暂未找到匹配的产品方向</h3>
+            <p>试试“存储”“MCU”或“电源”，也可以直接整理您的选型需求。</p>
+            <button class="button button-dark" id="reset-search">
+              查看全部产品
+            </button>
+          </div>
+          <div class="section-footnote">
+            <span>以实际选型需求确认品牌、型号与供货信息。</span
+            ><button class="text-link" data-inquiry>
+              已有 BOM 清单？聊聊您的需求<svg class="icon">
+                <use href="#arrow" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="section applications-section"
+        id="applications"
+        aria-labelledby="applications-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">02 / APPLICATIONS</p>
+              <h2 id="applications-title">深入应用，让每一颗芯各尽所能</h2>
+            </div>
+            <p class="heading-description">
+              理解场景，是做好选型的第一步。<br />从实际需求出发，连接合适的器件。
+            </p>
+          </div>
+          <div class="application-tabs" role="tablist" aria-label="应用领域">
+            <button
+              role="tab"
+              id="tab-industrial"
+              aria-controls="application-panel"
+              aria-selected="true"
+              tabindex="0"
+              data-scene="industrial"
+            >
+              <span>01</span>工业控制</button
+            ><button
+              role="tab"
+              id="tab-automotive"
+              aria-controls="application-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-scene="automotive"
+            >
+              <span>02</span>汽车电子</button
+            ><button
+              role="tab"
+              id="tab-iot"
+              aria-controls="application-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-scene="iot"
+            >
+              <span>03</span>智能物联</button
+            ><button
+              role="tab"
+              id="tab-energy"
+              aria-controls="application-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-scene="energy"
+            >
+              <span>04</span>新能源
+            </button>
+          </div>
+          <div
+            class="application-panel"
+            id="application-panel"
+            role="tabpanel"
+            aria-labelledby="tab-industrial"
+            tabindex="0"
+          >
+            <img
+              id="scene-image"
+              src="assets/scene-industrial.svg"
+              width="1000"
+              height="650"
+              loading="lazy"
+              alt="工业控制场景概念插画"
+            />
+            <div class="application-copy">
+              <span class="scene-kicker" id="scene-kicker"
+                >INDUSTRIAL AUTOMATION</span
+              >
+              <h3 id="scene-title">让工业更智能<br />让控制更精准</h3>
+              <p id="scene-description">
+                面向自动化设备、仪器仪表与电机控制，关注器件的稳定性、实时响应及长期供货需求。
+              </p>
+              <div class="scene-tags" id="scene-tags">
+                <span>工业 MCU</span><span>隔离与接口</span
+                ><span>电源管理</span>
+              </div>
+              <button class="button button-mint" id="scene-inquiry">
+                探讨应用需求<svg class="icon"><use href="#arrow" /></svg>
+              </button>
+            </div>
+            <span class="scene-note">APPLICATION CONCEPT / 场景示意</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="section services-section"
+        id="services"
+        aria-labelledby="services-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">03 / SUPPLY CHAIN SERVICES</p>
+              <h2 id="services-title">不止于分销，更在于连接</h2>
+            </div>
+            <a href="#contact" class="text-link"
+              >开启合作<svg class="icon"><use href="#diagonal" /></svg
+            ></a>
+          </div>
+          <div class="service-grid">
+            <article class="service-item">
+              <span class="service-number">01</span
+              ><svg class="service-icon"><use href="#chip" /></svg>
+              <h3>选型与需求匹配</h3>
+              <p>
+                从功能、封装、功耗到应用环境，梳理关键参数，让每一次选型更有方向。
+              </p>
+              <ul>
+                <li>产品参数梳理</li>
+                <li>替代方向评估</li>
+              </ul>
+            </article>
+            <article class="service-item">
+              <span class="service-number">02</span
+              ><svg class="service-icon"><use href="#shield" /></svg>
+              <h3>品质与信息追溯</h3>
+              <p>
+                关注来源、批次与交付信息，在采购协同中建立清晰、可沟通的品质要求。
+              </p>
+              <ul>
+                <li>来源信息确认</li>
+                <li>质量需求沟通</li>
+              </ul>
+            </article>
+            <article class="service-item">
+              <span class="service-number">03</span
+              ><svg class="service-icon"><use href="#network" /></svg>
+              <h3>采购与交付协同</h3>
+              <p>
+                围绕样品、小批量与项目量产计划，沟通需求节奏，让供应与生产更好衔接。
+              </p>
+              <ul>
+                <li>BOM 需求整理</li>
+                <li>交期计划协同</li>
+              </ul>
+            </article>
+          </div>
+          <div class="workflow">
+            <span class="workflow-label">从需求到交付</span
+            ><span><b>01</b>需求沟通</span><i>→</i><span><b>02</b>选型确认</span
+            ><i>→</i><span><b>03</b>采购协同</span><i>→</i
+            ><span><b>04</b>交付跟进</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="section about-section"
+        id="about"
+        aria-labelledby="about-title"
+      >
+        <div class="container about-grid">
+          <div class="about-art" aria-hidden="true">
+            <div class="orbital orbital-one"></div>
+            <div class="orbital orbital-two"></div>
+            <div class="orbital orbital-three"></div>
+            <span class="orbit-point point-one"></span
+            ><span class="orbit-point point-two"></span>
+            <div class="about-wordmark">GLW<span>光联微</span></div>
+            <span class="about-art-label">CONNECT · CREATE · GROW</span>
+            <div class="coordinates">联结专业<br />微处见远</div>
+          </div>
+          <div class="about-copy">
+            <p class="eyebrow">04 / ABOUT GUANG LIAN WEI</p>
+            <h2 id="about-title">微小的元器件<br />连接更大的世界</h2>
+            <p class="about-lead">光联微电子有限公司，专注于电子元器件分销。</p>
+            <p>
+              我们希望成为连接器件与应用、采购与交付的可靠伙伴。从理解一份选型需求开始，让信息更透明，让沟通更高效，与客户共同探索产品的更多可能。
+            </p>
+            <div class="about-values">
+              <span
+                ><svg class="icon"><use href="#check" /></svg>专业专注</span
+              ><span
+                ><svg class="icon"><use href="#check" /></svg>诚信协作</span
+              ><span
+                ><svg class="icon"><use href="#check" /></svg>共同成长</span
+              >
+            </div>
+            <button class="text-link" data-inquiry>
+              与光联微建立联系<svg class="icon"><use href="#arrow" /></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="section insights-section"
+        id="insights"
+        aria-labelledby="insights-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">05 / COMPONENT INSIGHTS</p>
+              <h2 id="insights-title">关注器件，也关注每一个细节</h2>
+            </div>
+            <span class="heading-description">选型笔记 / 采购参考</span>
+          </div>
+          <div class="insight-grid">
+            <button class="insight-card" data-article="0">
+              <div class="insight-image image-memory">
+                <img
+                  src="assets/product-memory.svg"
+                  width="400"
+                  height="260"
+                  loading="lazy"
+                  alt="存储芯片概念插画"
+                /><span>MEMORY / 01</span>
+              </div>
+              <div class="insight-content">
+                <span class="article-tag">选型笔记</span>
+                <h3>存储器选型，不止看容量</h3>
+                <p>从接口、工作电压到温度范围，整理选型前需要确认的问题。</p>
+                <span class="article-link"
+                  >阅读笔记<svg class="icon"><use href="#diagonal" /></svg
+                ></span>
+              </div></button
+            ><button class="insight-card" data-article="1">
+              <div class="insight-image image-bom">
+                <div class="bom-sheet" aria-hidden="true">
+                  <span>BOM CHECKLIST</span><i></i><i></i><i></i><i></i><b>✓</b>
+                </div>
+                <span>PROCUREMENT / 02</span>
+              </div>
+              <div class="insight-content">
+                <span class="article-tag">采购参考</span>
+                <h3>一份清晰的 BOM，让沟通更高效</h3>
+                <p>型号、数量、封装与交期，提前整理信息，减少反复确认。</p>
+                <span class="article-link"
+                  >阅读笔记<svg class="icon"><use href="#diagonal" /></svg
+                ></span>
+              </div></button
+            ><button class="insight-card" data-article="2">
+              <div class="insight-image image-power">
+                <img
+                  src="assets/product-power.svg"
+                  width="400"
+                  height="260"
+                  loading="lazy"
+                  alt="电源芯片概念插画"
+                /><span>POWER / 03</span>
+              </div>
+              <div class="insight-content">
+                <span class="article-tag">选型笔记</span>
+                <h3>从应用出发，梳理电源管理需求</h3>
+                <p>明确输入输出边界，把效率、热设计与保护要求一起考虑。</p>
+                <span class="article-link"
+                  >阅读笔记<svg class="icon"><use href="#diagonal" /></svg
+                ></span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact-section" id="contact">
+        <div class="container contact-inner">
+          <div>
+            <p class="eyebrow">LET’S CONNECT</p>
+            <h2>您的下一个项目<br />从一次对话开始<span>.</span></h2>
+            <p>
+              无论是寻找一颗芯片，还是梳理一份
+              BOM，我们都愿意从了解您的需求开始。
+            </p>
+          </div>
+          <button class="button button-mint" data-inquiry>
+            聊聊您的需求<svg class="icon"><use href="#diagonal" /></svg>
+          </button>
+        </div>
+        <span class="contact-decoration" aria-hidden="true">GLW</span>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-top">
+        <a class="brand footer-brand" href="#home"
+          ><span class="brand-symbol" aria-hidden="true"
+            ><i></i><i></i><i></i></span
+          ><span class="brand-type"
+            ><strong>光联微<span>GLW</span></strong
+            ><small>GUANG LIAN WEI</small></span
+          ></a
+        >
+        <p>连接每一颗芯，点亮无限可能。</p>
+        <nav aria-label="页脚导航">
+          <a href="#products">产品中心</a><a href="#services">供应链服务</a
+          ><a href="#about">关于我们</a
+          ><button data-inquiry>
+            联系光联微<svg class="icon"><use href="#diagonal" /></svg>
+          </button>
+        </nav>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="copyright-year">2026</span> 光联微电子有限公司</span
+        ><span>品牌官网设计预览 · 产品与服务信息待确认</span
+        ><button id="privacy-button">隐私说明</button>
+      </div>
+    </footer>
+    <a href="#home" class="back-to-top" aria-label="返回顶部" hidden>↑</a>
+
+    <dialog
+      class="content-dialog"
+      id="detail-dialog"
+      aria-labelledby="detail-title"
+    >
+      <button class="dialog-close icon-button" aria-label="关闭详情">
+        <svg class="icon"><use href="#close" /></svg>
+      </button>
+      <div id="detail-content"></div>
+    </dialog>
+    <dialog
+      class="inquiry-dialog"
+      id="inquiry-dialog"
+      aria-labelledby="inquiry-title"
+    >
+      <button class="dialog-close icon-button" aria-label="关闭需求表单">
+        <svg class="icon"><use href="#close" /></svg>
+      </button>
+      <p class="eyebrow">START A CONVERSATION</p>
+      <h2 id="inquiry-title">让我们了解您的需求</h2>
+      <p class="inquiry-intro">整理您的选型或采购计划，开启下一步沟通。</p>
+      <div class="preview-notice">
+        当前为静态设计预览，填写内容仅生成本地清单，不会发送或上传。
+      </div>
+      <form id="inquiry-form">
+        <div class="form-row">
+          <label
+            >您的称呼<span>*</span
+            ><input
+              name="name"
+              required
+              maxlength="50"
+              autocomplete="name"
+              placeholder="请输入称呼" /></label
+          ><label
+            >公司名称<input
+              name="company"
+              maxlength="100"
+              autocomplete="organization"
+              placeholder="请输入公司名称"
+          /></label>
+        </div>
+        <label
+          >联系电话或邮箱<span>*</span
+          ><input
+            name="contact"
+            required
+            maxlength="120"
+            placeholder="填写手机号、电话或邮箱" /></label
+        ><label
+          >需求方向<select name="category">
+            <option value="综合咨询">综合咨询</option>
+            <option>微控制器</option>
+            <option>存储芯片</option>
+            <option>电源管理</option>
+            <option>模拟与接口</option>
+            <option>传感器</option>
+            <option>被动元件</option>
+            <option>工业控制</option>
+            <option>汽车电子</option>
+            <option>智能物联</option>
+            <option>新能源</option>
+          </select></label
+        ><label
+          >需求描述<span>*</span
+          ><textarea
+            name="message"
+            rows="4"
+            required
+            minlength="5"
+            maxlength="2000"
+            placeholder="可填写型号、数量、封装、期望交期或应用场景…"
+          ></textarea>
+        </label>
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+        <button class="button button-dark form-submit" type="submit">
+          生成询价清单<svg class="icon"><use href="#arrow" /></svg>
+        </button>
+      </form>
+      <div class="inquiry-result" id="inquiry-result" hidden>
+        <span class="result-check">✓</span>
+        <h3>您的询价清单已整理</h3>
+        <p>清单尚未发送。您可以下载保存，待确认商务联系方式后用于沟通。</p>
+        <pre id="inquiry-preview"></pre>
+        <div class="result-actions">
+          <button class="button button-dark" id="download-inquiry">
+            下载清单<svg class="icon"><use href="#download" /></svg></button
+          ><button class="button button-light" id="edit-inquiry">
+            继续编辑
+          </button>
+        </div>
+      </div>
+    </dialog>
+    <noscript
+      ><div class="noscript-note">
+        请启用 JavaScript 以使用产品筛选、详情及询价清单功能。
+      </div></noscript
+    >
+  </body>
+</html>
