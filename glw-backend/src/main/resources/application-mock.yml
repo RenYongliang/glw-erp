@@ -1,0 +1,8 @@
+# 纯 mock：不需要 MySQL/Redis。会话在内存，重启后 Token 失效。
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+app:
+  jwt:
+    secret: ${JWT_SECRET:glw-mock-only-signing-key-replace-before-production-2026}
