@@ -7,6 +7,12 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/boards/inventory',
+      name: 'inventory-board',
+      component: () => import('../views/InventoryBoardView.vue'),
+      meta: { title: '库存统计看板' },
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('../views/LoginView.vue'),

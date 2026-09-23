@@ -44,6 +44,7 @@ onBeforeUnmount(() => {
   clearInterval(sessionTimer)
 })
 const boardMenus = [
+  { title: '库存统计看板', path: '/boards/inventory' },
   { title: '销售订单看板', path: '/boards/sales' },
   { title: '采购订单看板', path: '/boards/purchase' },
 ]

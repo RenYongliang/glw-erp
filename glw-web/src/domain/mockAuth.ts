@@ -86,7 +86,9 @@ export function safeRedirect(value: unknown): string {
     const url = new URL(value, 'https://glw.local')
     if (
       url.origin !== 'https://glw.local' ||
-      !['/', '/orders', '/boards/sales', '/boards/purchase'].includes(url.pathname)
+      !['/', '/orders', '/boards/sales', '/boards/purchase', '/boards/inventory'].includes(
+        url.pathname,
+      )
     )
       return '/'
     return url.pathname + url.search + url.hash
