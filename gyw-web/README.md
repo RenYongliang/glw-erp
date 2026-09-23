@@ -1,48 +1,45 @@
-# gyw-web
+﻿# GYW 进销存前端
 
-This template should help get you started developing with Vue 3 in Vite.
+基于 Vue 3、TypeScript、Vite、Element Plus 和 Pinia，包含登录、首页工作台、订单跟踪，以及销售和采购订单看板。
 
-## Recommended IDE Setup
+## 环境要求
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Node.js：`^22.18.0 || >=24.12.0`
+- npm
+- VS Code 建议安装 Vue - Official（`Vue.volar`）扩展，并禁用 Vetur。
 
-## Recommended Browser Setup
+## 本地启动
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+在项目根目录执行：
 
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
+```powershell
+npm.cmd install
+npm.cmd run dev
 ```
 
-### Compile and Hot-Reload for Development
+打开终端显示的本地地址，按 `Ctrl+C` 停止服务。
 
-```sh
-npm run dev
+## 检查与构建
+
+```powershell
+# TypeScript 类型检查
+npm.cmd run type-check
+
+# 类型检查并构建，产物输出到 dist
+npm.cmd run build
+
+# 本地预览构建产物
+npm.cmd run preview
 ```
 
-### Type-Check, Compile and Minify for Production
+## 目录说明
 
-```sh
-npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+- `src/views`：业务页面
+- `src/components`：业务组件
+- `src/router`：路由与登录守卫
+- `src/stores`：状态管理
+- `src/domain`：业务逻辑与模拟认证
+- `src/data`：本地数据
+- `src/assets`：页面样式
+- `tests`：业务逻辑测试
+- `docs`：业务文档
