@@ -7,18 +7,18 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/customers',
-      name: 'customers',
-      component: () => import('../views/CustomerManagementView.vue'),
-      props: { kind: 'customers' },
-      meta: { title: '客户' },
+      path: '/purchase/orders',
+      name: 'purchase-orders',
+      component: () => import('../views/PurchaseManagementView.vue'),
+      props: { kind: 'orders' },
+      meta: { title: '采购订单' },
     },
     {
-      path: '/followups',
-      name: 'followups',
-      component: () => import('../views/CustomerManagementView.vue'),
-      props: { kind: 'followups' },
-      meta: { title: '跟进记录' },
+      path: '/purchase/receipts',
+      name: 'purchase-receipts',
+      component: () => import('../views/PurchaseManagementView.vue'),
+      props: { kind: 'receipts' },
+      meta: { title: '采购入库' },
     },
     {
       path: '/customers',

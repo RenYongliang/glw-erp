@@ -64,12 +64,18 @@ const customerMenus = [
   { title: '客户', path: '/customers' },
   { title: '跟进记录', path: '/followups' },
 ]
+const purchaseMenus = [
+  { title: '采购订单', path: '/purchase/orders' },
+  { title: '采购入库', path: '/purchase/receipts' },
+]
+const purchaseExpanded = ref(route.path.startsWith('/purchase/'))
 const customerExpanded = ref(['/customers', '/followups'].includes(route.path))
 const boardExpanded = ref(route.path.startsWith('/boards/'))
 const pageTitle = computed(() => String(route.meta.title || '首页'))
 watch(
   () => route.path,
   () => {
+    if (route.path.startsWith('/purchase/')) purchaseExpanded.value = true
     if (route.path.startsWith('/boards/')) boardExpanded.value = true
     if (['/customers', '/followups'].includes(route.path)) customerExpanded.value = true
     workspace.value?.querySelector('.page-scroll')?.scrollTo({ top: 0 })
@@ -94,6 +100,8 @@ const filteredMenus = computed(() =>
     (item) =>
       item.includes(query.value.trim()) ||
       (item === '经营看板' && boardMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
+      (item === '采购管理' &&
+        purchaseMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '客户管理' &&
         customerMenus.some((menu) => menu.title.includes(query.value.trim()))),
   ),
@@ -105,6 +113,9 @@ function navigate(name: string) {
   } else if (name === '经营看板') {
     if (collapsed.value) collapsed.value = false
     boardExpanded.value = !boardExpanded.value
+  } else if (name === '采购管理') {
+    if (collapsed.value) collapsed.value = false
+    purchaseExpanded.value = !purchaseExpanded.value
   } else if (name === '客户管理') {
     if (collapsed.value) collapsed.value = false
     customerExpanded.value = !customerExpanded.value
@@ -159,7 +170,9 @@ async function fullscreen() {
                     ? boardExpanded
                     : name === '客户管理'
                       ? customerExpanded
-                      : undefined
+                      : name === '采购管理'
+                        ? purchaseExpanded
+                        : undefined
                 "
                 @click="navigate(name)"
               >
@@ -171,10 +184,15 @@ async function fullscreen() {
                   >{{ name }}<span v-if="name === '应用说明'" class="tip-bulb">💡</span></span
                 >
                 <el-icon
-                  v-if="['经营看板', '客户管理'].includes(name) && !collapsed"
+                  v-if="['经营看板', '客户管理', '采购管理'].includes(name) && !collapsed"
                   class="board-menu-arrow"
                   :class="{
-                    open: name === '经营看板' ? boardExpanded : customerExpanded,
+                    open:
+                      name === '经营看板'
+                        ? boardExpanded
+                        : name === '客户管理'
+                          ? customerExpanded
+                          : purchaseExpanded,
                   }"
                   ><ArrowDown
                 /></el-icon>
@@ -192,6 +210,21 @@ async function fullscreen() {
                   :aria-label="menu.title"
                   :aria-current="route.path === menu.path ? 'page' : undefined"
                   ><el-icon><DataAnalysis /></el-icon><span>{{ menu.title }}</span></RouterLink
+                >
+              </div>
+              <div v-if="name === '采购管理' && (purchaseExpanded || query)" class="board-submenu">
+                <RouterLink
+                  v-for="menu in purchaseMenus.filter(
+                    (item) => !query || '采购管理'.includes(query) || item.title.includes(query),
+                  )"
+                  :key="menu.path"
+                  :to="menu.path"
+                  class="nav-item"
+                  :class="{ active: route.path === menu.path }"
+                  :title="menu.title"
+                  :aria-label="menu.title"
+                  :aria-current="route.path === menu.path ? 'page' : undefined"
+                  ><el-icon><Document /></el-icon><span>{{ menu.title }}</span></RouterLink
                 >
               </div>
               <div v-if="name === '客户管理' && (customerExpanded || query)" class="board-submenu">
