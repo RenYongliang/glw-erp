@@ -1,6 +1,8 @@
 import source from '../data/orderBoards.json'
 export type BoardKind = 'sales' | 'purchase'
 export interface ProductLine {
+  brand?: string
+  package?: string
   product: string
   code: string
   quantity: number
@@ -8,6 +10,7 @@ export interface ProductLine {
   amount: number
 }
 export interface BoardOrder {
+  paymentTerm?: string
   id: string
   name: string
   partner: string

@@ -590,3 +590,17 @@
     min-height: 273px;
   }
 }
+
+/* Sales has three filters after removing approval. */
+.order-board[data-kind='sales'] .board-stat-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 700px) {
+  .order-board[data-kind='sales'] .board-stat-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.order-board[data-kind='sales'] .board-table-panel:fullscreen {
+  overflow-y: auto;
+}

@@ -41,9 +41,30 @@ test('source data is complete and uses the original sales/purchase metric defini
   const data = JSON.parse(readFileSync(new URL('../src/data/orderBoards.json', import.meta.url),'utf8'))
   assert.equal(data.sales.orders.length,19)
   assert.equal(data.purchase.orders.length,24)
-  assert.equal(data.sales.execution.length,76)
+  assert.equal(data.sales.execution.length,29)
   assert.equal(data.purchase.execution.length,47)
-  assert.equal(data.sales.orders.reduce((sum,o)=>sum+o.amount,0),6510150)
+  const distribution = { 1: 0, 2: 0, 3: 0 }
+  const packages = { ET7303Y: 'QFN14', ET8211: 'SOP16', ET5A033YB: 'DFN*1', ET5907: 'WLCSP6(0.4 Pitch)' }
+  for (const order of data.sales.orders) {
+    distribution[order.lines.length]++
+    assert.equal(order.amount, order.lines.reduce((sum, line) => sum + line.amount, 0))
+    for (const line of order.lines) {
+      assert.equal(line.brand, '力芯微')
+      assert.ok(Object.hasOwn(packages, line.product))
+      assert.equal(line.package, packages[line.product])
+      assert.equal(line.amount, Math.round(line.quantity * line.price * 100) / 100)
+      const progress = data.sales.execution.find(row => row.id === order.id && row.code === line.code)
+      assert.ok(progress)
+      assert.equal(progress.product, line.product)
+      assert.equal(progress.quantity, line.quantity)
+      assert.equal(progress.shipped + progress.pending, line.quantity)
+      assert.equal(progress.settled + progress.unsettled, progress.shipped)
+      assert.equal(progress.planned + progress.unplanned, progress.pending)
+      assert.equal(progress.payable, Math.round(progress.settled * line.price * 100) / 100)
+      assert.equal(progress.paid + progress.unpaid, progress.payable)
+    }
+  }
+  assert.deepEqual(distribution, { 1: 13, 2: 2, 3: 4 })
   assert.equal(data.purchase.orders.flatMap(o=>o.lines).reduce((sum,l)=>sum+l.amount,0),3435860)
   for(const kind of ['sales','purchase']) {
     for(const line of data[kind].execution) assert.ok(data[kind].orders.some(o=>o.id===line.id && o.name===line.name))

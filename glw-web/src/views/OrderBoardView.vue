@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus'
 import BoardTextFilter from '../components/boards/BoardTextFilter.vue'
 import BoardDateFilter from '../components/boards/BoardDateFilter.vue'
 import TrendChart from '../components/TrendChart.vue'
+import SalesOrderCards from '../components/boards/SalesOrderCards.vue'
 import {
   boardData,
   orderMetric,
@@ -55,7 +56,32 @@ const executionTable = ref<TableInstance>()
 const sortVisible = ref(false)
 const sortField = ref('signed')
 const sortDirection = ref('descending')
+const sortOptions = computed(() =>
+  purchase.value
+    ? [
+        { value: 'partner', label: '供应商' },
+        { value: 'name', label: '采购订单名称' },
+        { value: 'amount', label: '订单金额' },
+        { value: 'signed', label: '订单签订日期' },
+        { value: 'delivery', label: '订单交付日期' },
+        { value: 'owner', label: '采购负责人' },
+      ]
+    : [
+        { value: 'id', label: '订单编号' },
+        { value: 'signed', label: '订单日期' },
+        { value: 'partner', label: '客户名称' },
+        { value: 'amount', label: '订单金额' },
+        { value: 'paymentTerm', label: '账期' },
+        { value: 'owner', label: '销售负责人' },
+        { value: 'delivery', label: '交付日期' },
+      ],
+)
 function applySort() {
+  if (!purchase.value) {
+    sort.value = { prop: sortField.value, order: sortDirection.value }
+    sortVisible.value = false
+    return
+  }
   statsTable.value?.sort(
     sortField.value === 'amount' ? 'order.amount' : sortField.value,
     sortDirection.value,
@@ -79,7 +105,7 @@ const options = computed(() => ({
 const filteredOrders = computed(() =>
   orders.value.filter(
     (order) =>
-      (!approval.value || order.approval === `审批${approval.value}`) &&
+      (!purchase.value || !approval.value || order.approval === `审批${approval.value}`) &&
       matchesText(order.partner, partner.value) &&
       matchesText(order.owner, owner.value) &&
       matchesText(order.warehouse, warehouse.value) &&
@@ -117,6 +143,9 @@ const trend = computed(() => {
     values: months.map((month) => Number(groups.get(month)!.toFixed(2))),
   }
 })
+const cardOrders = computed(() =>
+  sortedOrders.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value),
+)
 const statsRows = computed(() =>
   sortedOrders.value
     .slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
@@ -233,12 +262,16 @@ watch(
   },
   { deep: true },
 )
-watch(page, () => statsTable.value?.setScrollTop(0))
+watch(page, () => {
+  statsTable.value?.setScrollTop(0)
+  if (!purchase.value) tablePanel.value?.scrollIntoView({ block: 'start' })
+})
 watch(executionPage, () => executionTable.value?.setScrollTop(0))
 watch(
   () => props.kind,
   () => {
     tab.value = 'statistics'
+    pageSize.value = 20
     resetStatistics()
     resetExecution()
     detailsId.value = ''
@@ -247,6 +280,8 @@ watch(
 )
 function statsSpan({ row, column }: { row: StatsRow; column: TableColumnCtx<StatsRow> }) {
   return [
+    'id',
+    'paymentTerm',
     'partner',
     'name',
     'order.amount',
@@ -306,31 +341,73 @@ async function toggleTableFullscreen() {
   }
 }
 function exportCsv() {
+  const salesHeaders = [
+    '订单编号',
+    '订单日期',
+    '客户名称',
+    '订单金额',
+    '账期',
+    '销售负责人',
+    '交付日期',
+    '品牌',
+    '型号',
+    '封装',
+    '单价',
+    '数量',
+    '金额',
+    '送货批次',
+    '计划送货日期',
+    '计划送货内容备注',
+  ]
+  const salesRows = sortedOrders.value.flatMap((order) =>
+    order.lines.map((line, index) => [
+      order.id,
+      order.signed,
+      order.partner,
+      order.amount,
+      order.paymentTerm || '',
+      order.owner,
+      order.delivery,
+      line.brand || '',
+      line.product,
+      line.package || '',
+      line.price,
+      line.quantity,
+      line.amount,
+      order.plans[index]?.batch || '',
+      order.plans[index]?.date || '',
+      order.plans[index]?.note || '',
+    ]),
+  )
   const data =
     tab.value === 'statistics'
-      ? sortedOrders.value.map((order) => [
-          order.partner,
-          order.name,
-          order.amount,
-          order.signed,
-          order.delivery,
-          order.approval,
-          order.owner,
-        ])
+      ? !purchase.value
+        ? salesRows
+        : sortedOrders.value.map((order) => [
+            order.partner,
+            order.name,
+            order.amount,
+            order.signed,
+            order.delivery,
+            order.approval,
+            order.owner,
+          ])
       : filteredExecution.value.map((line) =>
           executionColumns.value.map((column) => line[column.prop as keyof ExecutionLine] ?? ''),
         )
   const headers =
     tab.value === 'statistics'
-      ? [
-          partnerLabel.value,
-          `${prefix.value}订单名称`,
-          '订单金额/元',
-          '订单签订日期',
-          '订单交付日期',
-          '审批结果',
-          `${prefix.value}负责人`,
-        ]
+      ? !purchase.value
+        ? salesHeaders
+        : [
+            partnerLabel.value,
+            `${prefix.value}订单名称`,
+            '订单金额/元',
+            '订单签订日期',
+            '订单交付日期',
+            '审批结果',
+            `${prefix.value}负责人`,
+          ]
       : executionColumns.value.map((column) => column.label)
   const escape = (value: unknown) => '"' + String(value).replace(/"/g, '""') + '"'
   const url = URL.createObjectURL(
@@ -386,7 +463,7 @@ function exportCsv() {
           </div>
         </div>
         <div class="board-stat-filters">
-          <div class="board-filter approval-filter">
+          <div v-if="purchase" class="board-filter approval-filter">
             <div class="board-filter-heading"><strong>审批结果</strong></div>
             <div class="filter-buttons">
               <el-button
@@ -417,7 +494,7 @@ function exportCsv() {
               :options="options.partners" /><BoardTextFilter
               v-model="owner"
               label="销售负责人"
-              :options="options.owners" /><BoardDateFilter v-model="date" label="订单签订日期"
+              :options="options.owners" /><BoardDateFilter v-model="date" label="订单日期"
           /></template>
         </div>
       </template>
@@ -477,14 +554,7 @@ function exportCsv() {
                 <strong>排序设置</strong
                 ><el-select :teleported="false" v-model="sortField" aria-label="排序字段"
                   ><el-option
-                    v-for="item in [
-                      { value: 'partner', label: partnerLabel },
-                      { value: 'name', label: `${prefix}订单名称` },
-                      { value: 'amount', label: '订单金额' },
-                      { value: 'signed', label: '订单签订日期' },
-                      { value: 'delivery', label: '订单交付日期' },
-                      { value: 'owner', label: `${prefix}负责人` },
-                    ]"
+                    v-for="item in sortOptions"
                     :key="item.value"
                     :label="item.label"
                     :value="item.value" /></el-select
@@ -509,8 +579,13 @@ function exportCsv() {
             />
           </div>
         </div>
+        <SalesOrderCards
+          v-if="tab === 'statistics' && !purchase"
+          :orders="cardOrders"
+          @open="detailsId = $event.id"
+        />
         <el-table
-          v-if="tab === 'statistics'"
+          v-else-if="tab === 'statistics'"
           :key="`${kind}-statistics`"
           ref="statsTable"
           class="board-table"
@@ -524,92 +599,96 @@ function exportCsv() {
           @row-click="openOrder"
           empty-text="暂无数据"
         >
-          <el-table-column
-            prop="partner"
-            :label="partnerLabel"
-            width="125"
-            :fixed="!smallScreen"
-            sortable="custom"
-          /><el-table-column
-            prop="name"
-            :label="`${prefix}订单名称`"
-            width="150"
-            :fixed="!smallScreen"
-            sortable="custom"
-            ><template #default="{ row }"
-              ><button class="board-order-link" @click.stop="openOrder(row)">
-                {{ row.name }}
-              </button></template
-            ></el-table-column
-          >
-          <el-table-column
-            v-if="purchase"
-            prop="warehouse"
-            label="仓库"
-            width="95"
-            sortable="custom"
-          />
-          <el-table-column
-            prop="order.amount"
-            :label="`${prefix}订单金额/元`"
-            width="150"
-            align="right"
-            sortable="custom"
-            ><template #default="{ row }">{{ money(row.order.amount) }}</template></el-table-column
-          >
-          <el-table-column
-            v-if="purchase"
-            prop="owner"
-            label="采购负责人"
-            width="120"
-            sortable="custom"
-          />
-          <el-table-column
-            prop="signed"
-            label="订单签订日期"
-            width="140"
-            sortable="custom"
-          /><el-table-column
-            prop="delivery"
-            label="订单交付日期"
-            width="140"
-            sortable="custom"
-          /><el-table-column prop="approval" label="审批结果" width="120" sortable="custom"
-            ><template #default="{ row }"
-              ><el-tag size="small" effect="dark">{{ row.approval }}</el-tag></template
-            ></el-table-column
-          >
-          <el-table-column
-            v-if="!purchase"
-            prop="owner"
-            label="销售负责人"
-            width="120"
-            sortable="custom"
-          />
-          <el-table-column :label="purchase ? '采购产品明细' : '产品明细'" align="center"
-            ><el-table-column prop="product" label="产品名称" width="135" /><el-table-column
-              prop="code"
-              label="产品编码"
-              width="100"
+          <template v-if="purchase">
+            <el-table-column
+              prop="partner"
+              :label="partnerLabel"
+              width="125"
+              :fixed="!smallScreen"
+              sortable="custom"
             /><el-table-column
-              prop="quantity"
-              :label="`${prefix}数量`"
-              width="100"
+              prop="name"
+              :label="`${prefix}订单名称`"
+              width="150"
+              :fixed="!smallScreen"
+              sortable="custom"
+              ><template #default="{ row }"
+                ><button class="board-order-link" @click.stop="openOrder(row)">
+                  {{ row.name }}
+                </button></template
+              ></el-table-column
+            >
+            <el-table-column
+              v-if="purchase"
+              prop="warehouse"
+              label="仓库"
+              width="95"
+              sortable="custom"
+            />
+            <el-table-column
+              prop="order.amount"
+              :label="`${prefix}订单金额/元`"
+              width="150"
               align="right"
-            /><el-table-column
-              prop="price"
-              :label="purchase ? '采购单价/元' : '实际售价/元'"
+              sortable="custom"
+              ><template #default="{ row }">{{
+                money(row.order.amount)
+              }}</template></el-table-column
+            >
+            <el-table-column
+              v-if="purchase"
+              prop="owner"
+              label="采购负责人"
               width="120"
-              align="right"
-              ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
-            ><el-table-column
-              prop="amount"
-              :label="purchase ? '产品采购总价/元' : '实际售价合计/元'"
-              width="145"
-              align="right"
-              ><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
-            ></el-table-column
-          >
+              sortable="custom"
+            />
+            <el-table-column
+              prop="signed"
+              label="订单签订日期"
+              width="140"
+              sortable="custom"
+            /><el-table-column
+              prop="delivery"
+              label="订单交付日期"
+              width="140"
+              sortable="custom"
+            /><el-table-column prop="approval" label="审批结果" width="120" sortable="custom"
+              ><template #default="{ row }"
+                ><el-tag size="small" effect="dark">{{ row.approval }}</el-tag></template
+              ></el-table-column
+            >
+            <el-table-column
+              v-if="!purchase"
+              prop="owner"
+              label="销售负责人"
+              width="120"
+              sortable="custom"
+            />
+            <el-table-column :label="purchase ? '采购产品明细' : '产品明细'" align="center"
+              ><el-table-column prop="product" label="产品名称" width="135" /><el-table-column
+                prop="code"
+                label="产品编码"
+                width="100"
+              /><el-table-column
+                prop="quantity"
+                :label="`${prefix}数量`"
+                width="100"
+                align="right"
+              /><el-table-column
+                prop="price"
+                :label="purchase ? '采购单价/元' : '实际售价/元'"
+                width="120"
+                align="right"
+                ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
+              ><el-table-column
+                prop="amount"
+                :label="purchase ? '产品采购总价/元' : '实际售价合计/元'"
+                width="145"
+                align="right"
+                ><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
+              ></el-table-column
+            >
+          </template>
           <el-table-column :label="purchase ? '到货计划' : '送货计划'" align="center"
             ><el-table-column
               prop="plan.batch"
@@ -654,9 +733,11 @@ function exportCsv() {
           <el-pagination
             v-model:current-page="page"
             v-model:page-size="pageSize"
-            :page-sizes="[20, 50, 100]"
+            :page-sizes="purchase ? [20, 50, 100] : [10, 20, 50]"
             :total="sortedOrders.length"
-            layout="sizes, total, ->, prev, pager, next, jumper"
+            :layout="
+              smallScreen ? 'prev, pager, next' : 'sizes, total, ->, prev, pager, next, jumper'
+            "
           />
         </div>
         <div v-else class="board-execution-pagination">
@@ -713,43 +794,69 @@ function exportCsv() {
             @click="drawerFullscreen = !drawerFullscreen"
           />
         </div>
-        <el-descriptions :column="2" direction="vertical" border
-          ><el-descriptions-item :label="partnerLabel">{{ detail.partner }}</el-descriptions-item
-          ><el-descriptions-item :label="`${prefix}订单名称`">{{
-            detail.name
-          }}</el-descriptions-item
-          ><el-descriptions-item v-if="purchase" label="仓库">{{
-            detail.warehouse
-          }}</el-descriptions-item
-          ><el-descriptions-item :label="`${prefix}订单金额/元`">{{
-            money(detail.amount)
-          }}</el-descriptions-item
-          ><el-descriptions-item label="订单签订日期">{{ detail.signed }}</el-descriptions-item
-          ><el-descriptions-item label="订单交付日期">{{ detail.delivery }}</el-descriptions-item
-          ><el-descriptions-item label="审批结果"
-            ><el-tag effect="dark">{{ detail.approval }}</el-tag></el-descriptions-item
-          ><el-descriptions-item :label="`${prefix}负责人`">{{
-            detail.owner
-          }}</el-descriptions-item></el-descriptions
-        >
-        <h3>{{ purchase ? '采购产品明细' : '产品明细' }}</h3>
-        <el-table :data="detail.lines" border
-          ><el-table-column type="index" width="50" /><el-table-column
-            prop="product"
-            label="产品名称"
-            min-width="130"
-          /><el-table-column prop="code" label="产品编码" min-width="95" /><el-table-column
-            prop="quantity"
-            :label="`${prefix}数量`"
-            min-width="90"
-          /><el-table-column :label="purchase ? '采购单价/元' : '实际售价/元'" min-width="120"
-            ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
-          ><el-table-column
-            :label="purchase ? '产品采购总价/元' : '实际售价合计/元'"
-            min-width="145"
-            ><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
-          ></el-table
-        >
+        <template v-if="purchase">
+          <el-descriptions :column="2" direction="vertical" border
+            ><el-descriptions-item :label="partnerLabel">{{ detail.partner }}</el-descriptions-item
+            ><el-descriptions-item :label="`${prefix}订单名称`">{{
+              detail.name
+            }}</el-descriptions-item
+            ><el-descriptions-item v-if="purchase" label="仓库">{{
+              detail.warehouse
+            }}</el-descriptions-item
+            ><el-descriptions-item :label="`${prefix}订单金额/元`">{{
+              money(detail.amount)
+            }}</el-descriptions-item
+            ><el-descriptions-item label="订单签订日期">{{ detail.signed }}</el-descriptions-item
+            ><el-descriptions-item label="订单交付日期">{{ detail.delivery }}</el-descriptions-item
+            ><el-descriptions-item label="审批结果"
+              ><el-tag effect="dark">{{ detail.approval }}</el-tag></el-descriptions-item
+            ><el-descriptions-item :label="`${prefix}负责人`">{{
+              detail.owner
+            }}</el-descriptions-item></el-descriptions
+          >
+          <h3>{{ purchase ? '采购产品明细' : '产品明细' }}</h3>
+          <el-table :data="detail.lines" border
+            ><el-table-column type="index" width="50" /><el-table-column
+              prop="product"
+              label="产品名称"
+              min-width="130"
+            /><el-table-column prop="code" label="产品编码" min-width="95" /><el-table-column
+              prop="quantity"
+              :label="`${prefix}数量`"
+              min-width="90"
+            /><el-table-column :label="purchase ? '采购单价/元' : '实际售价/元'" min-width="120"
+              ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
+            ><el-table-column
+              :label="purchase ? '产品采购总价/元' : '实际售价合计/元'"
+              min-width="145"
+              ><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
+            ></el-table
+          >
+        </template>
+        <template v-else>
+          <el-descriptions :column="2" direction="vertical" border>
+            <el-descriptions-item label="订单编号">{{ detail.id }}</el-descriptions-item>
+            <el-descriptions-item label="订单日期">{{ detail.signed }}</el-descriptions-item>
+            <el-descriptions-item label="客户名称">{{ detail.partner }}</el-descriptions-item>
+            <el-descriptions-item label="订单金额">{{ money(detail.amount) }}</el-descriptions-item>
+            <el-descriptions-item label="账期">{{ detail.paymentTerm }}</el-descriptions-item>
+            <el-descriptions-item label="销售负责人">{{ detail.owner }}</el-descriptions-item>
+            <el-descriptions-item label="交付日期">{{ detail.delivery }}</el-descriptions-item>
+          </el-descriptions>
+          <h3>产品明细</h3>
+          <el-table :data="detail.lines" border>
+            <el-table-column prop="brand" label="品牌" min-width="100" />
+            <el-table-column prop="product" label="型号" min-width="170" />
+            <el-table-column prop="package" label="封装" min-width="100" />
+            <el-table-column label="单价" min-width="120" align="right"
+              ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
+            >
+            <el-table-column prop="quantity" label="数量" min-width="90" align="right" />
+            <el-table-column label="金额" min-width="145" align="right"
+              ><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
+            >
+          </el-table>
+        </template>
         <h3>{{ purchase ? '到货计划' : '送货计划' }}</h3>
         <el-table :data="detail.plans" border
           ><el-table-column type="index" width="50" /><el-table-column
