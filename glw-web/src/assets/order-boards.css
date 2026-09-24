@@ -601,6 +601,19 @@
   }
 }
 
-.order-board[data-kind='sales'] .board-table-panel:fullscreen {
-  overflow-y: auto;
+.order-board[data-kind="sales"] .board-table td.sales-order-centered {
+  vertical-align: middle;
+}
+.order-board[data-kind="sales"] .sales-order-centered .board-order-link {
+  text-align: center;
+}
+
+/* Compact minimum widths expand together to fill the available desktop space. */
+.order-board .sales-statistics-table .cell {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.order-board .sales-statistics-table th .cell {
+  padding-left: 3px;
+  padding-right: 3px;
 }

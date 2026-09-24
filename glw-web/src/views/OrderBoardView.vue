@@ -6,7 +6,6 @@ import { ElMessage } from 'element-plus'
 import BoardTextFilter from '../components/boards/BoardTextFilter.vue'
 import BoardDateFilter from '../components/boards/BoardDateFilter.vue'
 import TrendChart from '../components/TrendChart.vue'
-import SalesOrderCards from '../components/boards/SalesOrderCards.vue'
 import {
   boardData,
   orderMetric,
@@ -77,11 +76,6 @@ const sortOptions = computed(() =>
       ],
 )
 function applySort() {
-  if (!purchase.value) {
-    sort.value = { prop: sortField.value, order: sortDirection.value }
-    sortVisible.value = false
-    return
-  }
   statsTable.value?.sort(
     sortField.value === 'amount' ? 'order.amount' : sortField.value,
     sortDirection.value,
@@ -143,9 +137,6 @@ const trend = computed(() => {
     values: months.map((month) => Number(groups.get(month)!.toFixed(2))),
   }
 })
-const cardOrders = computed(() =>
-  sortedOrders.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value),
-)
 const statsRows = computed(() =>
   sortedOrders.value
     .slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
@@ -262,16 +253,12 @@ watch(
   },
   { deep: true },
 )
-watch(page, () => {
-  statsTable.value?.setScrollTop(0)
-  if (!purchase.value) tablePanel.value?.scrollIntoView({ block: 'start' })
-})
+watch(page, () => statsTable.value?.setScrollTop(0))
 watch(executionPage, () => executionTable.value?.setScrollTop(0))
 watch(
   () => props.kind,
   () => {
     tab.value = 'statistics'
-    pageSize.value = 20
     resetStatistics()
     resetExecution()
     detailsId.value = ''
@@ -342,41 +329,14 @@ async function toggleTableFullscreen() {
 }
 function exportCsv() {
   const salesHeaders = [
-    '订单编号',
-    '订单日期',
-    '客户名称',
-    '订单金额',
-    '账期',
-    '销售负责人',
-    '交付日期',
-    '品牌',
-    '型号',
-    '封装',
-    '单价',
-    '数量',
-    '金额',
-    '送货批次',
-    '计划送货日期',
-    '计划送货内容备注',
+    '订单编号', '订单日期', '客户名称',
+    '品牌', '型号', '封装', '单价', '数量', '金额', '订单金额', '账期', '交付日期', '销售负责人',
   ]
   const salesRows = sortedOrders.value.flatMap((order) =>
-    order.lines.map((line, index) => [
-      order.id,
-      order.signed,
-      order.partner,
-      order.amount,
-      order.paymentTerm || '',
-      order.owner,
-      order.delivery,
-      line.brand || '',
-      line.product,
-      line.package || '',
-      line.price,
-      line.quantity,
-      line.amount,
-      order.plans[index]?.batch || '',
-      order.plans[index]?.date || '',
-      order.plans[index]?.note || '',
+    order.lines.map((line) => [
+      order.id, order.signed, order.partner,
+      line.brand || '', line.product, line.package || '', line.price, line.quantity,
+      line.amount, order.amount, order.paymentTerm || '', order.delivery, order.owner,
     ]),
   )
   const data =
@@ -579,16 +539,12 @@ function exportCsv() {
             />
           </div>
         </div>
-        <SalesOrderCards
-          v-if="tab === 'statistics' && !purchase"
-          :orders="cardOrders"
-          @open="detailsId = $event.id"
-        />
         <el-table
-          v-else-if="tab === 'statistics'"
+          v-if="tab === 'statistics'"
           :key="`${kind}-statistics`"
           ref="statsTable"
           class="board-table"
+          :class="{ 'sales-statistics-table': !purchase }"
           :data="statsRows"
           border
           stripe
@@ -689,7 +645,47 @@ function exportCsv() {
               ></el-table-column
             >
           </template>
-          <el-table-column :label="purchase ? '到货计划' : '送货计划'" align="center"
+          <template v-else>
+            <el-table-column align="center" class-name="sales-order-centered"
+              prop="id"
+              label="订单编号"
+              min-width="105"
+              :fixed="!smallScreen"
+              sortable="custom"
+              ><template #default="{ row }"
+                ><button class="board-order-link" @click.stop="openOrder(row)">
+                  {{ row.order.id }}
+                </button></template
+              ></el-table-column
+            >
+            <el-table-column align="center" class-name="sales-order-centered" prop="signed" label="订单日期" min-width="82" sortable="custom" />
+            <el-table-column align="center" class-name="sales-order-centered" prop="partner" label="客户名称" min-width="100" sortable="custom" />
+            <el-table-column label="产品明细" align="center">
+              <el-table-column align="left" header-align="left" prop="brand" label="品牌" min-width="58" />
+              <el-table-column align="left" header-align="left" prop="product" label="型号" min-width="82" />
+              <el-table-column align="left" header-align="left" prop="package" label="封装" min-width="112" />
+              <el-table-column align="left" header-align="left" prop="price" label="单价" min-width="50"
+                ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
+              >
+              <el-table-column align="left" header-align="left" prop="quantity" label="数量" min-width="50" />
+              <el-table-column align="left" header-align="left" prop="amount" label="金额" min-width="72"
+                ><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
+              >
+            </el-table-column>
+            <el-table-column align="center" class-name="sales-order-centered"
+              prop="order.amount"
+              label="订单金额"
+              min-width="80"
+              sortable="custom"
+              ><template #default="{ row }">{{
+                money(row.order.amount)
+              }}</template></el-table-column
+            >
+            <el-table-column align="center" class-name="sales-order-centered" prop="paymentTerm" label="账期" min-width="75" sortable="custom" />
+            <el-table-column align="center" class-name="sales-order-centered" prop="delivery" label="交付日期" min-width="82" sortable="custom" />
+            <el-table-column align="center" class-name="sales-order-centered" prop="owner" label="销售负责人" min-width="86" sortable="custom" />
+          </template>
+          <el-table-column v-if="purchase" label="到货计划" align="center"
             ><el-table-column
               prop="plan.batch"
               :label="purchase ? '到货批次' : '送货批次'"
@@ -733,11 +729,9 @@ function exportCsv() {
           <el-pagination
             v-model:current-page="page"
             v-model:page-size="pageSize"
-            :page-sizes="purchase ? [20, 50, 100] : [10, 20, 50]"
+            :page-sizes="[20, 50, 100]"
             :total="sortedOrders.length"
-            :layout="
-              smallScreen ? 'prev, pager, next' : 'sizes, total, ->, prev, pager, next, jumper'
-            "
+            layout="sizes, total, ->, prev, pager, next, jumper"
           />
         </div>
         <div v-else class="board-execution-pagination">
