@@ -1,13 +1,12 @@
-package com.glw.backend.user.service;
+package com.glw.backend.service;
 
 import com.glw.backend.auth.*;
 import com.glw.backend.common.*;
+import com.glw.backend.model.dto.LoginRequest;
 import com.glw.backend.model.entity.Account;
 import com.glw.backend.model.entity.UserView;
-import com.glw.backend.model.dto.LoginRequest;
 import com.glw.backend.model.vo.LoginResponse;
-import com.glw.backend.user.model.*;
-import com.glw.backend.user.repository.AccountRepository;
+import com.glw.backend.repository.AccountRepository;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,13 +43,47 @@ public class UserService {
                         request.password(), account == null ? dummyHash : account.passwordHash());
         if (account == null || !matches || !account.enabled())
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
-        JwtService.Token token = jwt.issue(account.id(), Boolean.TRUE.equals(request.remember()));
-        sessions.save(token.id(), account.id(), token.expiresAt());
+        var pair = jwt.issue(account.id(), Boolean.TRUE.equals(request.remember()));
+        sessions.save(pair.sessionId(), session(account.id(), pair));
+        return response(account, pair);
+    }
+
+    public LoginResponse refresh(String refreshToken) {
+        try {
+            var identity = jwt.parseRefresh(refreshToken);
+            Account account =
+                    accounts.findById(identity.userId())
+                            .filter(Account::enabled)
+                            .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+            var pair = jwt.renew(account.id(), identity.sessionId(), identity.expiresAt());
+            if (!sessions.rotate(
+                    identity.sessionId(),
+                    account.id(),
+                    identity.tokenId(),
+                    session(account.id(), pair)))
+                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            return response(account, pair);
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private SessionStore.Session session(long userId, JwtService.Pair pair) {
+        return new SessionStore.Session(
+                userId, pair.access().id(), pair.refresh().id(), pair.refresh().expiresAt());
+    }
+
+    private LoginResponse response(Account account, JwtService.Pair pair) {
         return new LoginResponse(
-                token.value(), "Bearer", token.expiresAt(), UserView.from(account));
+                pair.access().value(),
+                pair.refresh().value(),
+                "Bearer",
+                pair.access().expiresAt(),
+                pair.refresh().expiresAt(),
+                UserView.from(account));
     }
 
     public void logout(AuthPrincipal principal) {
-        sessions.revoke(principal.tokenId());
+        sessions.revoke(principal.sessionId());
     }
 }

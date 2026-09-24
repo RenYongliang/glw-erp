@@ -4,14 +4,13 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.*;
+import java.time.Clock;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @Profile("mock")
 public class InMemorySessionStore implements SessionStore {
-    private record Session(long userId, Instant expiresAt) {}
-
     private final ConcurrentHashMap<String, Session> sessions = new ConcurrentHashMap<>();
     private final Clock clock;
 
@@ -19,22 +18,40 @@ public class InMemorySessionStore implements SessionStore {
         this.clock = clock;
     }
 
-    public void save(String tokenId, long userId, Instant expiresAt) {
-        sessions.put(tokenId, new Session(userId, expiresAt));
+    public void save(String id, Session session) {
+        if (!session.expiresAt().isAfter(clock.instant()))
+            throw new IllegalArgumentException("Expired session");
+        sessions.put(id, session);
     }
 
-    public boolean active(String tokenId, long userId) {
-        Session session = sessions.get(tokenId);
-        if (session == null) return false;
-        if (!session.expiresAt().isAfter(clock.instant())) {
-            sessions.remove(tokenId, session);
-            return false;
-        }
-        return session.userId() == userId;
+    public boolean active(String id, long userId, String accessId) {
+        Session s = sessions.get(id);
+        return s != null
+                && s.expiresAt().isAfter(clock.instant())
+                && s.userId() == userId
+                && s.accessId().equals(accessId);
     }
 
-    public void revoke(String tokenId) {
-        sessions.remove(tokenId);
+    public boolean rotate(String id, long userId, String expected, Session replacement) {
+        AtomicBoolean changed = new AtomicBoolean();
+        sessions.computeIfPresent(
+                id,
+                (k, s) -> {
+                    if (!s.expiresAt().isAfter(clock.instant())) return null;
+                    if (s.userId() == userId
+                            && s.refreshId().equals(expected)
+                            && replacement.userId() == userId
+                            && replacement.expiresAt().equals(s.expiresAt())) {
+                        changed.set(true);
+                        return replacement;
+                    }
+                    return s;
+                });
+        return changed.get();
+    }
+
+    public void revoke(String id) {
+        sessions.remove(id);
     }
 
     @Scheduled(fixedDelay = 60000)

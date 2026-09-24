@@ -1,22 +1,38 @@
+# 加密占位值需由加密客户端生成，每次请求必须使用新 challenge；不能复制已提交的密文重复登录。
 @baseUrl = http://localhost:8080
+@accessToken = replace-with-latest-access-token
+@refreshToken = replace-with-latest-refresh-token
 
-### 登录（将响应 data.accessToken 填到下方 token）
+### 登录获取双 Token；remember=false 会话8小时，true 会话7天
 POST {{baseUrl}}/api/users/login
 Content-Type: application/json
 
-{"username":"admin","password":"Admin123!","remember":false}
+{"keyId":"{{keyId}}","challenge":"{{challenge}}","encryptedKey":"{{encryptedKey}}","iv":"{{iv}}","ciphertext":"{{ciphertext}}"}
 
-### 当前用户
-@token = replace-with-access-token
+### 获取 Token（与登录相同，必须提供账号密码）
+POST {{baseUrl}}/api/users/token
+Content-Type: application/json
+
+{"keyId":"{{keyId}}","challenge":"{{challenge}}","encryptedKey":"{{encryptedKey}}","iv":"{{iv}}","ciphertext":"{{ciphertext}}"}
+
+### 当前用户：使用 accessToken
 GET {{baseUrl}}/api/users/me
-Authorization: Bearer {{token}}
+Authorization: Bearer {{accessToken}}
 
-### 登出后，同一 Token 调用 me 应返回 HTTP 401
-POST {{baseUrl}}/api/users/logout
-Authorization: Bearer {{token}}
-
-### 错误密码（40101）
-POST {{baseUrl}}/api/users/login
+### 刷新：不要求有效的 accessToken，必须提供 refreshToken
+# 成功后同时更新两个变量。旧 accessToken 和 refreshToken 均失效。
+POST {{baseUrl}}/api/users/refresh-token
 Content-Type: application/json
 
-{"username":"admin","password":"wrong-password"}
+{"refreshToken":"{{refreshToken}}"}
+
+### 登出当前会话；之后两个 Token 均不可再使用
+POST {{baseUrl}}/api/users/logout
+Authorization: Bearer {{accessToken}}
+
+### 不带 Token 应返回401
+GET {{baseUrl}}/api/users/me
+
+### refreshToken 不能代替 accessToken，应返回401
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{refreshToken}}

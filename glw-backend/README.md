@@ -1,138 +1,62 @@
 # glw-backend
 
-GLW 进销存后端基础工程，包名 `com.glw.backend`。默认使用 mock 用户和内存会话，前端 `glw-web` 暂未改成调用本项目。
+光联微进销存单体后端基础工程。Java 21、Spring Boot 4.1.1、MyBatis-Plus 3.5.17、JJWT 0.13.0。统一响应只有 `code/message/data/timestamp`，使用普通应用日志。
 
-## 技术版本
+## 本地启动
 
-核对日期：2026-09-23。使用官方文档当时列出的最新稳定版 Spring Boot，不使用 milestone/snapshot。
-
-| 组件 | 版本 / 用途 |
-| --- | --- |
-| Java | 21 LTS |
-| Spring Boot | 4.1.1 |
-| Spring Security | Boot BOM 管理，JWT 无状态认证、方法级授权 |
-| MyBatis-Plus | 3.5.17，专用 `mybatis-plus-spring-boot4-starter` |
-| JJWT | 0.13.0，API + impl + Gson |
-| MySQL Connector/J、Spring Data Redis、Lettuce | Boot BOM 管理兼容版本 |
-| Maven | 3.6.3+，建议 3.9.x |
-
-版本依据：[Spring Boot](https://docs.spring.io/spring-boot/)、[MyBatis-Plus 安装](https://baomidou.com/getting-started/install/)、[JJWT Releases](https://github.com/jwtk/jjwt/releases)。Boot 4 的 JSON 响应使用 Jackson 3；JJWT 单独使用 Gson 序列化 JWT，不重复引入 MyBatis starter。
-
-## 项目结构
-
-```text
-src/main/java/com/glw/backend/
-  GlwBackendApplication.java
-  common/          统一结果、错误码、业务异常、全局异常处理、分页结果、traceId
-  config/          JWT/CORS 配置、SecurityFilterChain、MyBatis-Plus、密码编码器
-  auth/            JWT 签发/校验、认证过滤器、内存/Redis 会话实现
-  user/
-    controller/    UserController
-    service/       UserService
-    dto/           登录请求/响应
-    model/         内部账号、对外用户信息
-    entity/        SysUser
-    mapper/        UserMapper extends BaseMapper
-    repository/    mock 用户 / MyBatis 用户查询
-src/main/resources/
-  application.yml
-  application-mock.yml
-  application-prod.yml
-  db/schema.sql
-src/test/java/      登录链路、Token 签名/过期/篡改、会话撤销测试
-requests/users.http 可直接在 IDE 中执行的接口示例
-```
-
-## 本地 mock 模式
-
-安装 JDK 21 并设置 `JAVA_HOME` 后，用 IDEA 打开 `pom.xml` 即可导入。已附官方 Maven Wrapper，首次执行会下载 Maven 3.9.11，不需要单独配置全局 Maven。默认端口 8080，默认 profile 为 `mock`。
+配置 JDK 21 的 JAVA_HOME 后执行：
 
 ```powershell
-cd E:\PycharmProject\glw-erp\glw-backend
 .\mvnw.cmd clean verify
 .\mvnw.cmd spring-boot:run
 ```
 
-mock 不初始化数据库连接，用户在内存中，密码使用 BCrypt 校验；Redis starter 已配置，但 mock 登录链路不访问 Redis。账户与前端演示账号一致：
+默认端口8080、profile为mock，不依赖MySQL/Redis。测试账号 `admin / Admin123!`、`demo / Demo123!`。生产使用 `SPRING_PROFILES_ACTIVE=prod`，并替换 application.yml 中 DB、REDIS、JWT_SECRET 环境变量。数据库表定义位于 `src/main/resources/db/schema.sql`，不自动建表。生产用户密码须为 BCrypt 哈希。
 
-| 账号 | 密码 | 角色 |
-| --- | --- | --- |
-| admin | Admin123! | ADMIN |
-| demo | Demo123! | USER |
+## 认证接口
 
-两个账号均可登录；角色权限扩展可在接口上添加 `@PreAuthorize("hasRole('ADMIN')")`。
-
-## 接口约定
-
-| 方法 | 路径 | 鉴权 | 功能 |
+| 方法 | 路径 | 用途 | 凭据 |
 | --- | --- | --- | --- |
-| POST | `/api/users/login` | 无 | 验证账号密码，签发 Token |
-| POST | `/api/users/logout` | Bearer Token | 撤销当前 Token 的会话 |
-| GET | `/api/users/me` | Bearer Token | 返回当前用户 |
+| GET | /api/users/login-key | 获取加密公钥和一次性凭据 | 无 |
+| POST | /api/users/login | 登录并获取双Token | 加密请求体，见下文 |
+| POST | /api/users/token | 获取双Token，与登录等价 | 加密请求体，见下文 |
+| POST | /api/users/refresh-token | 刷新双Token | JSON refreshToken |
+| POST | /api/users/logout | 撤销当前登录会话 | Bearer accessToken |
+| GET | /api/users/me | 当前用户 | Bearer accessToken |
 
-登录请求：
+登录不再接受明文账号密码；加密前的 JSON 结构保持不变。
 
-```json
-{"username":"admin","password":"Admin123!","remember":false}
-```
+登录和刷新返回 `data.accessToken`、`data.refreshToken`、`data.tokenType="Bearer"`、`data.expiresAt`、`data.refreshExpiresAt`、`data.user`；时间为ISO-8601 UTC。后续业务请求通过 `Authorization: Bearer <accessToken>` 携带访问凭据。
 
-成功响应结构（时间和 Token 由运行时生成）：
+accessToken默认15分钟，普通refresh会话8小时，保持登录7天，可在 `app.jwt` 修改。刷新同时换发两个Token，旧Token立即失效，且不会延长最初的会话截止时间。access与refresh使用不同type声明，不能互换。刷新会再次检查账户是否启用；会话轮换通过内存原子操作或Redis Lua原子比较更新，重放旧refreshToken返回401。
 
-```json
-{
-  "code": 0,
-  "message": "成功",
-  "data": {
-    "accessToken": "eyJ...",
-    "tokenType": "Bearer",
-    "expiresAt": "2026-09-23T08:00:00Z",
-    "user": {"id":"1","username":"admin","name":"管理员","role":"ADMIN","department":"运营管理部"}
-  },
-  "timestamp": "2026-09-23T00:00:00Z",
-  "traceId": "由服务端生成"
-}
-```
+退出撤销当前整组凭据，其他独立登录会话保留。mock重启后所有会话失效；prod会话存Redis且有TTL，Redis异常时返回503，不降级放行。会话ID用于登录撤销，不用于日志跟踪。
 
-后续请求头：`Authorization: Bearer <accessToken>`。错误沿用上述外层结构，`data` 为 null；HTTP 状态码与错误类别一致：400 参数/JSON 错误、401 未登录或凭据错误、403 无权限、404 无资源、405 方法错误、409 数据冲突、415 内容类型错误、500 未知异常、503 数据库/Redis 不可用。业务错误码见 `common/ErrorCode.java`。响应头 `X-Trace-Id` 可用于定位服务端日志；日志不记录密码/完整 Token。
+## 白名单与统一错误
 
-JWT 为 HS256，校验签名、签发方、过期时间与用户身份；每次请求还检查会话白名单和用户启用状态。普通登录 8 小时，remember 登录 7 天，不提供自动续期/refresh Token。
+在 `application.yml` 的 `app.security.whitelist` 配置方法和路径，过滤器及Spring Security共用同一套匹配规则。当前放行 GET 登录公钥及 POST 登录、获取Token和刷新接口。刷新接口仍校验请求体中的refreshToken；白名单不是免除其业务校验。新增接口默认要求accessToken；CORS预检作为浏览器基础通信处理，普通OPTIONS请求仍需要认证。
 
-登出只撤销当前会话，其他设备上的登录保留；重复用已撤销 Token 登出返回 401。mock 重启清空会话，因此之前签发的 Token 也失效。真实模式使用 Redis TTL 保存会话，Redis 不可用时拒绝认证，不降级放行。
+所有业务、参数校验和认证错误使用统一响应：400参数错误、401未登录/凭据无效、403无权限、404不存在、405方法不支持、409冲突、415格式不支持、500服务错误、503存储不可用。错误码见 `common/ErrorCode.java`。
 
-## 切换真实 MySQL / Redis
+## 前端配合
 
-1. 创建 MySQL 8+ 数据库，在该库手工执行 `src/main/resources/db/schema.sql`。应用不自动建表，不覆盖数据。
-2. 填写 `application.yml` 中的数据库、Redis 地址，或优先通过下列环境变量配置。
-3. 启用 `prod`（不要与 `mock` 同时启用）。此时自动切换到 `MybatisAccountRepository` 和 `RedisSessionStore`。
-4. 在 `sys_user` 中创建实际用户，`password_hash` 必须是 `PasswordEncoder.encode(rawPassword)` 生成的 BCrypt 值；角色为 `ADMIN` 或 `USER`，enabled=1，deleted=0。真实模式没有默认账号。
+glw-web默认使用后端认证，Vite将 `/api` 代理到8080。业务页面仍使用本地mock数据。前端统一请求层自动带accessToken，快过期或收到401时只刷新一次，并在刷新成功后重试；并发请求共用刷新任务。refreshToken失效会退出到登录页，网络失败则保留可重试状态。
 
-```powershell
-$env:SPRING_PROFILES_ACTIVE = 'prod'
-$env:DB_URL = 'jdbc:mysql://your-host:3306/glw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai'
-$env:DB_USERNAME = 'your-user'
-$env:DB_PASSWORD = 'your-password'
-$env:REDIS_HOST = 'your-redis-host'
-$env:REDIS_PORT = '6379'
-$env:REDIS_PASSWORD = 'your-redis-password'
-$env:JWT_SECRET = 'replace-with-a-random-secret-at-least-32-bytes'
-$env:CORS_ALLOWED_ORIGINS = 'https://your-frontend.example'
-.\mvnw.cmd spring-boot:run
-```
+前端 `.env.local` 设置 `VITE_AUTH_MODE=mock` 可继续独立静态演示；这些演示凭据不能调用真实后端。上线需将 `/api` 反向代理到后端，或配置VITE_API_BASE_URL并调整CORS允许来源。
 
-JWT_SECRET 是原始 UTF-8 字符串，不是 Base64 解码配置。可通过 `openssl rand -base64 48` 生成随机文本，并将输出作为环境变量值。prod 不提供默认密钥，避免意外使用演示密钥。不要将真实密码写入版本库。
+## 结构与验证
 
-MyBatis-Plus 已启用驼峰映射、逻辑删除、分页（每页上限 200）、全表更新/删除拦截。实体不直接作为接口返回值，避免暴露密码哈希。
+`controller/`、`service/`、`repository/`、`mapper/`、`model/dto|entity|vo/` 按层组织。`auth/` 包含JWT签发校验、过滤器、白名单匹配、会话存储；`config/` 包含JWT、白名单、CORS、MyBatis配置。
 
-## 前端接入
+`requests/users.http` 提供完整请求示例。自动化测试覆盖Token签名/类型/有效期、刷新轮换/重放、并发轮换、退出撤销、白名单方法匹配、参数校验、CORS及统一错误。真实MySQL/Redis环境需替换配置后联调。
 
-前端目前仍是纯前端 mock，后续在登录页调用 login 接口，取 `data.accessToken`，统一给请求添加 Authorization 头；401 时清理本地状态并跳转登录页。退出时先调用 logout 再清理本地状态。若仅清理浏览器缓存而未调用 logout，服务端会话会一直保留到过期。
+## 登录传输加密
 
-前端开发地址 localhost:5173 和 127.0.0.1:5173 已加入 CORS 白名单。使用 Header Token，不使用 Cookie 登录，因此关闭 CSRF 与 Session。新增接口默认必须登录，匿名接口需要在 `SecurityConfig` 明确放行。
+1. 匿名 GET `/api/users/login-key` 获取 `keyId/publicKey/challenge/expiresAt`，响应禁止缓存。公钥为标准 Base64 编码的 X.509 SPKI。
+2. 每次登录生成 AES-256 密钥和随机 12 字节 IV，以 AES-GCM 加密 UTF-8 JSON `{username,password,remember}`，认证附加数据为 UTF-8 `keyId.challenge`，认证标签为 128 位并追加在密文末尾。
+3. 使用 RSA-2048 OAEP 包装 AES 原始密钥，摘要和 MGF1 均为 SHA-256，label 为空。向 POST `/api/users/login` 或 `/api/users/token` 发送 `{keyId,challenge,encryptedKey,iv,ciphertext}`；后三项为标准 Base64。
+4. 后端解密、校验参数后执行现有 BCrypt 登录验证，继续返回 accessToken/refreshToken。明文请求、篡改、过期、重放均拒绝；失败后再次登录必须获取新 challenge。
 
-本工程是开发基础配置：尚未实现注册、验证码、限流、密码找回、刷新 Token 或完整业务模块。
+challenge 有效期 120 秒、仅能使用一次。后端进程启动时生成 RSA 密钥，私钥仅保存在后端内存，不写入前端或配置。重启会使未提交的 challenge 失效，前端重新登录即可；此实现面向单实例，多个后端实例部署需改为共享 challenge 存储和统一密钥管理。内存凭据设上限并定期清理。
 
-## 交付验证
-
-2026-09-23 使用 JDK 21.0.9、Maven 3.9.11 执行 `mvn verify`：编译、14 项测试及可执行 JAR 打包通过。测试覆盖 mock 应用上下文、登录/用户信息/登出、旧 Token 失效、独立会话、remember 默认值与有效期、JWT 过期/错误签名/篡改、参数校验、404/405 统一结果与 CORS。
-
-真实 MySQL/Redis 的连接与读写尚未验证，需替换配置后联调。交付目录不包含临时构建工具、依赖缓存或 target 构建产物；可通过 Wrapper 重新生成。
+上线仍必须使用 HTTPS，以认证公钥来源并保护 Token 和其他接口；不能把应用层加密当作 HTTPS 替代。Web Crypto 不可用时前端明确报错，不回退到明文。前端 mock 模式仅在浏览器内模拟密钥与解密过程，不具备服务端安全边界，也不能用于生产认证。不要在代理或业务日志中记录解密参数、密码或 Token。

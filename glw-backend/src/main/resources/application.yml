@@ -35,7 +35,7 @@ spring:
       max-request-size: 20MB
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.glw.backend.user.entity
+  type-aliases-package: com.glw.backend.model.entity
   configuration:
     map-underscore-to-camel-case: true
   global-config:
@@ -50,13 +50,23 @@ app:
     issuer: glw-backend
     # 真实 profile 必须设置该变量；mock profile 单独提供演示密钥。
     secret: ${JWT_SECRET:}
-    access-ttl: 8h
+    access-ttl: 15m
+    refresh-ttl: 8h
     remember-ttl: 7d
+  security:
+    # Method + path. All other requests require an accessToken.
+    whitelist:
+      - method: GET
+        path: /api/users/login-key
+      - method: POST
+        path: /api/users/login
+      - method: POST
+        path: /api/users/token
+      - method: POST
+        path: /api/users/refresh-token
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
 logging:
   level:
     root: INFO
     com.glw.backend: INFO
-  pattern:
-    level: '%5p [traceId=%X{traceId}]'

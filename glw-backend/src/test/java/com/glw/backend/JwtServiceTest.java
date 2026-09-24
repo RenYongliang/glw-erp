@@ -12,52 +12,65 @@ import org.junit.jupiter.api.Test;
 import java.time.*;
 
 class JwtServiceTest {
-    private final Instant now = Instant.parse("2026-09-23T00:00:00Z");
+    private final Instant now = Instant.parse("2026-09-24T00:00:00Z");
     private final String secret = "test-only-signing-key-at-least-thirty-two-bytes";
 
     private JwtService service(String issuer, String key, Instant time) {
         return new JwtService(
-                new JwtProperties(issuer, key, Duration.ofHours(8), Duration.ofDays(7)),
+                new JwtProperties(
+                        issuer,
+                        key,
+                        Duration.ofMinutes(15),
+                        Duration.ofHours(8),
+                        Duration.ofDays(7)),
                 Clock.fixed(time, ZoneOffset.UTC));
     }
 
     @Test
-    void signsAndReadsIdentityAndUniqueSessionIds() {
-        var service = service("glw-backend", secret, now);
-        var token = service.issue(1, false);
-        assertThat(service.parse(token.value()).userId()).isEqualTo(1);
-        assertThat(service.parse(token.value()).tokenId()).isEqualTo(token.id());
-        assertThat(token.id()).isNotEqualTo(service.issue(1, false).id());
+    void typesAreNotInterchangeable() {
+        var jwt = service("glw", secret, now);
+        var pair = jwt.issue(1, false);
+        assertThat(jwt.parseAccess(pair.access().value()).sessionId()).isEqualTo(pair.sessionId());
+        assertThat(jwt.parseRefresh(pair.refresh().value()).userId()).isEqualTo(1);
+        assertThatThrownBy(() -> jwt.parseAccess(pair.refresh().value()))
+                .isInstanceOf(JwtException.class);
+        assertThatThrownBy(() -> jwt.parseRefresh(pair.access().value()))
+                .isInstanceOf(JwtException.class);
+        assertThat(pair.access().id()).isNotEqualTo(pair.refresh().id());
     }
 
     @Test
-    void rejectsExpiredWrongIssuerAndWrongSigningKey() {
-        var token = service("glw-backend", secret, now).issue(1, false);
+    void rejectsExpiryTamperingAndWrongIssuer() {
+        var pair = service("glw", secret, now).issue(1, false);
         assertThatThrownBy(
                         () ->
-                                service("glw-backend", secret, now.plus(Duration.ofHours(9)))
-                                        .parse(token.value()))
+                                service("glw", secret, now.plusSeconds(901))
+                                        .parseAccess(pair.access().value()))
                 .isInstanceOf(JwtException.class);
-        assertThatThrownBy(() -> service("different", secret, now).parse(token.value()))
+        assertThatThrownBy(() -> service("other", secret, now).parseAccess(pair.access().value()))
                 .isInstanceOf(JwtException.class);
         assertThatThrownBy(
                         () ->
-                                service("glw-backend", secret + "different", now)
-                                        .parse(token.value()))
+                                service("glw", secret + "different", now)
+                                        .parseAccess(pair.access().value()))
+                .isInstanceOf(JwtException.class);
+        assertThatThrownBy(
+                        () ->
+                                service("glw", secret, now.plusSeconds(28801))
+                                        .parseRefresh(pair.refresh().value()))
                 .isInstanceOf(JwtException.class);
     }
 
     @Test
-    void rejectsTamperedPayload() {
-        var service = service("glw-backend", secret, now);
-        String[] parts = service.issue(1, false).value().split("\\.");
-        String changed =
-                java.util.Base64.getUrlEncoder()
-                        .withoutPadding()
-                        .encodeToString(
-                                "{\"sub\":\"999\"}"
-                                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        assertThatThrownBy(() -> service.parse(parts[0] + "." + changed + "." + parts[2]))
-                .isInstanceOf(JwtException.class);
+    void rememberOnlyExtendsRefreshAndRefreshNeverExtendsAbsoluteSession() {
+        var jwt = service("glw", secret, now);
+        var normal = jwt.issue(1, false);
+        var remembered = jwt.issue(1, true);
+        assertThat(normal.access().expiresAt()).isEqualTo(remembered.access().expiresAt());
+        assertThat(remembered.refresh().expiresAt()).isEqualTo(now.plus(Duration.ofDays(7)));
+        var late = service("glw", secret, now.plus(Duration.ofHours(7)).plusSeconds(3590));
+        var renewed = late.renew(1, normal.sessionId(), normal.refresh().expiresAt());
+        assertThat(renewed.access().expiresAt()).isEqualTo(normal.refresh().expiresAt());
+        assertThat(renewed.refresh().expiresAt()).isEqualTo(normal.refresh().expiresAt());
     }
 }

@@ -17,12 +17,17 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 import UserMenu from './components/UserMenu.vue'
 import { useAuthStore } from './stores/auth'
-import { SESSION_KEY, LOGOUT_KEY } from './domain/mockAuth'
+import { SESSION_KEY, LOGOUT_KEY } from './domain/authSession'
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 let sessionTimer: ReturnType<typeof setInterval> | undefined
-function checkSession() {
+async function checkSession() {
+  try {
+    await auth.ensureSession()
+  } catch {
+    /* Network failures retain the refresh session. */
+  }
   auth.sync()
   if (!auth.isAuthenticated && !route.meta.public)
     router.replace({ name: 'login', query: { redirect: route.fullPath } })
@@ -43,17 +48,30 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', checkSession)
   clearInterval(sessionTimer)
 })
+watch(
+  () => auth.isAuthenticated,
+  (loggedIn) => {
+    if (!loggedIn && !route.meta.public)
+      router.replace({ name: 'login', query: { redirect: route.fullPath } })
+  },
+)
 const boardMenus = [
   { title: '库存统计看板', path: '/boards/inventory' },
   { title: '销售订单看板', path: '/boards/sales' },
   { title: '采购订单看板', path: '/boards/purchase' },
 ]
+const customerMenus = [
+  { title: '客户', path: '/customers' },
+  { title: '跟进记录', path: '/followups' },
+]
+const customerExpanded = ref(['/customers', '/followups'].includes(route.path))
 const boardExpanded = ref(route.path.startsWith('/boards/'))
 const pageTitle = computed(() => String(route.meta.title || '首页'))
 watch(
   () => route.path,
   () => {
     if (route.path.startsWith('/boards/')) boardExpanded.value = true
+    if (['/customers', '/followups'].includes(route.path)) customerExpanded.value = true
     workspace.value?.querySelector('.page-scroll')?.scrollTo({ top: 0 })
   },
 )
@@ -75,7 +93,9 @@ const filteredMenus = computed(() =>
   menus.filter(
     (item) =>
       item.includes(query.value.trim()) ||
-      (item === '经营看板' && boardMenus.some((menu) => menu.title.includes(query.value.trim()))),
+      (item === '经营看板' && boardMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
+      (item === '客户管理' &&
+        customerMenus.some((menu) => menu.title.includes(query.value.trim()))),
   ),
 )
 function navigate(name: string) {
@@ -85,6 +105,9 @@ function navigate(name: string) {
   } else if (name === '经营看板') {
     if (collapsed.value) collapsed.value = false
     boardExpanded.value = !boardExpanded.value
+  } else if (name === '客户管理') {
+    if (collapsed.value) collapsed.value = false
+    customerExpanded.value = !customerExpanded.value
   } else ElMessage.info(`${name}将在后续阶段建设。`)
 }
 async function fullscreen() {
@@ -123,13 +146,21 @@ async function fullscreen() {
             <template v-for="name in filteredMenus" :key="name">
               <button
                 class="nav-item"
-                :class="{ active: name === '首页' && !route.path.startsWith('/boards/') }"
+                :class="{
+                  active: name === '首页' && ['/', '/orders'].includes(route.path),
+                }"
                 :title="name"
                 :aria-label="name"
                 :aria-current="
-                  name === '首页' && !route.path.startsWith('/boards/') ? 'page' : undefined
+                  name === '首页' && ['/', '/orders'].includes(route.path) ? 'page' : undefined
                 "
-                :aria-expanded="name === '经营看板' ? boardExpanded : undefined"
+                :aria-expanded="
+                  name === '经营看板'
+                    ? boardExpanded
+                    : name === '客户管理'
+                      ? customerExpanded
+                      : undefined
+                "
                 @click="navigate(name)"
               >
                 <el-icon :class="name === '首页' || name === '应用说明' ? 'nav-blue' : 'nav-folder'"
@@ -140,9 +171,11 @@ async function fullscreen() {
                   >{{ name }}<span v-if="name === '应用说明'" class="tip-bulb">💡</span></span
                 >
                 <el-icon
-                  v-if="name === '经营看板' && !collapsed"
+                  v-if="['经营看板', '客户管理'].includes(name) && !collapsed"
                   class="board-menu-arrow"
-                  :class="{ open: boardExpanded }"
+                  :class="{
+                    open: name === '经营看板' ? boardExpanded : customerExpanded,
+                  }"
                   ><ArrowDown
                 /></el-icon>
               </button>
@@ -161,6 +194,21 @@ async function fullscreen() {
                   ><el-icon><DataAnalysis /></el-icon><span>{{ menu.title }}</span></RouterLink
                 >
               </div>
+              <div v-if="name === '客户管理' && (customerExpanded || query)" class="board-submenu">
+                <RouterLink
+                  v-for="menu in customerMenus.filter(
+                    (item) => !query || '客户管理'.includes(query) || item.title.includes(query),
+                  )"
+                  :key="menu.path"
+                  :to="menu.path"
+                  class="nav-item"
+                  :class="{ active: route.path === menu.path }"
+                  :title="menu.title"
+                  :aria-label="menu.title"
+                  :aria-current="route.path === menu.path ? 'page' : undefined"
+                  ><el-icon><Document /></el-icon><span>{{ menu.title }}</span></RouterLink
+                >
+              </div>
             </template>
             <p v-if="!filteredMenus.length" class="menu-empty">没有匹配的菜单</p>
           </nav>
@@ -176,8 +224,9 @@ async function fullscreen() {
         <main ref="workspace" class="workspace">
           <div class="page-heading">
             <strong>{{ pageTitle }}</strong
-            ><RouterLink v-if="!route.path.startsWith('/boards/')" to="/">首页看板</RouterLink
-            ><RouterLink v-if="!route.path.startsWith('/boards/')" to="/orders">首页表单</RouterLink
+            ><RouterLink v-if="['/', '/orders'].includes(route.path)" to="/">首页看板</RouterLink
+            ><RouterLink v-if="['/', '/orders'].includes(route.path)" to="/orders"
+              >首页表单</RouterLink
             ><span class="heading-divider" /><el-button
               text
               :icon="FullScreen"

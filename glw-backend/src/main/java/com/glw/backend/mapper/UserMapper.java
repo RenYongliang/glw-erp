@@ -1,4 +1,4 @@
-package com.glw.backend.user.mapper;
+package com.glw.backend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.glw.backend.model.entity.SysUser;

@@ -21,7 +21,11 @@ async function action(command: string) {
       /* Logout still continues. */
     }
   }
-  auth.logout()
+  try {
+    await auth.logout()
+  } catch {
+    ElMessage.warning('本地已退出，服务端暂不可达；该会话将在到期后失效')
+  }
   await router.replace({ name: 'login', query: { redirect } })
   ElMessage.success('已退出登录')
 }

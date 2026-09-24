@@ -2,13 +2,12 @@ package com.glw.backend.config;
 
 import com.glw.backend.auth.*;
 import com.glw.backend.common.ErrorCode;
-import com.glw.backend.user.repository.AccountRepository;
+import com.glw.backend.repository.AccountRepository;
 
 import jakarta.servlet.DispatcherType;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.*;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -29,6 +28,7 @@ public class SecurityConfig {
             SessionStore sessions,
             AccountRepository accounts,
             SecurityResponseWriter writer,
+            PublicEndpoints publicEndpoints,
             @Qualifier("corsConfigurationSource") CorsConfigurationSource cors)
             throws Exception {
         return http.cors(c -> c.configurationSource(cors))
@@ -43,9 +43,9 @@ public class SecurityConfig {
                         c ->
                                 c.dispatcherTypeMatchers(DispatcherType.ERROR)
                                         .permitAll()
-                                        .requestMatchers(HttpMethod.OPTIONS, "/**")
+                                        .requestMatchers(CorsUtils::isPreFlightRequest)
                                         .permitAll()
-                                        .requestMatchers(HttpMethod.POST, "/api/users/login")
+                                        .requestMatchers(publicEndpoints)
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
@@ -58,7 +58,8 @@ public class SecurityConfig {
                                                 (req, res, ex) ->
                                                         writer.write(res, ErrorCode.FORBIDDEN)))
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwt, sessions, accounts, writer),
+                        new JwtAuthenticationFilter(
+                                jwt, sessions, accounts, writer, publicEndpoints),
                         UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
@@ -69,7 +70,6 @@ public class SecurityConfig {
         config.setAllowedOrigins(properties.allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        config.setExposedHeaders(List.of("X-Trace-Id"));
         config.setAllowCredentials(false);
         config.setMaxAge(3600L);
         var source = new UrlBasedCorsConfigurationSource();

@@ -1,0 +1,755 @@
+{
+  "customers": {
+    "fields": [
+      {
+        "key": "section",
+        "label": "客户基本信息",
+        "kind": "separator",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "code",
+        "label": "客户编码",
+        "kind": "sn",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "name",
+        "label": "客户名称",
+        "kind": "text",
+        "required": true,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "category",
+        "label": "客户分类",
+        "kind": "combo",
+        "required": false,
+        "disabled": false,
+        "options": [
+          {
+            "value": "潜在客户",
+            "color": "#FA5353"
+          },
+          {
+            "value": "成交客户",
+            "color": "#2FCD6E"
+          },
+          {
+            "value": "战略合作",
+            "color": "#3F8CFF"
+          }
+        ]
+      },
+      {
+        "key": "source",
+        "label": "客户来源",
+        "kind": "combo",
+        "required": false,
+        "disabled": false,
+        "options": [
+          {
+            "value": "百度SEM",
+            "color": "#EB5050"
+          },
+          {
+            "value": "转介绍",
+            "color": "#F0A800"
+          },
+          {
+            "value": "官网注册",
+            "color": "#46C26F"
+          },
+          {
+            "value": "销售自拓",
+            "color": "#A2C204"
+          }
+        ]
+      },
+      {
+        "key": "tag",
+        "label": "客户标签",
+        "kind": "combo",
+        "required": false,
+        "disabled": false,
+        "options": [
+          {
+            "value": "KA",
+            "color": "#2FCD6E"
+          },
+          {
+            "value": "ME",
+            "color": "#3F8CFF"
+          },
+          {
+            "value": "SMB",
+            "color": "#F5C13C"
+          }
+        ]
+      },
+      {
+        "key": "priceLevel",
+        "label": "价格等级",
+        "kind": "combo",
+        "required": false,
+        "disabled": false,
+        "options": [
+          {
+            "value": "标准售价",
+            "color": "#EB5050"
+          },
+          {
+            "value": "一级售价",
+            "color": "#F0A800"
+          },
+          {
+            "value": "二级售价",
+            "color": "#46C26F"
+          }
+        ]
+      },
+      {
+        "key": "settlement",
+        "label": "结算期限",
+        "kind": "combo",
+        "required": false,
+        "disabled": false,
+        "options": [
+          {
+            "value": "月结",
+            "color": "#EB5050"
+          },
+          {
+            "value": "季结",
+            "color": "#F0A800"
+          },
+          {
+            "value": "现结",
+            "color": "#46C26F"
+          }
+        ]
+      },
+      {
+        "key": "credit",
+        "label": "信用额度/元",
+        "kind": "number",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "owner",
+        "label": "销售负责人",
+        "kind": "user",
+        "required": true,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "department",
+        "label": "销售归属部门",
+        "kind": "dept",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "address",
+        "label": "客户地址",
+        "kind": "address",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "invoiceTitle",
+        "label": "发票抬头",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "taxNumber",
+        "label": "发票税号",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "taxType",
+        "label": "税种",
+        "kind": "combo",
+        "required": false,
+        "disabled": false,
+        "options": [
+          {
+            "value": "纸质专票",
+            "color": ""
+          },
+          {
+            "value": "纸质普票",
+            "color": ""
+          },
+          {
+            "value": "电子普票",
+            "color": ""
+          },
+          {
+            "value": "电子专票",
+            "color": "#3F8CFF"
+          },
+          {
+            "value": "全电专票",
+            "color": "#D144F4"
+          },
+          {
+            "value": "全电普票",
+            "color": "#656565"
+          },
+          {
+            "value": "无需开票",
+            "color": "#FF9D8D"
+          }
+        ]
+      },
+      {
+        "key": "taxRate",
+        "label": "增值税税率 %",
+        "kind": "number",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "invoicePhone",
+        "label": "开户电话",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "email",
+        "label": "收票邮箱",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "bank",
+        "label": "开户银行",
+        "kind": "combo",
+        "required": false,
+        "disabled": false,
+        "options": [
+          {
+            "value": "中国银行",
+            "color": ""
+          },
+          {
+            "value": "招商银行",
+            "color": ""
+          },
+          {
+            "value": "建设银行",
+            "color": ""
+          },
+          {
+            "value": "工商银行",
+            "color": "#3F8CFF"
+          }
+        ]
+      },
+      {
+        "key": "bankAccount",
+        "label": "银行账户",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "contactName",
+        "label": "联系人姓名",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "contactPhone",
+        "label": "联系人手机",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "contactPosition",
+        "label": "联系人职位",
+        "kind": "text",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "contacts",
+        "label": "其他联系人信息",
+        "kind": "subform",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "followups",
+        "label": "跟进记录",
+        "kind": "linkquery",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "orders",
+        "label": "销售订单",
+        "kind": "linkquery",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "tracking",
+        "label": "销售订单执行跟踪",
+        "kind": "linkquery",
+        "required": false,
+        "disabled": false,
+        "options": []
+      }
+    ],
+    "rows": [
+      {
+        "id": "customers-1",
+        "values": {
+          "code": "KH230420-04",
+          "name": "示例：杭州帆软",
+          "category": "潜在客户",
+          "source": "转介绍",
+          "tag": "KA",
+          "priceLevel": "一级售价",
+          "settlement": "现结",
+          "credit": 100000,
+          "owner": "张睿",
+          "department": "杭州大区",
+          "address": "浙江省杭州市上城区侏罗纪大厦",
+          "invoiceTitle": "杭州简道云",
+          "taxNumber": "123454326",
+          "taxType": "电子普票",
+          "taxRate": 13,
+          "invoicePhone": "18888888886",
+          "email": "18888888886@163.com",
+          "bank": "中国银行",
+          "bankAccount": "6000000000000006",
+          "contactName": "示例：孟德海",
+          "contactPhone": "18888888886",
+          "contactPosition": "财务总监"
+        },
+        "contacts": []
+      },
+      {
+        "id": "customers-2",
+        "values": {
+          "code": "KH230420-03",
+          "name": "示例：杭州简道云",
+          "category": "潜在客户",
+          "source": "转介绍",
+          "tag": "SMB",
+          "priceLevel": "标准售价",
+          "settlement": "月结",
+          "credit": 50000,
+          "owner": "张睿",
+          "department": "杭州大区",
+          "address": "浙江省杭州市余杭区贝达梦工厂E座",
+          "invoiceTitle": "杭州简道云",
+          "taxNumber": "123454325",
+          "taxType": "电子普票",
+          "taxRate": 13,
+          "invoicePhone": "18888888885",
+          "email": "18888888885@163.com",
+          "bank": "中国银行",
+          "bankAccount": "6000000000000005",
+          "contactName": "示例：高启盛",
+          "contactPhone": "18888888885",
+          "contactPosition": "销售总监"
+        },
+        "contacts": []
+      },
+      {
+        "id": "customers-3",
+        "values": {
+          "code": "KH260825-01",
+          "name": "示例：厦门帆软",
+          "category": "成交客户",
+          "source": "转介绍",
+          "tag": "KA",
+          "priceLevel": "二级售价",
+          "settlement": "月结",
+          "credit": 100000,
+          "owner": "张睿",
+          "department": "杭州大区",
+          "address": "江苏省无锡市锡山区安镇街道 信达大厦",
+          "invoiceTitle": "厦门帆软",
+          "taxNumber": "123454366",
+          "taxType": "电子普票",
+          "taxRate": 13,
+          "invoicePhone": "16688888889",
+          "email": "16688888889@163.com",
+          "bank": "中国银行",
+          "bankAccount": "6660000000000001",
+          "contactName": "示例：程澈",
+          "contactPhone": "16688888889",
+          "contactPosition": "产品总监"
+        },
+        "contacts": []
+      },
+      {
+        "id": "customers-4",
+        "values": {
+          "code": "KH230420-02",
+          "name": "示例：无锡帆软",
+          "category": "成交客户",
+          "source": "转介绍",
+          "tag": "KA",
+          "priceLevel": "二级售价",
+          "settlement": "月结",
+          "credit": 100000,
+          "owner": "张睿",
+          "department": "杭州大区",
+          "address": "福建省厦门市集美区集美大学",
+          "invoiceTitle": "无锡帆软",
+          "taxNumber": "123454322",
+          "taxType": "电子普票",
+          "taxRate": 13,
+          "invoicePhone": "18888888889",
+          "email": "18888888889@163.com",
+          "bank": "中国银行",
+          "bankAccount": "6000000000000001",
+          "contactName": "示例：高启强",
+          "contactPhone": "18888888889",
+          "contactPosition": "产品总监"
+        },
+        "contacts": []
+      },
+      {
+        "id": "customers-5",
+        "values": {
+          "code": "KH230424-01",
+          "name": "示例：上海帆软",
+          "category": "战略合作",
+          "source": "转介绍",
+          "tag": "KA",
+          "priceLevel": "二级售价",
+          "settlement": "月结",
+          "credit": 1000000,
+          "owner": "张睿",
+          "department": "生产部",
+          "address": "上海市上海市虹口区海伦大厦",
+          "invoiceTitle": "示例：上海帆软",
+          "taxNumber": "123321456",
+          "taxType": "电子专票",
+          "taxRate": 13,
+          "invoicePhone": "19999999999",
+          "email": "19999999999@163.com",
+          "bank": "建设银行",
+          "bankAccount": "60000000000012",
+          "contactName": "示例：孟钰",
+          "contactPhone": "19999999999",
+          "contactPosition": "市场总监"
+        },
+        "contacts": []
+      },
+      {
+        "id": "customers-6",
+        "values": {
+          "code": "KH230420-01",
+          "name": "示例：无锡简道云",
+          "category": "战略合作",
+          "source": "官网注册",
+          "tag": "ME",
+          "priceLevel": "二级售价",
+          "settlement": "季结",
+          "credit": 100000,
+          "owner": "张睿",
+          "department": "杭州大区",
+          "address": "江苏省无锡市锡山区安镇街道 信达大厦",
+          "invoiceTitle": "无锡简道云",
+          "taxNumber": "123454321",
+          "taxType": "电子普票",
+          "taxRate": 13,
+          "invoicePhone": "18888888888",
+          "email": "18888888888@163.com",
+          "bank": "中国银行",
+          "bankAccount": "6000000000000000",
+          "contactName": "示例：安欣",
+          "contactPhone": "18888888888",
+          "contactPosition": "运营总监"
+        },
+        "contacts": []
+      }
+    ]
+  },
+  "followups": {
+    "fields": [
+      {
+        "key": "section",
+        "label": "客户跟进记录",
+        "kind": "separator",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "content",
+        "label": "跟进内容记录",
+        "kind": "textarea",
+        "required": true,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "customerId",
+        "label": "选择客户",
+        "kind": "linkfield",
+        "required": true,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "customerName",
+        "label": "客户名称",
+        "kind": "text",
+        "required": false,
+        "disabled": true,
+        "options": []
+      },
+      {
+        "key": "customerCode",
+        "label": "客户编码",
+        "kind": "text",
+        "required": false,
+        "disabled": true,
+        "options": []
+      },
+      {
+        "key": "time",
+        "label": "跟进时间",
+        "kind": "datetime",
+        "required": true,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "method",
+        "label": "跟进方式",
+        "kind": "combo",
+        "required": true,
+        "disabled": false,
+        "options": [
+          {
+            "value": "上门拜访",
+            "color": "#EB5050"
+          },
+          {
+            "value": "电话拜访",
+            "color": "#F0A800"
+          },
+          {
+            "value": "微信沟通",
+            "color": "#46C26F"
+          },
+          {
+            "value": "其他",
+            "color": ""
+          }
+        ]
+      },
+      {
+        "key": "stage",
+        "label": "跟进内容",
+        "kind": "combo",
+        "required": true,
+        "disabled": false,
+        "options": [
+          {
+            "value": "初次沟通",
+            "color": "#EB5050"
+          },
+          {
+            "value": "需求沟通",
+            "color": "#F0A800"
+          },
+          {
+            "value": "方案确认",
+            "color": "#46C26F"
+          },
+          {
+            "value": "报价",
+            "color": "#A2C204"
+          },
+          {
+            "value": "合同签署",
+            "color": "#00AED1"
+          },
+          {
+            "value": "销售回访",
+            "color": "#5865F5"
+          }
+        ]
+      },
+      {
+        "key": "owner",
+        "label": "跟进人",
+        "kind": "user",
+        "required": false,
+        "disabled": false,
+        "options": []
+      },
+      {
+        "key": "department",
+        "label": "销售归属部门",
+        "kind": "dept",
+        "required": false,
+        "disabled": true,
+        "options": []
+      },
+      {
+        "key": "location",
+        "label": "外勤打卡",
+        "kind": "location",
+        "required": false,
+        "disabled": false,
+        "options": []
+      }
+    ],
+    "rows": [
+      {
+        "id": "followups-1",
+        "values": {
+          "content": "客户拜访",
+          "customerName": "示例：上海帆软",
+          "customerCode": "KH230424-01",
+          "time": "2026-09-18 10:28",
+          "method": "上门拜访",
+          "stage": "初次沟通",
+          "owner": "张睿",
+          "department": "市场部",
+          "location": "",
+          "customerId": "customers-5"
+        },
+        "contacts": []
+      },
+      {
+        "id": "followups-2",
+        "values": {
+          "content": "常规联系",
+          "customerName": "示例：无锡简道云",
+          "customerCode": "KH230420-01",
+          "time": "2026-04-14 14:33",
+          "method": "电话拜访",
+          "stage": "初次沟通",
+          "owner": "张睿",
+          "department": "生产部",
+          "location": "",
+          "customerId": "customers-6"
+        },
+        "contacts": []
+      },
+      {
+        "id": "followups-3",
+        "values": {
+          "content": "需求回访",
+          "customerName": "示例：杭州简道云",
+          "customerCode": "KH230420-03",
+          "time": "2026-07-26 14:15",
+          "method": "电话拜访",
+          "stage": "需求沟通",
+          "owner": "张睿",
+          "department": "市场部",
+          "location": "",
+          "customerId": "customers-2"
+        },
+        "contacts": []
+      },
+      {
+        "id": "followups-4",
+        "values": {
+          "content": "下单",
+          "customerName": "示例：上海帆软",
+          "customerCode": "KH230424-01",
+          "time": "2026-04-24 14:50",
+          "method": "上门拜访",
+          "stage": "方案确认",
+          "owner": "张睿",
+          "department": "生产部",
+          "location": "",
+          "customerId": "customers-5"
+        },
+        "contacts": []
+      },
+      {
+        "id": "followups-5",
+        "values": {
+          "content": "新客户报价",
+          "customerName": "示例：杭州简道云",
+          "customerCode": "KH230420-03",
+          "time": "2026-04-05 23:16",
+          "method": "上门拜访",
+          "stage": "报价",
+          "owner": "张睿",
+          "department": "杭州大区",
+          "location": "",
+          "customerId": "customers-2"
+        },
+        "contacts": []
+      },
+      {
+        "id": "followups-6",
+        "values": {
+          "content": "产品报价",
+          "customerName": "示例：无锡简道云",
+          "customerCode": "KH230420-01",
+          "time": "2026-04-05 23:15",
+          "method": "电话拜访",
+          "stage": "报价",
+          "owner": "张睿",
+          "department": "杭州大区",
+          "location": "",
+          "customerId": "customers-6"
+        },
+        "contacts": []
+      },
+      {
+        "id": "followups-7",
+        "values": {
+          "content": "合同签署",
+          "customerName": "示例：无锡帆软",
+          "customerCode": "KH230420-02",
+          "time": "2026-04-05 23:16",
+          "method": "上门拜访",
+          "stage": "合同签署",
+          "owner": "张睿",
+          "department": "杭州大区",
+          "location": "",
+          "customerId": "customers-4"
+        },
+        "contacts": []
+      }
+    ]
+  }
+}

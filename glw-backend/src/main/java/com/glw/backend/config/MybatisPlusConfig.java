@@ -9,7 +9,7 @@ import org.springframework.context.annotation.*;
 
 @Configuration
 @Profile("!mock")
-@MapperScan("com.glw.backend.user.mapper")
+@MapperScan("com.glw.backend.mapper")
 public class MybatisPlusConfig {
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {

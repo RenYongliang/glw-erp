@@ -44,7 +44,7 @@ async function submit() {
   try {
     await new Promise((resolve) => setTimeout(resolve, 350))
     if (disposed) return
-    auth.login(form.username, form.password, form.remember)
+    await auth.login(form.username, form.password, form.remember)
     await router.replace(safeRedirect(route.query.redirect))
     ElMessage.success(`欢迎回来，${auth.user?.name}`)
   } catch (reason) {

@@ -43,3 +43,11 @@ npm.cmd run preview
 - `src/assets`：页面样式
 - `tests`：业务逻辑测试
 - `docs`：业务文档
+
+## 后端认证与 Token
+
+默认调用 glw-backend 的登录接口，请同时启动后端（默认 mock profile，无需数据库/Redis，端口8080）。Vite 会把 `/api` 代理到后端。登录后自动携带 accessToken，过期自动使用 refreshToken 换发，退出撤销当前会话。
+
+复制 `.env.example` 为 `.env.local` 可修改接口地址。纯前端静态演示设置 `VITE_AUTH_MODE=mock`，修改环境配置后重启 Vite。生产构建默认使用后端认证，需要为 `/api` 配置反向代理。
+
+业务页面仍使用 mock 数据。请求层用法、凭据存储及刷新规则见 [认证说明](src/services/README.md)。

@@ -2,11 +2,15 @@ package com.glw.backend.auth;
 
 import java.time.Instant;
 
-/** 登录会话白名单。只存 jti/userId，不存密码或完整 Token。 */
+/** Stores login sessions and JWT IDs, never complete tokens or passwords. */
 public interface SessionStore {
-    void save(String tokenId, long userId, Instant expiresAt);
+    record Session(long userId, String accessId, String refreshId, Instant expiresAt) {}
 
-    boolean active(String tokenId, long userId);
+    void save(String sessionId, Session session);
 
-    void revoke(String tokenId);
+    boolean active(String sessionId, long userId, String accessId);
+
+    boolean rotate(String sessionId, long userId, String expectedRefreshId, Session replacement);
+
+    void revoke(String sessionId);
 }

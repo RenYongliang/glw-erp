@@ -1,5 +1,3 @@
-export const SESSION_KEY = 'glw.auth.session.v1'
-export const LOGOUT_KEY = 'glw.auth.logout.v1'
 export const mockAccounts = [
   {
     username: 'admin',
@@ -25,11 +23,7 @@ export interface MockUser {
   role: string
   department: string
 }
-export interface MockSession {
-  user: MockUser
-  expiresAt: number
-  remember: boolean
-}
+
 export function authenticate(username: string, password: string): MockUser | null {
   const account = mockAccounts.find(
     (account) => account.username === username.trim() && account.password === password,
@@ -43,37 +37,7 @@ export function authenticate(username: string, password: string): MockUser | nul
     department: account.department,
   }
 }
-export function decodeSession(raw: string | null, now = Date.now()): MockSession | null {
-  try {
-    if (!raw) return null
-    const value = JSON.parse(raw)
-    if (
-      !value ||
-      typeof value.expiresAt !== 'number' ||
-      !Number.isFinite(value.expiresAt) ||
-      value.expiresAt <= now ||
-      typeof value.remember !== 'boolean'
-    )
-      return null
-    const account = mockAccounts.find(
-      (account) => account.id === value.user?.id && account.username === value.user?.username,
-    )
-    if (!account) return null
-    return {
-      user: {
-        id: account.id,
-        username: account.username,
-        name: account.name,
-        role: account.role,
-        department: account.department,
-      },
-      expiresAt: value.expiresAt,
-      remember: value.remember,
-    }
-  } catch {
-    return null
-  }
-}
+
 export function safeRedirect(value: unknown): string {
   if (
     typeof value !== 'string' ||
@@ -86,9 +50,15 @@ export function safeRedirect(value: unknown): string {
     const url = new URL(value, 'https://glw.local')
     if (
       url.origin !== 'https://glw.local' ||
-      !['/', '/orders', '/boards/sales', '/boards/purchase', '/boards/inventory'].includes(
-        url.pathname,
-      )
+      ![
+        '/',
+        '/orders',
+        '/boards/sales',
+        '/boards/purchase',
+        '/boards/inventory',
+        '/customers',
+        '/followups',
+      ].includes(url.pathname)
     )
       return '/'
     return url.pathname + url.search + url.hash
