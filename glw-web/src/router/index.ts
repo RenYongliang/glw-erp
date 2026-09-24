@@ -7,6 +7,12 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/products/query',
+      name: 'product-query',
+      component: () => import('../views/ProductQueryView.vue'),
+      meta: { title: '产品信息查询' },
+    },
+    {
       path: '/purchase/orders',
       name: 'purchase-orders',
       component: () => import('../views/PurchaseManagementView.vue'),

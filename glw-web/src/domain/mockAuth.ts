@@ -60,6 +60,7 @@ export function safeRedirect(value: unknown): string {
         '/followups',
         '/purchase/orders',
         '/purchase/receipts',
+        '/products/query',
       ].includes(url.pathname)
     )
       return '/'

@@ -68,6 +68,7 @@ const purchaseMenus = [
   { title: '采购订单', path: '/purchase/orders' },
   { title: '采购入库', path: '/purchase/receipts' },
 ]
+const basicExpanded = ref(route.path.startsWith('/products/'))
 const purchaseExpanded = ref(route.path.startsWith('/purchase/'))
 const customerExpanded = ref(['/customers', '/followups'].includes(route.path))
 const boardExpanded = ref(route.path.startsWith('/boards/'))
@@ -75,6 +76,9 @@ const pageTitle = computed(() => String(route.meta.title || '首页'))
 watch(
   () => route.path,
   () => {
+    if (route.path.startsWith('/products/')) {
+      basicExpanded.value = true
+    }
     if (route.path.startsWith('/purchase/')) purchaseExpanded.value = true
     if (route.path.startsWith('/boards/')) boardExpanded.value = true
     if (['/customers', '/followups'].includes(route.path)) customerExpanded.value = true
@@ -99,6 +103,8 @@ const filteredMenus = computed(() =>
   menus.filter(
     (item) =>
       item.includes(query.value.trim()) ||
+      (item === '基础数据' &&
+        '产品信息查询'.includes(query.value.trim())) ||
       (item === '经营看板' && boardMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '采购管理' &&
         purchaseMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
@@ -110,6 +116,9 @@ function navigate(name: string) {
   if (name === '首页') {
     router.push('/')
     workspace.value?.querySelector('.page-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
+  } else if (name === '基础数据') {
+    if (collapsed.value) collapsed.value = false
+    basicExpanded.value = !basicExpanded.value
   } else if (name === '经营看板') {
     if (collapsed.value) collapsed.value = false
     boardExpanded.value = !boardExpanded.value
@@ -166,13 +175,15 @@ async function fullscreen() {
                   name === '首页' && ['/', '/orders'].includes(route.path) ? 'page' : undefined
                 "
                 :aria-expanded="
-                  name === '经营看板'
-                    ? boardExpanded
-                    : name === '客户管理'
-                      ? customerExpanded
-                      : name === '采购管理'
-                        ? purchaseExpanded
-                        : undefined
+                  name === '基础数据'
+                    ? basicExpanded
+                    : name === '经营看板'
+                      ? boardExpanded
+                      : name === '客户管理'
+                        ? customerExpanded
+                        : name === '采购管理'
+                          ? purchaseExpanded
+                          : undefined
                 "
                 @click="navigate(name)"
               >
@@ -184,19 +195,35 @@ async function fullscreen() {
                   >{{ name }}<span v-if="name === '应用说明'" class="tip-bulb">💡</span></span
                 >
                 <el-icon
-                  v-if="['经营看板', '客户管理', '采购管理'].includes(name) && !collapsed"
+                  v-if="
+                    ['经营看板', '客户管理', '采购管理', '基础数据'].includes(name) && !collapsed
+                  "
                   class="board-menu-arrow"
                   :class="{
                     open:
-                      name === '经营看板'
-                        ? boardExpanded
-                        : name === '客户管理'
-                          ? customerExpanded
-                          : purchaseExpanded,
+                      name === '基础数据'
+                        ? basicExpanded
+                        : name === '经营看板'
+                          ? boardExpanded
+                          : name === '客户管理'
+                            ? customerExpanded
+                            : purchaseExpanded,
                   }"
                   ><ArrowDown
                 /></el-icon>
               </button>
+              <div v-if="name === '基础数据' && (basicExpanded || query)" class="board-submenu">
+                <RouterLink
+                  to="/products/query"
+                  class="nav-item"
+                  :class="{ active: route.path === '/products/query' }"
+                  title="产品信息查询"
+                  aria-label="产品信息查询"
+                  :aria-current="route.path === '/products/query' ? 'page' : undefined"
+                >
+                  <el-icon><DataAnalysis /></el-icon><span>产品信息查询</span>
+                </RouterLink>
+              </div>
               <div v-if="name === '经营看板' && (boardExpanded || query)" class="board-submenu">
                 <RouterLink
                   v-for="menu in boardMenus.filter(
