@@ -61,6 +61,8 @@ export function safeRedirect(value: unknown): string {
         '/purchase/orders',
         '/purchase/receipts',
         '/products/query',
+        '/sales/orders',
+        '/sales/shipments',
       ].includes(url.pathname)
     )
       return '/'

@@ -64,6 +64,11 @@ const customerMenus = [
   { title: '客户', path: '/customers' },
   { title: '跟进记录', path: '/followups' },
 ]
+const salesMenus = [
+  { title: '销售订单', path: '/sales/orders' },
+  { title: '销售出库', path: '/sales/shipments' },
+]
+const salesExpanded = ref(route.path.startsWith('/sales/'))
 const purchaseMenus = [
   { title: '采购订单', path: '/purchase/orders' },
   { title: '采购入库', path: '/purchase/receipts' },
@@ -79,6 +84,7 @@ watch(
     if (route.path.startsWith('/products/')) {
       basicExpanded.value = true
     }
+    if (route.path.startsWith('/sales/')) salesExpanded.value = true
     if (route.path.startsWith('/purchase/')) purchaseExpanded.value = true
     if (route.path.startsWith('/boards/')) boardExpanded.value = true
     if (['/customers', '/followups'].includes(route.path)) customerExpanded.value = true
@@ -103,8 +109,8 @@ const filteredMenus = computed(() =>
   menus.filter(
     (item) =>
       item.includes(query.value.trim()) ||
-      (item === '基础数据' &&
-        '产品信息查询'.includes(query.value.trim())) ||
+      (item === '销售管理' && salesMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
+      (item === '基础数据' && '产品信息查询'.includes(query.value.trim())) ||
       (item === '经营看板' && boardMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '采购管理' &&
         purchaseMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
@@ -122,6 +128,9 @@ function navigate(name: string) {
   } else if (name === '经营看板') {
     if (collapsed.value) collapsed.value = false
     boardExpanded.value = !boardExpanded.value
+  } else if (name === '销售管理') {
+    if (collapsed.value) collapsed.value = false
+    salesExpanded.value = !salesExpanded.value
   } else if (name === '采购管理') {
     if (collapsed.value) collapsed.value = false
     purchaseExpanded.value = !purchaseExpanded.value
@@ -175,15 +184,17 @@ async function fullscreen() {
                   name === '首页' && ['/', '/orders'].includes(route.path) ? 'page' : undefined
                 "
                 :aria-expanded="
-                  name === '基础数据'
-                    ? basicExpanded
-                    : name === '经营看板'
-                      ? boardExpanded
-                      : name === '客户管理'
-                        ? customerExpanded
-                        : name === '采购管理'
-                          ? purchaseExpanded
-                          : undefined
+                  name === '销售管理'
+                    ? salesExpanded
+                    : name === '基础数据'
+                      ? basicExpanded
+                      : name === '经营看板'
+                        ? boardExpanded
+                        : name === '客户管理'
+                          ? customerExpanded
+                          : name === '采购管理'
+                            ? purchaseExpanded
+                            : undefined
                 "
                 @click="navigate(name)"
               >
@@ -196,18 +207,21 @@ async function fullscreen() {
                 >
                 <el-icon
                   v-if="
-                    ['经营看板', '客户管理', '采购管理', '基础数据'].includes(name) && !collapsed
+                    ['经营看板', '客户管理', '采购管理', '基础数据', '销售管理'].includes(name) &&
+                    !collapsed
                   "
                   class="board-menu-arrow"
                   :class="{
                     open:
-                      name === '基础数据'
-                        ? basicExpanded
-                        : name === '经营看板'
-                          ? boardExpanded
-                          : name === '客户管理'
-                            ? customerExpanded
-                            : purchaseExpanded,
+                      name === '销售管理'
+                        ? salesExpanded
+                        : name === '基础数据'
+                          ? basicExpanded
+                          : name === '经营看板'
+                            ? boardExpanded
+                            : name === '客户管理'
+                              ? customerExpanded
+                              : purchaseExpanded,
                   }"
                   ><ArrowDown
                 /></el-icon>
@@ -237,6 +251,21 @@ async function fullscreen() {
                   :aria-label="menu.title"
                   :aria-current="route.path === menu.path ? 'page' : undefined"
                   ><el-icon><DataAnalysis /></el-icon><span>{{ menu.title }}</span></RouterLink
+                >
+              </div>
+              <div v-if="name === '销售管理' && (salesExpanded || query)" class="board-submenu">
+                <RouterLink
+                  v-for="menu in salesMenus.filter(
+                    (item) => !query || '销售管理'.includes(query) || item.title.includes(query),
+                  )"
+                  :key="menu.path"
+                  :to="menu.path"
+                  class="nav-item"
+                  :class="{ active: route.path === menu.path }"
+                  :title="menu.title"
+                  :aria-label="menu.title"
+                  :aria-current="route.path === menu.path ? 'page' : undefined"
+                  ><el-icon><Document /></el-icon><span>{{ menu.title }}</span></RouterLink
                 >
               </div>
               <div v-if="name === '采购管理' && (purchaseExpanded || query)" class="board-submenu">
