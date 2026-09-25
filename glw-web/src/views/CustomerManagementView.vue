@@ -325,7 +325,6 @@ const reconcileRows = computed(() => [
 </script>
 <template>
   <section class="crm-page">
-    <div class="crm-access">主管-管理全部数据</div>
     <div class="crm-view-tabs" role="tablist" aria-label="数据视图">
       <button
         v-for="name in customerPage

@@ -521,10 +521,6 @@ function confirmImport() {
 
 <template>
   <section class="purchase-page" :class="{ 'purchase-expanded': expanded }">
-    <div class="purchase-access">
-      <span>{{ isOrder ? '主管-管理全部流程' : '主管-管理全部数据' }}</span
-      ><span class="purchase-demo">本地演示数据</span>
-    </div>
     <nav class="purchase-view-tabs" aria-label="采购数据视图">
       <button
         v-for="name in tabs"

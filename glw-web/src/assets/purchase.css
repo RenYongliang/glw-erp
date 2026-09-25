@@ -16,26 +16,6 @@
   display: flex;
   flex-direction: column;
 }
-.purchase-access {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f6f7fa;
-  margin: 0 -14px;
-  padding: 11px 14px;
-  border-bottom: 1px solid #e5e8ef;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-.purchase-access > span:first-child {
-  background: #e9ebf0;
-  padding: 5px 9px;
-  border-radius: 5px;
-}
-.purchase-demo {
-  color: #8c98a6;
-  font-size: 12px;
-}
 .purchase-view-tabs,
 .purchase-detail-tabs {
   display: flex;
@@ -511,9 +491,6 @@
   }
   .purchase-form-footer {
     flex-wrap: wrap;
-  }
-  .purchase-demo {
-    display: none;
   }
   .purchase-table-scroll {
     min-height: 340px;
