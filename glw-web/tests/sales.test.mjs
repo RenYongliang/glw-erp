@@ -26,7 +26,7 @@ test('outbound confirmation and receipt confirmation enforce state and date orde
  assert.match(validateShipment(r,s),/切换标签/);r.tag='出库';assert.equal(validateShipment(r,s),'')
  r.customerConfirmed=true;r.customerReceivedAt='2026-09-24 09:00';assert.match(validateShipment(r,s),/收货时间/)
  r.customerReceivedAt='2026-09-24 11:00';assert.equal(validateShipment(r,s),'')
- r.lines[0].location='';assert.match(validateShipment(r,s),/仓位/)
+ r.lines[0].location='';assert.equal(validateShipment(r,s),'')
 })
 test('outbound rejects unapproved orders, duplicate lines, wrong warehouses and stock shortages',()=>{
  const s=state(),r=shipment();s.orders[0].status='待审批';assert.match(validateShipment(r,s),/审批通过/)

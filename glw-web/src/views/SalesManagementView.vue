@@ -45,7 +45,7 @@ const tabs = isOrder
 const tab = ref(tabs[0]!),
   keyword = ref(""),
   filterOpen = ref(false),
-  filterKey = ref("name"),
+  filterKey = ref(isOrder ? "code" : "name"),
   filterOperator = ref("包含"),
   filterValue = ref(""),
   grouped = ref(true),
@@ -72,23 +72,38 @@ type TableRow = {
   shipment?: SalesShipment;
 };
 const orderColumns = [
-  ["name", "销售订单名称"],
-  ["code", "销售订单编号"],
-  ["priceLevel", "价格等级"],
-  ["contact", "客户联系人姓名"],
-  ["phone", "客户联系人手机"],
-  ["signed", "订单签订日期"],
-  ["delivery", "订单交付日期"],
-  ["owner", "销售负责人"],
-  ["department", "销售归属部门"],
-  ["status", "审批结果"],
-  ["warehouse", "出库仓库"],
-  ["productNames", "产品名称"],
-  ["productCodes", "产品编码"],
+  ["code", "订单编号"],
+  ["signed", "订单日期"],
+  ["customer", "客户名称"],
   ["brands", "品牌"],
-  ["models", "规格型号"],
-  ["total", "销售订单金额(含税)/元"],
+  ["productNames", "型号"],
+  ["models", "封装"],
+  ["prices", "单价"],
+  ["ordered", "数量"],
+  ["amounts", "金额"],
+  ["total", "订单金额"],
+  ["term", "账期"],
+  ["delivery", "交付日期"],
+  ["owner", "销售负责人"],
 ];
+const orderWidths: Record<string, number> = {
+  code: 140,
+  signed: 95,
+  customer: 135,
+  brands: 65,
+  productNames: 85,
+  models: 85,
+  prices: 65,
+  ordered: 65,
+  amounts: 90,
+  total: 100,
+  term: 90,
+  delivery: 95,
+  owner: 95,
+};
+function columnWidth(key: string) {
+  return isOrder ? orderWidths[key] || 100 : key === "name" ? 230 : 130;
+}
 const shipmentColumns = [
   ["name", "销售订单名称"],
   ["orderCode", "销售订单编号"],
@@ -128,6 +143,8 @@ function productSummary(
     productCodes: values("code"),
     brands: values("brand"),
     models: values("model"),
+    prices: lines.map((l) => money(l.price)).join("\n"),
+    amounts: lines.map((l) => money(l.price * l.quantity)).join("\n"),
     units: values("unit"),
     ordered: lines.map((l) => l.quantity).join("\n"),
     pending: lines
@@ -144,31 +161,35 @@ const columns = (isOrder ? orderColumns : shipmentColumns).map(
 const shownColumns = computed(() =>
   columns.filter((c) => !hidden.value.includes(c.key)),
 );
-const productKeys = [
-  "productNames",
-  "productCodes",
-  "brands",
-  "models",
-  "units",
-  "ordered",
-  "pending",
-];
+const productKeys = isOrder
+  ? ["brands", "productNames", "models", "prices", "ordered", "amounts"]
+  : [
+      "productNames",
+      "productCodes",
+      "brands",
+      "models",
+      "units",
+      "ordered",
+      "pending",
+    ];
 const productColumns = computed(() =>
   shownColumns.value.filter((c) => productKeys.includes(c.key)),
 );
 const leadingColumns = computed(() =>
-  shownColumns.value.filter(
-    (c) =>
-      (!productKeys.includes(c.key) &&
-        !["total", "quantity", "status"].includes(c.key)) ||
-      (isOrder && c.key === "status"),
+  shownColumns.value.filter((c) =>
+    isOrder
+      ? ["code", "signed", "customer"].includes(c.key)
+      : (!productKeys.includes(c.key) &&
+          !["total", "quantity", "status"].includes(c.key)) ||
+        (isOrder && c.key === "status"),
   ),
 );
 const trailingColumns = computed(() =>
-  shownColumns.value.filter(
-    (c) =>
-      ["total", "quantity", "status"].includes(c.key) &&
-      !(isOrder && c.key === "status"),
+  shownColumns.value.filter((c) =>
+    isOrder
+      ? ["total", "term", "delivery", "owner"].includes(c.key)
+      : ["total", "quantity", "status"].includes(c.key) &&
+        !(isOrder && c.key === "status"),
   ),
 );
 
@@ -182,6 +203,8 @@ const records = computed<TableRow[]>(() =>
           group: customers.find((s) => s.id === o.customerId)?.name || "未填写",
           values: {
             ...productSummary(o),
+            customer: customers.find((c) => c.id === o.customerId)?.name || "—",
+            term: o.term,
             priceLevel: o.priceLevel || "标准售价",
             signed: o.signed,
             delivery: o.delivery,
@@ -624,7 +647,10 @@ function confirmImport() {
 </script>
 
 <template>
-  <section class="purchase-page" :class="{ 'purchase-expanded': expanded }">
+  <section
+    class="purchase-page"
+    :class="{ 'purchase-expanded': expanded, 'sales-order-page': isOrder }"
+  >
     <nav class="purchase-view-tabs" aria-label="销售数据视图">
       <button
         v-for="name in tabs"
@@ -785,7 +811,7 @@ function confirmImport() {
               :key="c.key"
               :rowspan="productColumns.length ? 2 : 1"
               :class="{ 'purchase-name-col': c.key === 'name' }"
-              :style="{ minWidth: c.key === 'name' ? '230px' : '125px' }"
+              :style="{ minWidth: columnWidth(c.key) + 'px' }"
             >
               {{ c.label }}
             </th>
@@ -794,13 +820,13 @@ function confirmImport() {
               :colspan="productColumns.length"
               class="sales-product-group"
             >
-              {{ isOrder ? "销售产品明细" : "出库产品明细" }}
+              {{ isOrder ? "产品明细" : "出库产品明细" }}
             </th>
             <th
               v-for="c in trailingColumns"
               :key="c.key"
               :rowspan="productColumns.length ? 2 : 1"
-              style="min-width: 185px"
+              :style="{ minWidth: columnWidth(c.key) + 'px' }"
             >
               {{ c.label }}
             </th>
@@ -816,7 +842,7 @@ function confirmImport() {
             <th
               v-for="c in productColumns"
               :key="c.key"
-              style="min-width: 130px"
+              :style="{ minWidth: columnWidth(c.key) + 'px' }"
             >
               {{ c.label }}
             </th>
@@ -934,7 +960,7 @@ function confirmImport() {
                       )
                     "
                     @click="ship(row.order!)"
-                    >销售出库</el-button
+                    >发货</el-button
                   ><el-button
                     class="purchase-return"
                     size="small"
@@ -974,7 +1000,9 @@ function confirmImport() {
         text
         @click="collapsed = groups.map((g) => g.name)"
         >⌃ 收起全部</el-button
-      ><span class="purchase-footer-hint">单击名称查看详情</span>
+      ><span class="purchase-footer-hint">{{
+        isOrder ? "单击订单编号查看详情" : "单击名称查看详情"
+      }}</span>
     </footer>
   </section>
   <SalesRecordDialog
@@ -984,6 +1012,7 @@ function confirmImport() {
     :order="editingOrder"
     :shipment="editingShipment"
     :related-order="relatedOrder"
+    :dispatch="!!relatedOrder"
     :readonly="readonly"
     @close="editor = false"
     @saved="saved"
@@ -1177,5 +1206,20 @@ function confirmImport() {
     position: static;
     box-shadow: none;
   }
+}
+.sales-order-page .sales-management-table td:not(.sales-product-cell),
+.sales-order-page .sales-management-table th {
+  text-align: center;
+  vertical-align: middle;
+}
+.sales-order-page .sales-management-table td.sales-product-cell,
+.sales-order-page .sales-management-table thead tr:nth-child(2) th {
+  text-align: left;
+}
+.sales-order-page .sales-management-table .purchase-record-link {
+  text-align: center;
+}
+.sales-order-page .sales-management-table .purchase-group td {
+  text-align: left;
 }
 </style>

@@ -46,6 +46,7 @@ export interface Attachment {
   url: string
 }
 export interface SalesOrder {
+  purchaseNumber?: string
   priceLevel?: string
   quoteCode?: string
   id: string
@@ -70,11 +71,29 @@ export interface SalesOrder {
   approvedAt: string
 }
 export interface ShipmentLine {
+  remark?: string
   lineId: string
   arrived: number
   location: string
 }
+export interface ShippingInfo {
+  address: string
+  recipient: string
+  phone: string
+  sender: string
+  senderPhone: string
+  method: string
+  carrier: string
+  trackingNumber: string
+  purchaseNumber: string
+  remark: string
+}
+export function defaultShippingInfo(order?: SalesOrder): ShippingInfo {
+  const customer = customers.find(c => c.id === order?.customerId)
+  return { address: order?.address || '', recipient: customer?.contact || '', phone: customer?.phone || '', sender: order?.owner || '', senderPhone: '', method: '快递物流', carrier: '', trackingNumber: '', purchaseNumber: order?.purchaseNumber || '', remark: '' }
+}
 export interface SalesShipment {
+  shipping?: ShippingInfo
   id: string
   code: string
   orderId: string
@@ -367,6 +386,11 @@ export function validateOrder(order: SalesOrder) {
 export function validateShipment(shipment: SalesShipment, state: SalesState) {
   const order = state.orders.find((o) => o.id === shipment.orderId)
   if (!order || order.status !== '审批通过') return '请选择已审批通过的销售订单'
+  if (shipment.shipping && shipment.confirmed) {
+    if (!shipment.shipping.address.trim()) return '请填写收货地址'
+    if (!shipment.shipping.recipient.trim()) return '请填写收货人'
+    if (!shipment.shipping.phone.trim()) return '请填写收货联系电话'
+  }
   if (shipment.warehouse !== order.warehouse) return '出库仓库必须与销售订单一致'
   if (!['出库', '库存冻结', '计划出库'].includes(shipment.tag)) return '请选择产品出库标签'
   if (!shipment.lines.length || !shipment.lines.some((l) => l.arrived > 0))
@@ -381,7 +405,6 @@ export function validateShipment(shipment: SalesShipment, state: SalesState) {
       return '本次出库数量不能超过待出库数量'
     if (line.arrived > availableStock(state, source.productId, shipment.warehouse, shipment.id))
       return '本次出库数量不能超过当前可用库存'
-    if (shipment.confirmed && line.arrived > 0 && !line.location.trim()) return '请填写出库仓位'
   }
   if (shipment.confirmed && shipment.tag !== '出库')
     return '库存冻结、计划出库不能直接确认出库，请先切换标签为出库'

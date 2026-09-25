@@ -2,9 +2,11 @@
 import { computed, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Delete, FullScreen } from "@element-plus/icons-vue";
+import DeliveryNoteActions from "./DeliveryNoteActions.vue";
 import { useSalesStore } from "../../stores/sales";
 import {
   customers,
+  defaultShippingInfo,
   products,
   warehouses,
   today,
@@ -28,6 +30,7 @@ const props = defineProps<{
   shipment?: SalesShipment;
   relatedOrder?: SalesOrder;
   readonly?: boolean;
+  dispatch?: boolean;
 }>();
 const emit = defineEmits<{ close: []; saved: []; ship: [order: SalesOrder] }>();
 const store = useSalesStore(),
@@ -49,6 +52,7 @@ const order = ref<SalesOrder>(
         customerId: "",
         priceLevel: "标准售价",
         quoteCode: "",
+        purchaseNumber: "",
         signed: today(),
         delivery: "",
         owner: "张睿",
@@ -87,7 +91,7 @@ const shipment = ref<SalesShipment>(
       },
 );
 const isOrder = props.kind === "orders",
-  title = isOrder ? "销售订单" : "销售出库";
+  title = isOrder ? "销售订单" : props.dispatch ? "发货" : "销售出库";
 const linkedOrder = computed(() =>
   isOrder
     ? order.value
@@ -96,6 +100,11 @@ const linkedOrder = computed(() =>
 const customer = computed(() =>
   customers.find((s) => s.id === linkedOrder.value?.customerId),
 );
+const shippingInfo = ref(clone(props.shipment?.shipping || defaultShippingInfo(linkedOrder.value)));
+const printableShipment = computed(() => ({ ...shipment.value, shipping: shippingInfo.value }));
+const dispatchFields = computed(() => [
+  ["订单编号", linkedOrder.value?.code], ["客户名称", customer.value?.name],
+]);
 const totals = computed(() => orderTotals(order.value)),
   shippedTotals = computed(() =>
     shipmentTotals(shipment.value, linkedOrder.value),
@@ -172,6 +181,7 @@ function chooseCustomer(id: string) {
 }
 function chooseOrder(o: SalesOrder) {
   shipment.value.orderId = o.id;
+  shippingInfo.value = defaultShippingInfo(o);
   shipment.value.warehouse = o.warehouse;
   shipment.value.lines = o.lines
     .filter(
@@ -245,7 +255,10 @@ function openPicker(name: string) {
 function save() {
   try {
     if (isOrder) store.saveOrder(order.value);
-    else store.saveShipment(shipment.value);
+    else {
+      if (!props.shipment?.confirmed) shipment.value.shipping = clone({ ...shippingInfo.value, purchaseNumber: linkedOrder.value?.purchaseNumber || "" });
+      store.saveShipment(shipment.value);
+    }
     dirty.value = false;
     ElMessage.success(
       isOrder
@@ -399,6 +412,7 @@ function quickFill() {
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog"
+    :class="{ 'sales-dispatch-dialog': props.dispatch }"
     :close-on-click-modal="false"
     :before-close="close"
     destroy-on-close
@@ -432,7 +446,7 @@ function quickFill() {
       @input="dirty = true"
     >
       <h3 class="purchase-section">
-        {{ isOrder ? "销售订单基础信息" : "销售订单信息" }}
+        {{ isOrder ? "销售订单基础信息" : props.dispatch ? "订单信息" : "销售订单信息" }}
       </h3>
       <p class="purchase-tip">
         {{
@@ -441,7 +455,26 @@ function quickFill() {
             : "选择销售订单后自动带入客户和产品明细；确认后计入已出库数量。"
         }}
       </p>
-      <el-form label-position="top" class="purchase-form-grid" :disabled="view">
+      <el-form
+        v-if="props.dispatch"
+        label-position="top"
+        class="purchase-form-grid dispatch-order-fields"
+        size="small"
+      >
+        <el-form-item
+          v-for="[label, value] in dispatchFields"
+          :key="label"
+          :label="label"
+          ><div class="purchase-read">{{ value || "—" }}</div></el-form-item
+        >
+      <el-form-item label="客户采购单号"><div class="purchase-read" data-testid="dispatch-purchase-number">{{ linkedOrder?.purchaseNumber || "—" }}</div></el-form-item>
+      </el-form>
+      <el-form
+        v-else
+        label-position="top"
+        class="purchase-form-grid"
+        :disabled="view"
+      >
         <el-form-item :label="isOrder ? '选择客户' : '选择销售订单'" required
           ><el-button
             class="purchase-picker-button"
@@ -502,6 +535,7 @@ function quickFill() {
               aria-label="订单交付日期"
           /></el-form-item>
         </template>
+        <el-form-item v-if="isOrder" label="客户采购单号"><el-input v-model="order.purchaseNumber" aria-label="客户采购单号" maxlength="80" placeholder="填写客户提供的采购单号" /></el-form-item>
         <el-form-item label="销售负责人"
           ><el-select
             v-if="isOrder"
@@ -539,9 +573,13 @@ function quickFill() {
         >
       </el-form>
       <h3 class="purchase-section">
-        {{ isOrder ? "销售产品明细" : "出库产品明细" }}
+        {{ isOrder ? "销售产品明细" : "产品明细" }}
       </h3>
-      <el-form label-position="top" :disabled="view" class="purchase-form-grid"
+      <el-form
+        v-if="!props.dispatch"
+        label-position="top"
+        :disabled="view"
+        class="purchase-form-grid"
         ><el-form-item label="出库仓库" required
           ><el-select
             v-if="isOrder"
@@ -575,7 +613,7 @@ function quickFill() {
         >
       </el-form>
       <el-form
-        v-if="!isOrder"
+        v-if="!isOrder && !props.dispatch"
         label-position="top"
         :disabled="view || !!props.shipment?.confirmed"
       >
@@ -590,8 +628,8 @@ function quickFill() {
           ></el-form-item
         >
       </el-form>
-      <div class="purchase-field-label">
-        <span>*</span> {{ isOrder ? "销售产品明细" : "出库产品明细" }}
+      <div v-if="!props.dispatch" class="purchase-field-label">
+        <span>*</span> {{ isOrder ? "销售产品明细" : "产品明细" }}
       </div>
       <el-table
         v-if="isOrder"
@@ -700,7 +738,7 @@ function quickFill() {
         ></el-table-column>
       </el-table>
       <el-table
-        v-else
+        v-else-if="!props.dispatch"
         :data="shipment.lines"
         border
         class="purchase-lines"
@@ -778,6 +816,11 @@ function quickFill() {
               placeholder="如 HZ-A01"
               aria-label="出库仓位" /></template
         ></el-table-column>
+        <el-table-column label="备注" min-width="200">
+          <template #default="{ row }">
+            <el-input v-model="row.remark" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" :disabled="view || !!props.shipment?.confirmed" maxlength="200" placeholder="填写本产品发货备注" aria-label="产品备注" />
+          </template>
+        </el-table-column>
         <el-table-column
           v-if="!view && !props.shipment?.confirmed"
           fixed="right"
@@ -797,8 +840,75 @@ function quickFill() {
           /></template>
         </el-table-column>
       </el-table>
+      <el-table
+        v-else
+        :data="shipment.lines"
+        border
+        class="purchase-lines dispatch-product-table"
+        empty-text="请选择本次发货的产品"
+      >
+        <el-table-column type="index" width="40" />
+        <el-table-column label="品牌" min-width="65"
+          ><template #default="{ row }">{{
+            productFor(row.lineId)?.brand
+          }}</template></el-table-column
+        >
+        <el-table-column label="型号" min-width="110"
+          ><template #default="{ row }">{{
+            productFor(row.lineId)?.name
+          }}</template></el-table-column
+        >
+        <el-table-column label="封装" min-width="120"
+          ><template #default="{ row }">{{
+            productFor(row.lineId)?.model
+          }}</template></el-table-column
+        >
+        <el-table-column label="单价" min-width="70"
+          ><template #default="{ row }">{{
+            money(orderLine(row.lineId)?.price || 0)
+          }}</template></el-table-column
+        >
+        <el-table-column label="数量" min-width="72"
+          ><template #default="{ row }">{{
+            orderLine(row.lineId)?.quantity
+          }}</template></el-table-column
+        >
+        <el-table-column label="待出库数量" min-width="100"
+          ><template #default="{ row }">{{
+            remainingQuantity(
+              store.state,
+              shipment.orderId,
+              row.lineId,
+              shipment.id,
+            )
+          }}</template></el-table-column
+        >
+        <el-table-column label="本次发货数量" min-width="140"
+          ><template #default="{ row }"
+            ><el-input-number
+              v-model="row.arrived"
+              :disabled="view || !!props.shipment?.confirmed"
+              :min="0"
+              :max="
+                remainingQuantity(
+                  store.state,
+                  shipment.orderId,
+                  row.lineId,
+                  shipment.id,
+                )
+              "
+              :precision="0"
+              controls-position="right"
+              aria-label="本次发货数量" /></template
+        ></el-table-column>
+        <el-table-column label="备注" min-width="200">
+          <template #default="{ row }">
+            <el-input v-model="row.remark" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" :disabled="view || !!props.shipment?.confirmed" maxlength="200" placeholder="填写本产品发货备注" aria-label="产品备注" />
+          </template>
+        </el-table-column>
+      </el-table>
       <div
-        v-if="!view && (isOrder || !props.shipment?.confirmed)"
+        v-if="!props.dispatch && !view && (isOrder || !props.shipment?.confirmed)"
         class="purchase-line-actions"
       >
         <el-button
@@ -820,7 +930,7 @@ function quickFill() {
           >快速填报</el-button
         >
       </div>
-      <el-form label-position="top" class="purchase-form-grid" :disabled="view">
+      <el-form v-if="isOrder || !props.dispatch" label-position="top" class="purchase-form-grid" :disabled="view">
         <template v-if="isOrder">
           <el-form-item label="订单毛利率 %"
             ><strong
@@ -1101,7 +1211,7 @@ function quickFill() {
             v-if="view && order.status === '审批通过'"
             type="primary"
             @click="emit('ship', order)"
-            >销售出库</el-button
+            >发货</el-button
           ></template
         >
         <el-table v-else-if="tab === '销售退货'" :data="linkedReturns" border
@@ -1158,6 +1268,16 @@ function quickFill() {
         >
       </template>
       <template v-else>
+        <h3 class="purchase-section">发货信息</h3>
+        <el-form label-position="top" class="purchase-form-grid shipping-info-form" size="default" :disabled="view || !!props.shipment?.confirmed">
+          <el-form-item label="收货人" :required="shipment.confirmed"><el-input v-model="shippingInfo.recipient" aria-label="收货人" maxlength="80" placeholder="填写本次收货人" /></el-form-item>
+          <el-form-item label="收货联系电话" :required="shipment.confirmed"><el-input v-model="shippingInfo.phone" aria-label="收货联系电话" maxlength="40" placeholder="手机或固定电话" /></el-form-item>
+          <el-form-item label="收货地址" :required="shipment.confirmed" style="grid-column: 1 / -1"><el-input v-model="shippingInfo.address" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }" aria-label="收货地址" maxlength="300" placeholder="省 / 市 / 区、街道及详细地址；自提请填写提货地点" /></el-form-item>
+          <el-form-item label="物流公司"><el-input v-model="shippingInfo.carrier" aria-label="物流公司" maxlength="80" placeholder="如顺丰、德邦" /></el-form-item>
+          <el-form-item label="物流单号"><el-input v-model="shippingInfo.trackingNumber" aria-label="物流单号" maxlength="100" /></el-form-item>
+          <el-form-item label="发货备注" style="grid-column: 1 / -1"><el-input v-model="shippingInfo.remark" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }" aria-label="发货备注" maxlength="200" placeholder="送货时间要求、包装或签收注意事项" /></el-form-item>
+        </el-form>
+        <DeliveryNoteActions :order="linkedOrder" :shipment="printableShipment" />
         <h3 class="purchase-section">出库确认</h3>
         <el-form
           label-position="top"
@@ -1389,3 +1509,46 @@ function quickFill() {
     ></el-dialog
   >
 </template>
+
+<style>
+.sales-dispatch-dialog .dispatch-order-fields {
+  margin: 10px 0 0;
+  column-gap: 16px;
+  row-gap: 0;
+}
+.sales-dispatch-dialog .dispatch-order-fields .el-form-item {
+  margin-bottom: 8px;
+}
+.sales-dispatch-dialog .dispatch-order-fields + .purchase-section {
+  margin-top: 12px;
+}
+.sales-dispatch-dialog .dispatch-order-fields .purchase-read {
+  min-height: 28px;
+  padding: 4px 9px;
+}
+.sales-dispatch-dialog .shipping-info-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 10px 0 4px;
+  column-gap: 16px;
+  row-gap: 0;
+}
+.sales-dispatch-dialog .shipping-info-form .el-form-item {
+  margin-bottom: 10px;
+}
+.sales-dispatch-dialog .dispatch-order-fields .el-form-item__label,
+.sales-dispatch-dialog .shipping-info-form .el-form-item__label {
+  margin-bottom: 4px;
+  line-height: 20px;
+}
+.sales-dispatch-dialog .shipping-info-form + .purchase-section {
+  margin-top: 14px;
+}
+@media (max-width: 600px) {
+  .sales-dispatch-dialog .shipping-info-form { grid-template-columns: 1fr; }
+}
+</style>
+
+<style>
+.dispatch-product-table .cell { padding-left: 7px; padding-right: 7px; }
+.dispatch-product-table .el-input-number { max-width: 100%; }
+</style>
