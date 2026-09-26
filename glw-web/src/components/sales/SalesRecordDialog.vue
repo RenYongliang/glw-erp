@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Delete, FullScreen } from "@element-plus/icons-vue";
 import DeliveryNoteActions from "./DeliveryNoteActions.vue";
@@ -247,6 +247,46 @@ function productFor(lineId: string) {
 function orderLine(lineId: string) {
   return linkedOrder.value?.lines.find((l) => l.id === lineId);
 }
+const dispatchTable = ref<{ $el: HTMLElement }>();
+const dispatchFont = ref('14px Arial'), dispatchHeaderFont = ref('bold 14px Arial');
+const measurement = document.createElement('canvas').getContext('2d');
+function syncDispatchFont() {
+  const table = dispatchTable.value?.$el;
+  const cell = table?.querySelector('tbody .cell');
+  const header = table?.querySelector('thead .cell');
+  if (cell) dispatchFont.value = getComputedStyle(cell).font;
+  if (header) dispatchHeaderFont.value = getComputedStyle(header).font;
+}
+onMounted(() => {
+  syncDispatchFont();
+  void document.fonts.ready.then(syncDispatchFont);
+  window.addEventListener('resize', syncDispatchFont);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', syncDispatchFont));
+function contentWidth(label: string, values: unknown[], minimum = 0, controlPadding = 0) {
+  const measure = (value: unknown, font: string) => {
+    const text = String(value ?? '').replace(/\s+/g, ' ');
+    if (!measurement) return text.length * 14;
+    measurement.font = font;
+    return measurement.measureText(text).width;
+  };
+  return Math.ceil(Math.max(minimum, measure(label, dispatchHeaderFont.value) + 18,
+    ...values.map(value => measure(value, dispatchFont.value) + 18 + controlPadding)));
+}
+const dispatchWidths = computed(() => {
+  const lines = shipment.value.lines;
+  return {
+    index: contentWidth('', [lines.length], 34),
+    brand: contentWidth('品牌', lines.map(l => productFor(l.lineId)?.brand)),
+    model: contentWidth('型号', lines.map(l => productFor(l.lineId)?.name)),
+    package: contentWidth('封装', lines.map(l => productFor(l.lineId)?.model)),
+    quantity: contentWidth('数量', lines.map(l => orderLine(l.lineId)?.quantity)),
+    pending: contentWidth('待出库数量', lines.map(l => remainingQuantity(store.state, shipment.value.orderId, l.lineId, shipment.value.id))),
+    dispatch: contentWidth('本次发货数量', lines.map(l => l.arrived), 128, 56),
+    remark: contentWidth('备注', lines.map(l => l.remark || '填写本产品发货备注'), 156, 24),
+  };
+});
+const dispatchTableWidth = computed(() => Object.values(dispatchWidths.value).reduce((sum, width) => sum + width, 2));
 function openPicker(name: string) {
   pickerQuery.value = "";
   productSelection.value = [];
@@ -845,35 +885,33 @@ function quickFill() {
         :data="shipment.lines"
         border
         class="purchase-lines dispatch-product-table"
+        ref="dispatchTable"
+        :fit="false"
+        :style="{ width: dispatchTableWidth + 'px', maxWidth: '100%' }"
         empty-text="请选择本次发货的产品"
       >
-        <el-table-column type="index" width="40" />
-        <el-table-column label="品牌" min-width="65"
+        <el-table-column type="index" :width="dispatchWidths.index" />
+        <el-table-column label="品牌" :width="dispatchWidths.brand"
           ><template #default="{ row }">{{
             productFor(row.lineId)?.brand
           }}</template></el-table-column
         >
-        <el-table-column label="型号" min-width="110"
+        <el-table-column label="型号" :width="dispatchWidths.model"
           ><template #default="{ row }">{{
             productFor(row.lineId)?.name
           }}</template></el-table-column
         >
-        <el-table-column label="封装" min-width="120"
+        <el-table-column label="封装" :width="dispatchWidths.package"
           ><template #default="{ row }">{{
             productFor(row.lineId)?.model
           }}</template></el-table-column
         >
-        <el-table-column label="单价" min-width="70"
-          ><template #default="{ row }">{{
-            money(orderLine(row.lineId)?.price || 0)
-          }}</template></el-table-column
-        >
-        <el-table-column label="数量" min-width="72"
+        <el-table-column label="数量" :width="dispatchWidths.quantity"
           ><template #default="{ row }">{{
             orderLine(row.lineId)?.quantity
           }}</template></el-table-column
         >
-        <el-table-column label="待出库数量" min-width="100"
+        <el-table-column label="待出库数量" :width="dispatchWidths.pending"
           ><template #default="{ row }">{{
             remainingQuantity(
               store.state,
@@ -883,7 +921,7 @@ function quickFill() {
             )
           }}</template></el-table-column
         >
-        <el-table-column label="本次发货数量" min-width="140"
+        <el-table-column label="本次发货数量" :width="dispatchWidths.dispatch"
           ><template #default="{ row }"
             ><el-input-number
               v-model="row.arrived"
@@ -901,9 +939,9 @@ function quickFill() {
               controls-position="right"
               aria-label="本次发货数量" /></template
         ></el-table-column>
-        <el-table-column label="备注" min-width="200">
+        <el-table-column label="备注" :width="dispatchWidths.remark">
           <template #default="{ row }">
-            <el-input v-model="row.remark" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" :disabled="view || !!props.shipment?.confirmed" maxlength="200" placeholder="填写本产品发货备注" aria-label="产品备注" />
+            <el-input v-model="row.remark" :disabled="view || !!props.shipment?.confirmed" maxlength="200" placeholder="填写本产品发货备注" aria-label="产品备注" />
           </template>
         </el-table-column>
       </el-table>
@@ -1549,6 +1587,6 @@ function quickFill() {
 </style>
 
 <style>
-.dispatch-product-table .cell { padding-left: 7px; padding-right: 7px; }
+.dispatch-product-table .cell { padding-left: 7px; padding-right: 7px; white-space: nowrap; word-break: normal; }
 .dispatch-product-table .el-input-number { max-width: 100%; }
 </style>
