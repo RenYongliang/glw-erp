@@ -152,6 +152,9 @@ export const usePurchaseStore = defineStore('purchase', () => {
     )
       throw Error('订单已有入库或财务记录，不能再修改订单基础数据')
     order.name = order.name.trim()
+    order.supplierName = order.supplierName?.trim()
+    for (const line of order.lines) line.delivery ??= order.delivery
+    order.delivery = order.lines.map(l => l.delivery!).sort().at(-1) || order.signed
     order.status = '待审批'
     order.reason = ''
     order.approver = ''

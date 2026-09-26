@@ -2,9 +2,13 @@
 import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
+import PurchaseContractActions from './PurchaseContractActions.vue'
 import { usePurchaseStore } from '../../stores/purchase'
 import {
   suppliers,
+  purchaseSupplierName,
+  purchaseContact,
+  purchasePhone,
   products,
   warehouses,
   today,
@@ -47,7 +51,7 @@ const order = ref<PurchaseOrder>(
         delivery: '',
         owner: '张睿',
         department: '采购部',
-        warehouse: '',
+        warehouse: warehouses[0]!,
         address: '',
         discount: 0,
         lines: [],
@@ -61,6 +65,9 @@ const order = ref<PurchaseOrder>(
         approvedAt: '',
       },
 )
+order.value.contact = purchaseContact(order.value)
+order.value.phone = purchasePhone(order.value)
+for (const line of order.value.lines) line.delivery ??= order.value.delivery
 const receipt = ref<PurchaseReceipt>(
   props.receipt
     ? clone(props.receipt)
@@ -91,10 +98,10 @@ const supplier = computed(() => suppliers.find((s) => s.id === linkedOrder.value
 const totals = computed(() => orderTotals(order.value)),
   received = computed(() => receiptTotals(receipt.value, linkedOrder.value))
 const baseFields = computed(() => [
-  ['供应商名称', supplier.value?.name],
+  ['供应商名称', purchaseSupplierName(linkedOrder.value)],
   ['供应商编码', supplier.value?.code],
-  ['供应商联系人姓名', supplier.value?.contact],
-  ['供应商联系人手机', supplier.value?.phone],
+  ['供应商联系人姓名', purchaseContact(linkedOrder.value)],
+  ['供应商联系人手机', purchasePhone(linkedOrder.value)],
 ])
 const linkedReceipts = computed(() =>
   store.state.receipts.filter((r) => r.orderId === order.value.id),
@@ -130,7 +137,25 @@ const availableProducts = computed(() =>
 function chooseSupplier(id: string) {
   order.value.supplierId = id
   const s = suppliers.find((s) => s.id === id)!
+  order.value.supplierName = s.name
+  order.value.contact = s.contact
+  order.value.phone = s.phone
   order.value.name = `${s.name}-第${store.state.orders.filter((o) => o.supplierId === id).length + 1}份采购订单`
+  picker.value = ''
+  dirty.value = true
+}
+function useSupplierName() {
+  const name = pickerQuery.value.trim()
+  if (!name || name.length > 100) return void ElMessage.warning('请填写100字以内的供应商名称')
+  const existing = suppliers.find(s => s.name === name)
+  if (existing) return chooseSupplier(existing.id)
+  if (name !== purchaseSupplierName(order.value)) {
+    order.value.contact = ''
+    order.value.phone = ''
+  }
+  order.value.supplierId = ''
+  order.value.supplierName = name
+  order.value.name = `${name}-采购订单`
   picker.value = ''
   dirty.value = true
 }
@@ -159,6 +184,8 @@ function addProducts() {
         quantity: 1,
         price: p.price,
         tax: p.tax,
+        delivery: order.value.delivery || '',
+        remark: '',
       })
     }
   productSelection.value = []
@@ -178,7 +205,7 @@ function orderLine(lineId: string) {
   return linkedOrder.value?.lines.find((l) => l.id === lineId)
 }
 function openPicker(name: string) {
-  pickerQuery.value = ''
+  pickerQuery.value = name === 'supplier' && !order.value.supplierId ? purchaseSupplierName(order.value) : ''
   productSelection.value = []
   picker.value = name
 }
@@ -285,6 +312,8 @@ function quickFill() {
           quantity: r.q,
           price: r.p!.price,
           tax: r.p!.tax,
+          delivery: order.value.delivery || '',
+          remark: '',
         })
     } else {
       const l = linkedOrder.value?.lines.find((l) => l.productId === r.p!.id),
@@ -306,6 +335,7 @@ function quickFill() {
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog"
+    :class="{ 'purchase-order-editor': isOrder }"
     :close-on-click-modal="false"
     :before-close="close"
     destroy-on-close
@@ -329,15 +359,22 @@ function quickFill() {
         ><el-button :icon="FullScreen" text aria-label="切换表单全屏" @click="full = !full" /></div
     ></template>
     <div class="purchase-form-body" @change="dirty = true" @input="dirty = true">
-      <h3 class="purchase-section">{{ isOrder ? '采购订单基础信息' : '采购订单信息' }}</h3>
-      <p class="purchase-tip">
+      <h3 class="purchase-section">采购订单信息</h3>
+      <p v-if="!isOrder" class="purchase-tip">
         {{
           isOrder
             ? '使用Tips：采购订单通过标签页，可以一站式查看采购业务流程'
             : '选择采购订单后自动带入供应商和产品明细；确认后计入已入库数量。'
         }}
       </p>
-      <el-form label-position="top" class="purchase-form-grid" :disabled="view">
+      <el-form v-if="isOrder" label-position="top" class="purchase-form-grid purchase-order-info" :disabled="view">
+        <el-form-item label="供应商名称" required><el-button class="purchase-picker-button" @click="openPicker('supplier')">{{ purchaseSupplierName(order) || '选择或填写供应商名称' }}</el-button></el-form-item>
+        <el-form-item label="联系人"><el-input v-model="order.contact" aria-label="联系人" maxlength="50" /></el-form-item>
+        <el-form-item label="联系人手机"><el-input v-model="order.phone" aria-label="联系人手机" maxlength="30" /></el-form-item>
+        <el-form-item label="采购日期" required><el-date-picker v-model="order.signed" value-format="YYYY-MM-DD" aria-label="采购日期" /></el-form-item>
+        <el-form-item label="采购单号"><div class="purchase-read">{{ order.code || '保存后自动生成' }}</div></el-form-item>
+      </el-form>
+      <el-form v-else label-position="top" class="purchase-form-grid" :disabled="view">
         <el-form-item :label="isOrder ? '选择供应商' : '选择采购订单'" required
           ><el-button
             class="purchase-picker-button"
@@ -397,8 +434,8 @@ function quickFill() {
           </div></el-form-item
         >
       </el-form>
-      <h3 class="purchase-section">{{ isOrder ? '采购产品明细' : '入库产品明细' }}</h3>
-      <el-form label-position="top" :disabled="view"
+      <h3 class="purchase-section">{{ isOrder ? '采购产品信息' : '入库产品明细' }}</h3>
+      <el-form v-if="!isOrder" label-position="top" :disabled="view"
         ><el-form-item label="入库仓库" required class="purchase-third"
           ><el-select v-if="isOrder" v-model="order.warehouse" aria-label="入库仓库"
             ><el-option v-for="w in warehouses" :key="w" :value="w"
@@ -408,103 +445,24 @@ function quickFill() {
           </div></el-form-item
         ></el-form
       >
-      <div class="purchase-field-label">
-        <span>*</span> {{ isOrder ? '采购产品明细' : '入库产品明细' }}
+      <div v-if="!isOrder" class="purchase-field-label">
+        <span>*</span> {{ isOrder ? '采购产品信息' : '入库产品明细' }}
       </div>
-      <el-table
-        v-if="isOrder"
-        :data="order.lines"
-        border
-        class="purchase-lines"
-        empty-text="点击“添加”选择采购产品"
-      >
-        <el-table-column type="index" width="45" />
-        <el-table-column label="产品名称" width="145"
-          ><template #default="{ row }">{{
-            products.find((p) => p.id === row.productId)?.name
-          }}</template></el-table-column
-        >
-        <el-table-column
-          v-for="f in [
-            { key: 'code', label: '产品编码' },
-            { key: 'brand', label: '品牌' },
-            { key: 'model', label: '规格型号' },
-            { key: 'unit', label: '单位' },
-            { key: 'stock', label: '当前可用库存数量' },
-          ]"
-          :key="f.key"
-          :label="f.label"
-          :width="f.key === 'model' ? 190 : 125"
-          ><template #default="{ row }">{{
-            productValue(row.productId, f.key)
-          }}</template></el-table-column
-        >
-        <el-table-column label="采购数量" width="155"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.quantity"
-              :disabled="view"
-              :min="1"
-              :max="100000000"
-              :precision="0"
-              controls-position="right"
-              aria-label="采购数量" /></template
-        ></el-table-column>
-        <el-table-column label="采购单价(含税)/元" width="165"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.price"
-              :disabled="view"
-              :min="0"
-              :max="10000000"
-              :precision="2"
-              controls-position="right"
-              aria-label="采购单价" /></template
-        ></el-table-column>
-        <el-table-column label="增值税税率 %" width="150"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.tax"
-              :disabled="view"
-              :min="0"
-              :max="100"
-              :precision="2"
-              controls-position="right" /></template
-        ></el-table-column>
-        <el-table-column label="产品原价合价(含税)/元" width="185"
-          ><template #default="{ $index }">{{
-            money(totals.details[$index]?.gross || 0)
-          }}</template></el-table-column
-        >
-        <el-table-column label="实际采购价(含税)/元" width="165"
-          ><template #default="{ $index }">{{
-            (totals.details[$index]?.unit || 0).toFixed(4)
-          }}</template></el-table-column
-        >
-        <el-table-column label="产品采购价合计(含税)/元" width="190"
-          ><template #default="{ $index }">{{
-            money(totals.details[$index]?.total || 0)
-          }}</template></el-table-column
-        >
-        <el-table-column label="产品采购价合计(不含税)/元" width="205"
-          ><template #default="{ $index }">{{
-            money(totals.details[$index]?.net || 0)
-          }}</template></el-table-column
-        >
-        <el-table-column v-if="!view" fixed="right" label="操作" width="65"
-          ><template #default="{ $index }"
-            ><el-button
-              text
-              type="danger"
-              :icon="Delete"
-              aria-label="删除产品"
-              @click="
-                () => {
-                  order.lines.splice($index, 1)
-                  dirty = true
-                }
-              " /></template
-        ></el-table-column>
+      <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines purchase-order-lines" empty-text="点击“添加”选择采购产品">
+        <el-table-column type="index" label="序号" width="60" />
+        <el-table-column label="规格" min-width="175"><template #default="{row}">{{ productValue(row.productId, 'model') }}</template></el-table-column>
+        <el-table-column label="数量" width="140"><template #default="{row}"><el-input-number v-model="row.quantity" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
+        <el-table-column label="单位" width="65"><template #default="{row}">{{ productValue(row.productId, 'unit') }}</template></el-table-column>
+        <el-table-column label="税率" width="130"><template #default="{row}"><el-input-number v-model="row.tax" :disabled="view" :min="0" :max="100" :precision="2" controls-position="right" aria-label="税率(%)" /></template></el-table-column>
+        <el-table-column label="单价(含税)" width="150"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价(含税)" /></template></el-table-column>
+        <el-table-column label="合计" width="125"><template #default="{$index}">{{ money(totals.details[$index]?.total || 0) }}</template></el-table-column>
+        <el-table-column label="交付日期" width="165"><template #default="{row}"><el-date-picker v-model="row.delivery" :disabled="view" value-format="YYYY-MM-DD" aria-label="产品交付日期" /></template></el-table-column>
+        <el-table-column label="备注" min-width="200"><template #default="{row}"><el-input v-model="row.remark" :disabled="view" maxlength="200" aria-label="产品备注" /></template></el-table-column>
+        <el-table-column v-if="!view" fixed="right" label="操作" width="90" align="center" class-name="purchase-order-product-actions">
+          <template #default="{ $index }">
+            <el-button text type="danger" :icon="Delete" aria-label="删除产品" @click="order.lines.splice($index, 1); dirty = true" />
+          </template>
+        </el-table-column>
       </el-table>
       <el-table
         v-else
@@ -600,29 +558,9 @@ function quickFill() {
       </div>
       <el-form label-position="top" class="purchase-form-grid" :disabled="view">
         <template v-if="isOrder">
-          <el-form-item label="采购原价总额(含税)/元"
-            ><div class="purchase-read">{{ money(totals.gross) }}</div></el-form-item
-          >
-          <el-form-item label="优惠金额/元"
-            ><small>按金额比例均摊到各产品</small
-            ><el-input-number
-              v-model="order.discount"
-              :min="0"
-              :max="totals.gross"
-              :precision="2"
-              controls-position="right"
-              aria-label="优惠金额"
-          /></el-form-item>
-          <el-form-item label="整单折扣率 %"
-            ><div class="purchase-read">{{ totals.rate.toFixed(2) }}%</div></el-form-item
-          >
-          <el-form-item label="采购订单金额(含税)/元"
-            ><div class="purchase-read">{{ money(totals.total) }}</div></el-form-item
-          ><el-form-item label="采购订单金额大写"
-            ><div class="purchase-read">{{ chineseMoney(totals.total) }}</div></el-form-item
-          ><el-form-item label="采购金额合计(不含税)/元"
-            ><div class="purchase-read">{{ money(totals.net) }}</div></el-form-item
-          >
+          <el-form-item label="合计数量"><div class="purchase-read">{{ order.lines.reduce((n,l) => n + (l.quantity || 0), 0) }}</div></el-form-item>
+          <el-form-item label="合计金额"><div class="purchase-read">{{ money(totals.total) }}</div></el-form-item>
+          <el-form-item label="合计金额大写"><div class="purchase-read">{{ chineseMoney(totals.total) }}</div></el-form-item>
         </template>
         <template v-else
           ><el-form-item label="入库产品总数"
@@ -632,7 +570,9 @@ function quickFill() {
           ></template
         >
       </el-form>
+      <PurchaseContractActions v-if="isOrder" :order="order" />
       <template v-if="isOrder">
+        <el-collapse v-if="order.code" class="purchase-order-business"><el-collapse-item title="更多信息与业务记录" name="business">
         <div class="purchase-field-label">合同附件上传</div>
         <input
           v-if="!view"
@@ -870,6 +810,7 @@ function quickFill() {
             }}</el-descriptions-item></el-descriptions
           ></template
         >
+        </el-collapse-item></el-collapse>
       </template>
       <template v-else>
         <h3 class="purchase-section">入库质检</h3>
@@ -972,10 +913,14 @@ function quickFill() {
   >
     <el-input
       v-model="pickerQuery"
-      placeholder="搜索名称、编码或规格型号"
+      :placeholder="picker === 'supplier' ? '搜索供应商或输入自定义名称' : '搜索名称、编码或规格型号'"
       clearable
       class="purchase-picker-search"
     />
+    <div v-if="picker === 'supplier'" class="purchase-custom-supplier">
+      <span>也可输入未建档的供应商名称，资料稍后维护。</span>
+      <el-button type="primary" plain :disabled="!pickerQuery.trim()" @click="useSupplierName">使用此供应商名称</el-button>
+    </div>
     <el-table
       v-if="picker === 'supplier'"
       :data="suppliers.filter((s) => [s.name, s.code].join().includes(pickerQuery))"
@@ -1050,3 +995,19 @@ function quickFill() {
     ></el-dialog
   >
 </template>
+
+<style>
+.purchase-order-editor .purchase-form-grid { margin: 12px 0 8px; column-gap: 16px; row-gap: 0; }
+.purchase-order-editor .el-form-item { margin-bottom: 10px; }
+.purchase-order-editor .el-form-item__label { margin-bottom: 5px; }
+.purchase-order-editor .purchase-section:not(:first-child) { margin-top: 20px; }
+.purchase-order-editor .purchase-line-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 14px; }
+.purchase-order-lines .cell { white-space: nowrap; padding: 0 8px; }
+.purchase-order-editor .purchase-order-lines .el-date-editor { width: 100%; }
+.purchase-order-business { margin-top: 16px; }
+.purchase-custom-supplier { display: flex; gap: 16px; align-items: center; margin: 12px 0; color: #8491a4; }
+</style>
+
+<style>
+.purchase-order-lines .purchase-order-product-actions .el-button { padding: 8px; margin: 0; }
+</style>

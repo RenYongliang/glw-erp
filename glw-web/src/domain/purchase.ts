@@ -20,6 +20,8 @@ export interface Supplier {
   account: string
 }
 export interface PurchaseLine {
+  delivery?: string
+  remark?: string
   id: string
   productId: string
   quantity: number
@@ -43,6 +45,9 @@ export interface Attachment {
   url: string
 }
 export interface PurchaseOrder {
+  supplierName?: string
+  contact?: string
+  phone?: string
   id: string
   code: string
   name: string
@@ -310,11 +315,24 @@ export function receiptTotals(receipt: PurchaseReceipt, order?: PurchaseOrder) {
 }
 const dateValid = (value: string) =>
   /^\d{4}-\d{2}-\d{2}/.test(value) && Number.isFinite(Date.parse(value))
+export function purchaseSupplierName(order?: PurchaseOrder): string {
+  return suppliers.find(s => s.id === order?.supplierId)?.name || order?.supplierName?.trim() || ''
+}
+export function purchaseContact(order?: PurchaseOrder): string {
+  return order?.contact ?? suppliers.find(s => s.id === order?.supplierId)?.contact ?? ''
+}
+export function purchasePhone(order?: PurchaseOrder): string {
+  return order?.phone ?? suppliers.find(s => s.id === order?.supplierId)?.phone ?? ''
+}
 export function validateOrder(order: PurchaseOrder) {
-  if (!suppliers.some((s) => s.id === order.supplierId)) return '请选择供应商'
+  if (order.supplierId && !suppliers.some(s => s.id === order.supplierId)) return '请选择有效供应商'
+  if (!purchaseSupplierName(order)) return '请选择或填写供应商名称'
+  if (purchaseSupplierName(order).length > 100) return '供应商名称不能超过100字'
   if (!order.name.trim()) return '请填写采购订单名称'
-  if (!dateValid(order.signed) || !dateValid(order.delivery)) return '请填写订单签订日期和交付日期'
-  if (order.delivery < order.signed) return '订单交付日期不能早于签订日期'
+  if (!dateValid(order.signed)) return '请填写采购日期'
+  if (order.lines.some(l => !dateValid(l.delivery ?? order.delivery))) return '请填写每项产品的交付日期'
+  if (order.lines.some(l => (l.delivery ?? order.delivery) < order.signed)) return '产品交付日期不能早于采购日期'
+  if (order.lines.some(l => (l.remark?.length || 0) > 200)) return '产品备注不能超过200字'
   if (!warehouses.includes(order.warehouse)) return '请选择入库仓库'
   if (!order.lines.length) return '请至少添加一条采购产品明细'
   if (new Set(order.lines.map((l) => l.productId)).size !== order.lines.length)

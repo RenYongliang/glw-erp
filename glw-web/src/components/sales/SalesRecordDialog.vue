@@ -487,7 +487,7 @@ function quickFill() {
       @input="dirty = true"
     >
       <h3 class="purchase-section">
-        {{ isOrder ? "订单信息" : props.dispatch ? "订单信息" : "销售订单信息" }}
+        {{ isOrder ? "销售订单信息" : props.dispatch ? "订单信息" : "销售订单信息" }}
       </h3>
       <p class="purchase-tip">
         {{
@@ -589,7 +589,7 @@ function quickFill() {
         >
       </el-form>
       <h3 class="purchase-section">
-        产品明细
+        {{ isOrder ? "销售产品信息" : "产品明细" }}
       </h3>
       <el-form v-if="!isOrder && !props.dispatch" label-position="top">
         <el-form-item label="出库仓库"><div class="purchase-read">{{ shipment.warehouse || "选择订单后自动带入" }}</div></el-form-item>
@@ -611,7 +611,7 @@ function quickFill() {
         >
       </el-form>
       <div v-if="!props.dispatch" class="purchase-field-label">
-        <span>*</span> 产品明细
+        <span>*</span> {{ isOrder ? "销售产品信息" : "产品明细" }}
       </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />

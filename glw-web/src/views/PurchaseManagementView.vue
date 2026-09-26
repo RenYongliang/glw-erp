@@ -20,6 +20,9 @@ import PurchaseRecordDialog from '../components/purchase/PurchaseRecordDialog.vu
 import { usePurchaseStore } from '../stores/purchase'
 import {
   suppliers,
+  purchaseSupplierName,
+  purchaseContact,
+  purchasePhone,
   products,
   money,
   today,
@@ -45,7 +48,7 @@ const tabs = isOrder
 const tab = ref(tabs[0]!),
   keyword = ref(''),
   filterOpen = ref(false),
-  filterKey = ref('name'),
+  filterKey = ref(isOrder ? 'supplier' : 'name'),
   filterOperator = ref('包含'),
   filterValue = ref(''),
   grouped = ref(true),
@@ -72,21 +75,21 @@ type TableRow = {
   receipt?: PurchaseReceipt
 }
 const orderColumns = [
-  ['name', '采购订单名称'],
-  ['code', '采购订单编号'],
-  ['owner', '采购负责人'],
-  ['department', '采购归属部门'],
-  ['warehouse', '入库仓库'],
-  ['gross', '采购原价总额(含税)/元'],
-  ['discount', '优惠金额/元'],
-  ['rate', '整单折扣率 %'],
-  ['total', '采购订单金额(含税)/元'],
-  ['uppercase', '采购订单金额大写'],
-  ['net', '采购金额合计(不含税)/元'],
-  ['attachments', '合同附件上传'],
-  ['address', '到货地址'],
-  ['status', '审批结果'],
+  ['code', '采购单号'], ['signed', '采购日期'], ['supplier', '供应商名称'],
+  ['contact', '联系人'], ['phone', '联系人手机'],
+  ['specs', '规格'], ['quantities', '数量'], ['units', '单位'], ['taxes', '税率'],
+  ['prices', '单价(含税)'], ['amounts', '合计'], ['deliveries', '交付日期'], ['remarks', '备注'],
+  ['quantity', '合计数量'], ['total', '合计金额'], ['status', '审批状态'],
 ]
+const productKeys = ['specs', 'quantities', 'units', 'taxes', 'prices', 'amounts', 'deliveries', 'remarks']
+function productCells(order: PurchaseOrder, key: string): string[] {
+  const totals = orderTotals(order)
+  return order.lines.map((l, i) => {
+    const product = products.find(p => p.id === l.productId)
+    const cells: Record<string, string> = { specs: product?.model || '', quantities: String(l.quantity), units: product?.unit || '', taxes: `${l.tax}%`, prices: money(l.price), amounts: money(totals.details[i]?.total || 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
+    return cells[key] || '—'
+  })
+}
 const receiptColumns = [
   ['name', '采购订单名称'],
   ['orderCode', '采购订单编号'],
@@ -115,8 +118,14 @@ const records = computed<TableRow[]>(() =>
         return {
           id: o.id,
           order: o,
-          group: suppliers.find((s) => s.id === o.supplierId)?.name || '未填写',
+          group: purchaseSupplierName(o) || '未填写',
           values: {
+            ...Object.fromEntries(productKeys.map(key => [key, productCells(o, key).join('、')])),
+            signed: o.signed,
+            supplier: purchaseSupplierName(o),
+            contact: purchaseContact(o),
+            phone: purchasePhone(o),
+            quantity: o.lines.reduce((n,l) => n + l.quantity, 0),
             name: o.name,
             code: o.code,
             owner: o.owner,
@@ -146,10 +155,10 @@ const records = computed<TableRow[]>(() =>
           values: {
             name: o?.name || '—',
             orderCode: o?.code || '—',
-            supplier: s?.name || '—',
+            supplier: purchaseSupplierName(o) || '—',
             supplierCode: s?.code || '—',
-            contact: s?.contact || '—',
-            phone: s?.phone || '—',
+            contact: purchaseContact(o) || '—',
+            phone: purchasePhone(o) || '—',
             owner: o?.owner || '—',
             department: o?.department || '—',
             code: r.code,
@@ -645,7 +654,22 @@ function confirmImport() {
       :class="{ 'purchase-comfortable': rowHeight === 'comfortable' }"
     >
       <table class="purchase-table">
-        <thead>
+        <thead v-if="isOrder" class="purchase-order-head">
+          <tr>
+            <th class="purchase-selection" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">
+              <el-checkbox :model-value="allSelected" :indeterminate="selected.length > 0 && !allSelected" aria-label="选择全部采购数据" @change="selectRows(filtered, !!$event)" />
+            </th>
+            <template v-for="c in shownColumns" :key="c.key">
+              <th v-if="!productKeys.includes(c.key)" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1" :style="{minWidth: c.key === 'supplier' ? '190px' : ['code','phone'].includes(c.key) ? '150px' : '120px'}">{{ c.label }}</th>
+              <th v-else-if="c.key === shownColumns.find(c => productKeys.includes(c.key))?.key" :colspan="shownColumns.filter(c => productKeys.includes(c.key)).length" class="purchase-product-heading">采购产品信息</th>
+            </template>
+            <th class="purchase-fixed-actions" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">操作</th>
+          </tr>
+          <tr v-if="shownColumns.some(c => productKeys.includes(c.key))">
+            <th v-for="c in shownColumns.filter(c => productKeys.includes(c.key))" :key="c.key" :style="{minWidth: ['specs','remarks'].includes(c.key) ? '190px' : '120px'}">{{ c.label }}</th>
+          </tr>
+        </thead>
+        <thead v-else>
           <tr>
             <th class="purchase-selection">
               <el-checkbox
@@ -660,7 +684,7 @@ function confirmImport() {
               :key="c.key"
               :class="{ 'purchase-name-col': c.key === 'name' }"
               :style="{
-                minWidth: c.key === 'name' ? '230px' : c.label.length > 11 ? '185px' : '120px',
+                minWidth: ['supplier', 'specs', 'remarks'].includes(c.key) ? '190px' : ['code', 'phone'].includes(c.key) ? '150px' : c.key === 'name' ? '230px' : '120px',
               }"
             >
               {{ c.label }}
@@ -716,8 +740,11 @@ function confirmImport() {
                     ),
                   }"
                 >
+                  <div v-if="isOrder && row.order && productKeys.includes(c.key)" class="purchase-product-cell">
+                    <div v-for="(value,index) in productCells(row.order, c.key)" :key="index">{{ value }}</div>
+                  </div>
                   <button
-                    v-if="['name', 'code', 'orderCode'].includes(c.key)"
+                    v-else-if="['name', 'code', 'orderCode'].includes(c.key)"
                     class="purchase-record-link"
                     @click="open(row, true)"
                   >
@@ -900,3 +927,14 @@ function confirmImport() {
     >
   </el-dialog>
 </template>
+
+<style>
+.purchase-product-cell > div { height: 32px; line-height: 32px; white-space: nowrap; }
+.purchase-product-cell > div + div { border-top: 1px solid #eef0f3; }
+</style>
+
+<style>
+.purchase-order-head tr:first-child { height: 37px; }
+.purchase-order-head tr:nth-child(2) th { top: 37px; }
+.purchase-order-head .purchase-product-heading { text-align: center; }
+</style>
