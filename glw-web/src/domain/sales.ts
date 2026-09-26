@@ -46,6 +46,7 @@ export interface Attachment {
   url: string
 }
 export interface SalesOrder {
+  customerName?: string
   purchaseNumber?: string
   priceLevel?: string
   quoteCode?: string
@@ -87,6 +88,9 @@ export interface ShippingInfo {
   trackingNumber: string
   purchaseNumber: string
   remark: string
+}
+export function orderCustomerName(order?: SalesOrder): string {
+  return customers.find(c => c.id === order?.customerId)?.name || order?.customerName?.trim() || ''
 }
 export function defaultShippingInfo(order?: SalesOrder): ShippingInfo {
   const customer = customers.find(c => c.id === order?.customerId)
@@ -337,7 +341,9 @@ export function shipmentTotals(shipment: SalesShipment, order?: SalesOrder) {
 const dateValid = (value: string) =>
   /^\d{4}-\d{2}-\d{2}/.test(value) && Number.isFinite(Date.parse(value))
 export function validateOrder(order: SalesOrder) {
-  if (!customers.some((s) => s.id === order.customerId)) return '请选择客户'
+  if (order.customerId && !customers.some((s) => s.id === order.customerId)) return '请选择有效客户'
+  if (!orderCustomerName(order)) return '请选择或填写客户名称'
+  if (orderCustomerName(order).length > 100) return '客户名称不能超过100字'
   if (!order.name.trim()) return '请填写销售订单名称'
   if (!dateValid(order.signed) || !dateValid(order.delivery)) return '请填写订单签订日期和交付日期'
   if (order.delivery < order.signed) return '订单交付日期不能早于签订日期'

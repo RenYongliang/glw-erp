@@ -1,6 +1,7 @@
 import catalog from '../data/products.json' with { type: 'json' }
 import {
   customers,
+  orderCustomerName,
   products,
   today,
   type SalesOrder,
@@ -74,7 +75,7 @@ export function createDeliveryNote(
       ? `GL${suffix}`
       : `GL${date.replace(/-/g, '')}-${suffix}`,
     date: date.replace(/-/g, '/'),
-    customer: customer?.name || '',
+    customer: orderCustomerName(order),
     address: shipment.shipping?.address ?? order.address ?? '',
     phone: shipment.shipping?.phone ?? customer?.phone ?? '',
     contact: shipment.shipping?.recipient ?? customer?.contact ?? '',

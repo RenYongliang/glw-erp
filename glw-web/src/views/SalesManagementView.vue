@@ -20,6 +20,7 @@ import SalesRecordDialog from "../components/sales/SalesRecordDialog.vue";
 import { useSalesStore } from "../stores/sales";
 import {
   customers,
+  orderCustomerName,
   products,
   money,
   today,
@@ -200,10 +201,10 @@ const records = computed<TableRow[]>(() =>
         return {
           id: o.id,
           order: o,
-          group: customers.find((s) => s.id === o.customerId)?.name || "未填写",
+          group: orderCustomerName(o) || "未填写",
           values: {
             ...productSummary(o),
-            customer: customers.find((c) => c.id === o.customerId)?.name || "—",
+            customer: orderCustomerName(o) || "—",
             term: o.term,
             priceLevel: o.priceLevel || "标准售价",
             signed: o.signed,
@@ -236,14 +237,14 @@ const records = computed<TableRow[]>(() =>
           id: r.id,
           shipment: r,
           order: o,
-          group: s?.name || "未填写",
+          group: orderCustomerName(o) || "未填写",
           values: {
             ...productSummary(o, r),
             tag: r.tag,
             warehouse: r.warehouse,
             name: o?.name || "—",
             orderCode: o?.code || "—",
-            customer: s?.name || "—",
+            customer: orderCustomerName(o) || "—",
             customerCode: s?.code || "—",
             contact: s?.contact || "—",
             phone: s?.phone || "—",

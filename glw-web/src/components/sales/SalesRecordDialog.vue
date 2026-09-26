@@ -6,18 +6,16 @@ import DeliveryNoteActions from "./DeliveryNoteActions.vue";
 import { useSalesStore } from "../../stores/sales";
 import {
   customers,
+  orderCustomerName,
   defaultShippingInfo,
   products,
   warehouses,
   today,
   money,
-  chineseMoney,
   orderTotals,
   shipmentTotals,
   remainingQuantity,
   availableStock,
-  margin,
-  priceLevels,
   levelPrice,
   type SalesKind,
   type SalesOrder,
@@ -57,7 +55,7 @@ const order = ref<SalesOrder>(
         delivery: "",
         owner: "张睿",
         department: "销售部",
-        warehouse: "",
+        warehouse: warehouses[0]!,
         address: "",
         discount: 0,
         lines: [],
@@ -103,17 +101,16 @@ const customer = computed(() =>
 const shippingInfo = ref(clone(props.shipment?.shipping || defaultShippingInfo(linkedOrder.value)));
 const printableShipment = computed(() => ({ ...shipment.value, shipping: shippingInfo.value }));
 const dispatchFields = computed(() => [
-  ["订单编号", linkedOrder.value?.code], ["客户名称", customer.value?.name],
+  ["订单编号", linkedOrder.value?.code], ["客户名称", orderCustomerName(linkedOrder.value)],
 ]);
 const totals = computed(() => orderTotals(order.value)),
   shippedTotals = computed(() =>
     shipmentTotals(shipment.value, linkedOrder.value),
   );
 const baseFields = computed(() => [
-  ["客户名称", customer.value?.name],
-  ["客户编码", customer.value?.code],
-  ["客户联系人姓名", customer.value?.contact],
-  ["客户联系人手机", customer.value?.phone],
+  ...(!isOrder ? [["客户名称", orderCustomerName(linkedOrder.value)], ["客户编码", customer.value?.code]] : []),
+  [isOrder ? "联系人" : "客户联系人姓名", customer.value?.contact],
+  [isOrder ? "联系人手机" : "客户联系人手机", customer.value?.phone],
 ]);
 const linkedShipments = computed(() =>
   store.state.shipments.filter((r) => r.orderId === order.value.id),
@@ -175,7 +172,20 @@ watch(
 function chooseCustomer(id: string) {
   order.value.customerId = id;
   const s = customers.find((s) => s.id === id)!;
+  order.value.customerName = s.name;
   order.value.name = `${s.name}-第${store.state.orders.filter((o) => o.customerId === id).length + 1}份销售订单`;
+  picker.value = "";
+  dirty.value = true;
+}
+function useCustomerName() {
+  const name = pickerQuery.value.trim();
+  if (!name) return void ElMessage.warning("请填写客户名称");
+  if (name.length > 100) return void ElMessage.warning("客户名称不能超过100字");
+  const existing = customers.find(c => c.name === name);
+  if (existing) return chooseCustomer(existing.id);
+  order.value.customerId = "";
+  order.value.customerName = name;
+  order.value.name = `${name}-销售订单`;
   picker.value = "";
   dirty.value = true;
 }
@@ -327,16 +337,7 @@ async function close(done?: () => void) {
   done?.();
   emit("close");
 }
-function updatePrices() {
-  for (const line of order.value.lines) {
-    const product = products.find((p) => p.id === line.productId);
-    if (product) {
-      line.price = levelPrice(product, order.value.priceLevel);
-      line.listPrice = line.price;
-    }
-  }
-  dirty.value = true;
-}
+
 async function approve(passed: boolean) {
   try {
     let reason = "";
@@ -452,7 +453,7 @@ function quickFill() {
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog"
-    :class="{ 'sales-dispatch-dialog': props.dispatch }"
+    :class="{ 'sales-dispatch-dialog': props.dispatch, 'sales-order-dialog': isOrder }"
     :close-on-click-modal="false"
     :before-close="close"
     destroy-on-close
@@ -486,7 +487,7 @@ function quickFill() {
       @input="dirty = true"
     >
       <h3 class="purchase-section">
-        {{ isOrder ? "销售订单基础信息" : props.dispatch ? "订单信息" : "销售订单信息" }}
+        {{ isOrder ? "订单信息" : props.dispatch ? "订单信息" : "销售订单信息" }}
       </h3>
       <p class="purchase-tip">
         {{
@@ -513,16 +514,17 @@ function quickFill() {
         v-else
         label-position="top"
         class="purchase-form-grid"
+        :class="{ 'sales-order-info': isOrder }"
         :disabled="view"
       >
-        <el-form-item :label="isOrder ? '选择客户' : '选择销售订单'" required
+        <el-form-item :label="isOrder ? '客户名称' : '选择销售订单'" required
           ><el-button
             class="purchase-picker-button"
             :disabled="!isOrder && !!shipment.code"
             @click="openPicker(isOrder ? 'customer' : 'order')"
             >{{
               isOrder
-                ? customer?.name || "选择数据"
+                ? orderCustomerName(order) || "选择或填写客户名称"
                 : linkedOrder?.name || "选择数据"
             }}</el-button
           ></el-form-item
@@ -538,17 +540,8 @@ function quickFill() {
             </div></el-form-item
           ></template
         >
-        <template v-for="([label, value], index) in baseFields" :key="label">
-          <el-form-item v-if="isOrder && index === 2" label="价格等级"
-            ><el-select
-              v-model="order.priceLevel"
-              aria-label="价格等级"
-              @change="updatePrices"
-              ><el-option
-                v-for="level in priceLevels"
-                :key="level"
-                :value="level" /></el-select
-          ></el-form-item>
+        <template v-for="[label, value] in baseFields" :key="label">
+
           <el-form-item :label="label"
             ><div class="purchase-read">
               {{ value || "暂无内容" }}
@@ -556,42 +549,25 @@ function quickFill() {
           >
         </template>
         <template v-if="isOrder">
-          <el-form-item label="销售订单名称"
-            ><el-input
-              v-model="order.name"
-              maxlength="100"
-              aria-label="销售订单名称"
-          /></el-form-item>
-          <el-form-item label="订单签订日期" required
+
+          <el-form-item label="订单日期" required
             ><el-date-picker
               v-model="order.signed"
               value-format="YYYY-MM-DD"
-              aria-label="订单签订日期"
+              aria-label="订单日期"
           /></el-form-item>
-          <el-form-item label="订单交付日期" required
+          <el-form-item label="交付日期" required
             ><el-date-picker
               v-model="order.delivery"
               value-format="YYYY-MM-DD"
-              aria-label="订单交付日期"
+              aria-label="交付日期"
           /></el-form-item>
         </template>
         <el-form-item v-if="isOrder" label="客户采购单号"><el-input v-model="order.purchaseNumber" aria-label="客户采购单号" maxlength="80" placeholder="填写客户提供的采购单号" /></el-form-item>
-        <el-form-item label="销售负责人"
-          ><el-select
-            v-if="isOrder"
-            v-model="order.owner"
-            filterable
-            allow-create
-            ><el-option
-              v-for="n in ['张睿', '林晓', '陈晨']"
-              :key="n"
-              :value="n"
-          /></el-select>
-          <div v-else class="purchase-read">
-            {{ linkedOrder?.owner || "暂无内容" }}
-          </div></el-form-item
-        >
-        <el-form-item label="销售归属部门"
+        <el-form-item v-if="!isOrder" label="销售负责人">
+          <div class="purchase-read">{{ linkedOrder?.owner || "暂无内容" }}</div>
+        </el-form-item>
+        <el-form-item v-if="!isOrder" label="销售归属部门"
           ><el-select
             v-if="isOrder"
             v-model="order.department"
@@ -613,44 +589,10 @@ function quickFill() {
         >
       </el-form>
       <h3 class="purchase-section">
-        {{ isOrder ? "销售产品明细" : "产品明细" }}
+        产品明细
       </h3>
-      <el-form
-        v-if="!props.dispatch"
-        label-position="top"
-        :disabled="view"
-        class="purchase-form-grid"
-        ><el-form-item label="出库仓库" required
-          ><el-select
-            v-if="isOrder"
-            v-model="order.warehouse"
-            aria-label="出库仓库"
-            ><el-option v-for="w in warehouses" :key="w" :value="w"
-          /></el-select>
-          <div v-else class="purchase-read">
-            {{ shipment.warehouse || "选择订单后自动带入" }}
-          </div></el-form-item
-        >
-        <template v-if="isOrder">
-          <el-form-item label="选择报价单"
-            ><el-select
-              v-model="order.quoteCode"
-              clearable
-              filterable
-              allow-create
-              placeholder="选择或输入报价单编号"
-              ><el-option
-                label="BJ260924-01 · 力芯微报价"
-                value="BJ260924-01" /><el-option
-                label="BJ260924-02 · 批量采购报价"
-                value="BJ260924-02" /></el-select
-          ></el-form-item>
-          <el-form-item label="报价单编号"
-            ><div class="purchase-read">
-              {{ order.quoteCode || "暂无内容" }}
-            </div></el-form-item
-          ></template
-        >
+      <el-form v-if="!isOrder && !props.dispatch" label-position="top">
+        <el-form-item label="出库仓库"><div class="purchase-read">{{ shipment.warehouse || "选择订单后自动带入" }}</div></el-form-item>
       </el-form>
       <el-form
         v-if="!isOrder && !props.dispatch"
@@ -669,113 +611,20 @@ function quickFill() {
         >
       </el-form>
       <div v-if="!props.dispatch" class="purchase-field-label">
-        <span>*</span> {{ isOrder ? "销售产品明细" : "产品明细" }}
+        <span>*</span> 产品明细
       </div>
-      <el-table
-        v-if="isOrder"
-        :data="order.lines"
-        border
-        class="purchase-lines"
-        empty-text="点击“添加”选择销售产品"
-      >
+      <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
-        <el-table-column label="产品名称" width="145"
-          ><template #default="{ row }">{{
-            products.find((p) => p.id === row.productId)?.name
-          }}</template></el-table-column
-        >
-        <el-table-column
-          v-for="f in [
-            { key: 'code', label: '产品编码' },
-            { key: 'brand', label: '品牌' },
-            { key: 'model', label: '规格型号' },
-            { key: 'unit', label: '单位' },
-            { key: 'stock', label: '当前可用库存数量' },
-          ]"
-          :key="f.key"
-          :label="f.label"
-          :width="f.key === 'model' ? 190 : 125"
-          ><template #default="{ row }">{{
-            f.key === "stock"
-              ? availableStock(store.state, row.productId, order.warehouse)
-              : productValue(row.productId, f.key)
-          }}</template></el-table-column
-        >
-        <el-table-column label="销售数量" width="155"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.quantity"
-              :disabled="view"
-              :min="1"
-              :max="100000000"
-              :precision="0"
-              controls-position="right"
-              aria-label="销售数量" /></template
-        ></el-table-column>
-        <el-table-column label="销售单价(含税)/元" width="155"
-          ><template #default="{ row }">{{
-            money(
-              row.listPrice ??
-                products.find((p) => p.id === row.productId)?.price ??
-                0,
-            )
-          }}</template></el-table-column
-        >
-        <el-table-column label="实际售价(含税)/元" width="165"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.price"
-              :disabled="view"
-              :min="0"
-              :max="10000000"
-              :precision="2"
-              controls-position="right"
-              aria-label="实际售价" /></template
-        ></el-table-column>
-        <el-table-column label="增值税税率 %" width="150"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.tax"
-              :disabled="view"
-              :min="0"
-              :max="100"
-              :precision="2"
-              controls-position="right" /></template
-        ></el-table-column>
-        <el-table-column label="产品原价合计(含税)/元" width="185"
-          ><template #default="{ $index }">{{
-            money(totals.details[$index]?.gross || 0)
-          }}</template></el-table-column
-        >
-        <el-table-column label="折后实际售价(含税)/元" width="165"
-          ><template #default="{ $index }">{{
-            (totals.details[$index]?.unit || 0).toFixed(4)
-          }}</template></el-table-column
-        >
-        <el-table-column label="实际售价合计(含税)/元" width="190"
-          ><template #default="{ $index }">{{
-            money(totals.details[$index]?.total || 0)
-          }}</template></el-table-column
-        >
-        <el-table-column label="实际售价合计(不含税)/元" width="205"
-          ><template #default="{ $index }">{{
-            money(totals.details[$index]?.net || 0)
-          }}</template></el-table-column
-        >
-        <el-table-column v-if="!view" fixed="right" label="操作" width="65"
-          ><template #default="{ $index }"
-            ><el-button
-              text
-              type="danger"
-              :icon="Delete"
-              aria-label="删除产品"
-              @click="
-                () => {
-                  order.lines.splice($index, 1);
-                  dirty = true;
-                }
-              " /></template
-        ></el-table-column>
+        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:100},{key:'name',label:'型号',width:150},{key:'model',label:'封装',width:110}]" :key="f.key" :label="f.label" :min-width="f.width">
+          <template #default="{row}">{{ productValue(row.productId, f.key) }}</template>
+        </el-table-column>
+        <el-table-column label="单价" width="150"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价" /></template></el-table-column>
+        <el-table-column label="数量" width="150"><template #default="{row}"><el-input-number v-model="row.quantity" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
+        <el-table-column label="金额" width="120"><template #default="{row}">{{ money(row.price * row.quantity) }}</template></el-table-column>
+        <el-table-column label="可用库存" width="120"><template #default="{row}">{{ availableStock(store.state, row.productId, order.warehouse) }}</template></el-table-column>
+        <el-table-column v-if="!view" fixed="right" label="操作" width="90" align="center" class-name="sales-order-product-actions">
+          <template #default="{$index}"><el-button text type="danger" :icon="Delete" aria-label="删除产品" @click="order.lines.splice($index,1); dirty=true" /></template>
+        </el-table-column>
       </el-table>
       <el-table
         v-else-if="!props.dispatch"
@@ -970,39 +819,17 @@ function quickFill() {
       </div>
       <el-form v-if="isOrder || !props.dispatch" label-position="top" class="purchase-form-grid" :disabled="view">
         <template v-if="isOrder">
-          <el-form-item label="订单毛利率 %"
-            ><strong
-              :style="{ color: margin(order) < 35 ? '#f56c6c' : '#67c23a' }"
-              >{{ margin(order).toFixed(2) }}%</strong
-            ><small>毛利率低于35%，不能审批通过。</small></el-form-item
-          >
+          
           <el-form-item label="销售原价总额(含税)/元"
             ><div class="purchase-read">
               {{ money(totals.gross) }}
             </div></el-form-item
           >
-          <el-form-item label="优惠金额/元"
-            ><small>按金额比例均摊到各产品</small
-            ><el-input-number
-              v-model="order.discount"
-              :min="0"
-              :max="totals.beforeDiscount"
-              :precision="2"
-              controls-position="right"
-              aria-label="优惠金额"
-          /></el-form-item>
-          <el-form-item label="整单折扣率 %"
-            ><div class="purchase-read">
-              {{ totals.rate.toFixed(2) }}%
-            </div></el-form-item
-          >
+          
+          
           <el-form-item label="销售订单金额(含税)/元"
             ><div class="purchase-read">
               {{ money(totals.total) }}
-            </div></el-form-item
-          ><el-form-item label="销售订单金额大写"
-            ><div class="purchase-read">
-              {{ chineseMoney(totals.total) }}
             </div></el-form-item
           ><el-form-item label="销售金额合计(不含税)/元"
             ><div class="purchase-read">
@@ -1440,10 +1267,14 @@ function quickFill() {
   >
     <el-input
       v-model="pickerQuery"
-      placeholder="搜索名称、编码或规格型号"
+      :placeholder="picker === 'customer' ? '搜索已有客户，或输入新客户名称' : '搜索名称、编码或规格型号'"
       clearable
       class="purchase-picker-search"
     />
+    <div v-if="picker === 'customer'" class="sales-new-customer">
+      <span>列表中没有该客户？输入客户名称后可直接用于订单，客户资料可稍后维护。</span>
+      <el-button type="primary" plain :disabled="!pickerQuery.trim()" @click="useCustomerName">使用此客户名称</el-button>
+    </div>
     <el-table
       v-if="picker === 'customer'"
       :data="
@@ -1589,4 +1420,52 @@ function quickFill() {
 <style>
 .dispatch-product-table .cell { padding-left: 7px; padding-right: 7px; white-space: nowrap; word-break: normal; }
 .dispatch-product-table .el-input-number { max-width: 100%; }
+</style>
+
+<style>
+.sales-order-products .cell { white-space: nowrap; padding: 0 8px; }
+.sales-order-products .el-input-number { width: 100%; min-width: 0; }
+.sales-order-products .sales-order-product-actions .el-button { padding: 8px; margin: 0; }
+.sales-new-customer { display: flex; align-items: center; gap: 16px; margin: 12px 0; color: #909399; font-size: 13px; }
+</style>
+
+<style>
+.purchase-dialog .sales-order-info {
+  grid-template-columns: repeat(3, minmax(0, calc((100% - 48px) / 3)));
+  column-gap: 16px;
+  row-gap: 0;
+  margin: 12px 0 8px;
+}
+.purchase-dialog .sales-order-info .el-form-item {
+  margin-bottom: 10px;
+}
+.purchase-dialog .sales-order-info .el-form-item__label {
+  margin-bottom: 5px;
+}
+@media (max-width: 600px) {
+  .purchase-dialog .sales-order-info {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+}
+</style>
+
+<style>
+.sales-order-dialog .purchase-section:not(:first-child) {
+  margin-top: 20px;
+}
+.sales-order-dialog .purchase-field-label {
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+.sales-order-dialog .purchase-line-actions {
+  margin-bottom: 18px;
+}
+.sales-order-dialog .purchase-form-grid:not(.sales-order-info) {
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+.sales-order-dialog .purchase-detail-tabs {
+  margin: 20px 0 16px;
+}
 </style>
