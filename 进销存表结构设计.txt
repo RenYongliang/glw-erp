@@ -95,11 +95,6 @@
 销售单价有时候含税有时候不含税吗？大部分时候含税，小个别不含税？
 
 
-销售订单客户不是会有一个采购合同吗，这个采购合同你们需要签字吗？需要保存采购合同吗？对这个合同需要进行什么操作呢？
-采购合同发给原厂之后，会有什么样的流程呢？需要原厂签字发回给你们吗？然后你们把采购合同保存下来吗？
-采购订单合同完整截图发一下，以及盖完章扫描完之后发送给原厂的电子版完整内容发一下。
-
-
 
 销售订单 							采购订单
 
@@ -247,8 +242,7 @@ purchause_order_id
 purchause_order_no,
 supplier_id,
 supplier_name,
-purchase_quantity,
-inbound_quantity,
+inbound_type,# 采购入库
 order_status,
 remark,
 created_at,
@@ -258,23 +252,89 @@ updated_by
 
 
 ====inbound_order_item====
-
+id,
+inbound_order_id,
+purchause_order_id,
+purchause_order_no,
+purchause_order_item_id,
+inbound_quantity,
+remark,
+created_at,
+updated_at,
+created_by,
+updated_by
 
 
 ====outbound_order====
+id,
+sales_order_id
+customer_order_no,
+customer_id,
+customer_name,
+outbound_type,# 销售出库
+order_status,
+remark,
+created_at,
+updated_at,
+created_by,
+updated_by
 
 
 ====outbound_order_item====
+id,
+outbound_order_id,
+sales_order_id,
+customer_order_no,
+sales_order_item_id,
+outbound_quantity,
+remark,
+created_at,
+updated_at,
+created_by,
+updated_by
+
 
 
 ====inventory====
+id,
+product_id,
+quantity,
+created_at,
+updated_at,
+created_by,
+updated_by
 
 
+====customer_visit====
+id,
+customer_id,
+application, # 客户项目应用
+original_part_no, # 原型号
+product_id,
+demand_quantity,
+unit_price,
+tax_included,
+progress,进度(申请样品30pcs)
+detail,
+created_at,
+updated_at,
+created_by,
+updated_by
 
-customer_visit
 
-customer_sample
-
+====customer_sample====
+id,
+customer_id,
+apply_time,
+product_id,
+quantity,
+project,
+is_delivered,
+inventory_quantity,
+created_at,
+updated_at,
+created_by,
+updated_by
 
 
 
