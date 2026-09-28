@@ -70,7 +70,7 @@ CREATE TABLE `inbound_order`  (
   `supplier_id` bigint(0) NOT NULL COMMENT '供应商id',
   `supplier_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '供应商名称',
   `inbound_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'PURCHASE' COMMENT '入库类型, PURCHASE:采购入库',
-  `status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'COMPLETED' COMMENT '状态, PENDING:待入库; COMPLETED:已入库;',
+  `status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '状态, PENDING:待入库; COMPLETED:已入库;',
   `inbound_time` timestamp(0) NULL DEFAULT NULL COMMENT '入库时间',
   `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
@@ -90,7 +90,7 @@ CREATE TABLE `inbound_order_item`  (
   `inbound_order_id` bigint(0) NOT NULL COMMENT '入库单id',
   `purchase_order_id` bigint(0) NOT NULL COMMENT '采购单id',
   `purchase_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '采购单编号',
-  `purchause_order_item_id` bigint(0) NOT NULL COMMENT '采购商品表id',
+  `purchase_order_item_id` bigint(0) NOT NULL COMMENT '采购商品表id',
   `inbound_quantity` int(0) NOT NULL COMMENT '入库数量',
   `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
@@ -114,7 +114,8 @@ CREATE TABLE `inventory`  (
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
-  PRIMARY KEY (`id`) USING BTREE
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_inventory_product_id` (`product_id`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '库存表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -128,7 +129,7 @@ CREATE TABLE `outbound_order`  (
   `customer_id` bigint(0) NOT NULL COMMENT '客户id',
   `customer_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '客户名称',
   `outbound_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'SALE' COMMENT '出库类型, SALE:销售出库',
-  `status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'COMPLETED' COMMENT '状态, PENDING:待出库; COMPLETED:已出库;',
+  `status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '状态, PENDING:待出库; COMPLETED:已出库;',
   `outbound_time` timestamp(0) NULL DEFAULT NULL COMMENT '出库时间',
   `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
@@ -285,8 +286,8 @@ CREATE TABLE `sample_apply`  (
   `customer_id` bigint(0) NOT NULL COMMENT '客户id',
   `apply_time` timestamp(0) NOT NULL COMMENT '申请时间',
   `project` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '客户项目应用',
-  `product_id` bigint(0) NULL DEFAULT NULL COMMENT '送样产品id',
-  `quantity` int(0) NULL DEFAULT NULL COMMENT '送样数量',
+  `product_id` bigint(0) NOT NULL COMMENT '送样产品id',
+  `quantity` int(0) NOT NULL COMMENT '送样数量',
   `is_delivered` int(0) NULL DEFAULT 0 COMMENT '是否送样 0未送样 1已送样',
   `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
