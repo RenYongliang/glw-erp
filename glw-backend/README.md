@@ -60,3 +60,7 @@ glw-web默认使用后端认证，Vite将 `/api` 代理到8080。业务页面仍
 challenge 有效期 120 秒、仅能使用一次。后端进程启动时生成 RSA 密钥，私钥仅保存在后端内存，不写入前端或配置。重启会使未提交的 challenge 失效，前端重新登录即可；此实现面向单实例，多个后端实例部署需改为共享 challenge 存储和统一密钥管理。内存凭据设上限并定期清理。
 
 上线仍必须使用 HTTPS，以认证公钥来源并保护 Token 和其他接口；不能把应用层加密当作 HTTPS 替代。Web Crypto 不可用时前端明确报错，不回退到明文。前端 mock 模式仅在浏览器内模拟密钥与解密过程，不具备服务端安全边界，也不能用于生产认证。不要在代理或业务日志中记录解密参数、密码或 Token。
+
+## 业务表实体与持久层
+
+最新业务表定义位于 `src/main/resources/db/glw.sql`，登录表仍使用 `src/main/resources/db/schema.sql`。已提供 14 张业务表的 Entity、Mapper/XML、Service/Impl，使用说明见 [持久层说明](docs/persistence-layer.md)。

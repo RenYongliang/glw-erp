@@ -1,0 +1,19 @@
+# 业务表持久层
+
+以 `src/main/resources/db/glw.sql`（提交 `c8f199a`）的 14 张业务表为准：
+customer、customer_visit、inbound_order、inbound_order_item、inventory、outbound_order、outbound_order_item、product、purchase_order、purchase_order_item、sales_order、sales_order_item、sample_apply、supplier。
+
+每张表对应 `model/entity` 实体、`mapper` 接口、`resources/mapper` XML、`service` 接口和 `service/impl` 实现。
+
+- Mapper 继承 `BaseMapper<T>`，Service 继承 `IService<T>`，实现继承 `ServiceImpl`。可直接使用 save、getById、list、page、updateById、removeById 等基础操作。
+- XML 提供完整的 `BaseResultMap` 和 `Base_Column_List`，实体明确引用对应 resultMap；通用 CRUD SQL 由 MyBatis-Plus 注入，不重复手写。需要联表查询时，在对应 Mapper 和 XML 中扩展。
+- bigint → Long；int（包括 0/1 标志）→ Integer；decimal → BigDecimal；timestamp → LocalDateTime；varchar/text → String。字段注释和命名与 DDL 对应，包含最新的 purchase_order_item_id。
+- id 由数据库自增。created_at、updated_at 由 MySQL 默认值和 ON UPDATE 维护，插入和更新时均不回写这两个字段；更新后如需最新时间请重新查询。
+- created_by、updated_by 暂由调用业务显式设置。没有臆造自动填充的用户来源。
+- 对有数据库默认值的状态/标志字段，新增对象保持 null 时会省略该列，由数据库默认值生效。入库、出库 status 在最新 DDL 中没有默认值，调用方必须赋值。
+- 这些业务表没有 deleted 字段，因此不加逻辑删除注解，removeById 是物理删除。
+- Mapper 继续由现有非 mock 模式 MapperScan 注册，Service 实现也标记 @Profile("!mock")；mock 模式不会要求数据源。
+
+这次提供持久层基础代码，未自动增加业务 Controller、出入库扣减/恢复、状态机或主从表级联操作。这些功能应在独立业务接口中结合校验、权限、事务和并发控制实现，不能仅靠单表 CRUD。
+
+验证：`./mvnw.cmd verify`。BusinessMapperTest 加载真实 XML，逐表对照 DDL 校验类型、结果映射以及生成的 CRUD SQL；现有 mock 登录测试也会运行。测试不连接或修改真实 MySQL，业务 SQL 文件没有自动执行。

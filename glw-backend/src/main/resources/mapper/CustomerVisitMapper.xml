@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.CustomerVisitMapper">
+    <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.CustomerVisit">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="customer_id" property="customerId" jdbcType="BIGINT"/>
+        <result column="visit_time" property="visitTime" jdbcType="TIMESTAMP"/>
+        <result column="project" property="project" jdbcType="VARCHAR"/>
+        <result column="original_part_no" property="originalPartNo" jdbcType="VARCHAR"/>
+        <result column="product_id" property="productId" jdbcType="BIGINT"/>
+        <result column="demand_quantity" property="demandQuantity" jdbcType="INTEGER"/>
+        <result column="unit_price" property="unitPrice" jdbcType="DECIMAL"/>
+        <result column="tax_included" property="taxIncluded" jdbcType="INTEGER"/>
+        <result column="progress" property="progress" jdbcType="VARCHAR"/>
+        <result column="detail" property="detail" jdbcType="LONGVARCHAR"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+        <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
+        <result column="updated_by" property="updatedBy" jdbcType="BIGINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`, `customer_id`, `visit_time`, `project`, `original_part_no`, `product_id`, `demand_quantity`, `unit_price`, `tax_included`, `progress`, `detail`, `created_at`, `updated_at`, `created_by`, `updated_by`
+    </sql>
+</mapper>
