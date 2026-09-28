@@ -6,9 +6,12 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import lombok.Data;
+
 import java.time.LocalDateTime;
 
 /** 入库商品表（inbound_order_item）。 */
+@Data
 @TableName(
         value = "inbound_order_item",
         resultMap = "com.glw.backend.mapper.InboundOrderItemMapper.BaseResultMap")
@@ -58,84 +61,4 @@ public class InboundOrderItem {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long value) {
-        this.id = value;
-    }
-
-    public Long getInboundOrderId() {
-        return inboundOrderId;
-    }
-
-    public void setInboundOrderId(Long value) {
-        this.inboundOrderId = value;
-    }
-
-    public Long getPurchaseOrderId() {
-        return purchaseOrderId;
-    }
-
-    public void setPurchaseOrderId(Long value) {
-        this.purchaseOrderId = value;
-    }
-
-    public String getPurchaseOrderNo() {
-        return purchaseOrderNo;
-    }
-
-    public void setPurchaseOrderNo(String value) {
-        this.purchaseOrderNo = value;
-    }
-
-    public Long getPurchaseOrderItemId() {
-        return purchaseOrderItemId;
-    }
-
-    public void setPurchaseOrderItemId(Long value) {
-        this.purchaseOrderItemId = value;
-    }
-
-    public Integer getInboundQuantity() {
-        return inboundQuantity;
-    }
-
-    public void setInboundQuantity(Integer value) {
-        this.inboundQuantity = value;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime value) {
-        this.createdAt = value;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime value) {
-        this.updatedAt = value;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long value) {
-        this.createdBy = value;
-    }
-
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(Long value) {
-        this.updatedBy = value;
-    }
 }

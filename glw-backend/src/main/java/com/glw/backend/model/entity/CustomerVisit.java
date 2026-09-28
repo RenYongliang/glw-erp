@@ -6,10 +6,13 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import lombok.Data;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /** 客户拜访记录表（customer_visit）。 */
+@Data
 @TableName(
         value = "customer_visit",
         resultMap = "com.glw.backend.mapper.CustomerVisitMapper.BaseResultMap")
@@ -79,124 +82,4 @@ public class CustomerVisit {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long value) {
-        this.id = value;
-    }
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long value) {
-        this.customerId = value;
-    }
-
-    public LocalDateTime getVisitTime() {
-        return visitTime;
-    }
-
-    public void setVisitTime(LocalDateTime value) {
-        this.visitTime = value;
-    }
-
-    public String getProject() {
-        return project;
-    }
-
-    public void setProject(String value) {
-        this.project = value;
-    }
-
-    public String getOriginalPartNo() {
-        return originalPartNo;
-    }
-
-    public void setOriginalPartNo(String value) {
-        this.originalPartNo = value;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public void setProductId(Long value) {
-        this.productId = value;
-    }
-
-    public Integer getDemandQuantity() {
-        return demandQuantity;
-    }
-
-    public void setDemandQuantity(Integer value) {
-        this.demandQuantity = value;
-    }
-
-    public BigDecimal getUnitPrice() {
-        return unitPrice;
-    }
-
-    public void setUnitPrice(BigDecimal value) {
-        this.unitPrice = value;
-    }
-
-    public Integer getTaxIncluded() {
-        return taxIncluded;
-    }
-
-    public void setTaxIncluded(Integer value) {
-        this.taxIncluded = value;
-    }
-
-    public String getProgress() {
-        return progress;
-    }
-
-    public void setProgress(String value) {
-        this.progress = value;
-    }
-
-    public String getDetail() {
-        return detail;
-    }
-
-    public void setDetail(String value) {
-        this.detail = value;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime value) {
-        this.createdAt = value;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime value) {
-        this.updatedAt = value;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long value) {
-        this.createdBy = value;
-    }
-
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(Long value) {
-        this.updatedBy = value;
-    }
 }

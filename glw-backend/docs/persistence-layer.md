@@ -17,3 +17,5 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 这次提供持久层基础代码，未自动增加业务 Controller、出入库扣减/恢复、状态机或主从表级联操作。这些功能应在独立业务接口中结合校验、权限、事务和并发控制实现，不能仅靠单表 CRUD。
 
 验证：`./mvnw.cmd verify`。BusinessMapperTest 加载真实 XML，逐表对照 DDL 校验类型、结果映射以及生成的 CRUD SQL；现有 mock 登录测试也会运行。测试不连接或修改真实 MySQL，业务 SQL 文件没有自动执行。
+
+实体使用 Lombok `@Data` 生成 getter/setter、equals/hashCode 和 toString。Lombok 版本由 Spring Boot 管理，Maven 显式配置注解处理器，打包时排除 Lombok。SysUser 的 passwordHash 使用 @ToString.Exclude；Account、UserView 保留 record 形式。

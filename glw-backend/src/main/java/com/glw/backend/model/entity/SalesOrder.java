@@ -6,9 +6,12 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import lombok.Data;
+
 import java.time.LocalDateTime;
 
 /** 销售订单表（sales_order）。 */
+@Data
 @TableName(
         value = "sales_order",
         resultMap = "com.glw.backend.mapper.SalesOrderMapper.BaseResultMap")
@@ -74,116 +77,4 @@ public class SalesOrder {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long value) {
-        this.id = value;
-    }
-
-    public String getCustomerOrderNo() {
-        return customerOrderNo;
-    }
-
-    public void setCustomerOrderNo(String value) {
-        this.customerOrderNo = value;
-    }
-
-    public LocalDateTime getOrderTime() {
-        return orderTime;
-    }
-
-    public void setOrderTime(LocalDateTime value) {
-        this.orderTime = value;
-    }
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long value) {
-        this.customerId = value;
-    }
-
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    public void setCustomerName(String value) {
-        this.customerName = value;
-    }
-
-    public String getSettleType() {
-        return settleType;
-    }
-
-    public void setSettleType(String value) {
-        this.settleType = value;
-    }
-
-    public LocalDateTime getDeliveryTime() {
-        return deliveryTime;
-    }
-
-    public void setDeliveryTime(LocalDateTime value) {
-        this.deliveryTime = value;
-    }
-
-    public String getOrderStatus() {
-        return orderStatus;
-    }
-
-    public void setOrderStatus(String value) {
-        this.orderStatus = value;
-    }
-
-    public String getPaymentStatus() {
-        return paymentStatus;
-    }
-
-    public void setPaymentStatus(String value) {
-        this.paymentStatus = value;
-    }
-
-    public String getRemark() {
-        return remark;
-    }
-
-    public void setRemark(String value) {
-        this.remark = value;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime value) {
-        this.createdAt = value;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime value) {
-        this.updatedAt = value;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long value) {
-        this.createdBy = value;
-    }
-
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(Long value) {
-        this.updatedBy = value;
-    }
 }

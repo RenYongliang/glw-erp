@@ -6,10 +6,13 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import lombok.Data;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /** 产品信息表（product）。 */
+@Data
 @TableName(value = "product", resultMap = "com.glw.backend.mapper.ProductMapper.BaseResultMap")
 public class Product {
     /** 主键ID。 */
@@ -61,92 +64,4 @@ public class Product {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long value) {
-        this.id = value;
-    }
-
-    public Long getSupplierId() {
-        return supplierId;
-    }
-
-    public void setSupplierId(Long value) {
-        this.supplierId = value;
-    }
-
-    public String getBrand() {
-        return brand;
-    }
-
-    public void setBrand(String value) {
-        this.brand = value;
-    }
-
-    public String getPartNo() {
-        return partNo;
-    }
-
-    public void setPartNo(String value) {
-        this.partNo = value;
-    }
-
-    public String getPackageType() {
-        return packageType;
-    }
-
-    public void setPackageType(String value) {
-        this.packageType = value;
-    }
-
-    public BigDecimal getBasePrice() {
-        return basePrice;
-    }
-
-    public void setBasePrice(BigDecimal value) {
-        this.basePrice = value;
-    }
-
-    public Integer getTaxRate() {
-        return taxRate;
-    }
-
-    public void setTaxRate(Integer value) {
-        this.taxRate = value;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime value) {
-        this.createdAt = value;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime value) {
-        this.updatedAt = value;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long value) {
-        this.createdBy = value;
-    }
-
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(Long value) {
-        this.updatedBy = value;
-    }
 }

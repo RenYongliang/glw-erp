@@ -6,9 +6,12 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import lombok.Data;
+
 import java.time.LocalDateTime;
 
 /** 出库表（outbound_order）。 */
+@Data
 @TableName(
         value = "outbound_order",
         resultMap = "com.glw.backend.mapper.OutboundOrderMapper.BaseResultMap")
@@ -66,100 +69,4 @@ public class OutboundOrder {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long value) {
-        this.id = value;
-    }
-
-    public Long getSalesOrderId() {
-        return salesOrderId;
-    }
-
-    public void setSalesOrderId(Long value) {
-        this.salesOrderId = value;
-    }
-
-    public String getCustomerOrderNo() {
-        return customerOrderNo;
-    }
-
-    public void setCustomerOrderNo(String value) {
-        this.customerOrderNo = value;
-    }
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long value) {
-        this.customerId = value;
-    }
-
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    public void setCustomerName(String value) {
-        this.customerName = value;
-    }
-
-    public String getOutboundType() {
-        return outboundType;
-    }
-
-    public void setOutboundType(String value) {
-        this.outboundType = value;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String value) {
-        this.status = value;
-    }
-
-    public LocalDateTime getOutboundTime() {
-        return outboundTime;
-    }
-
-    public void setOutboundTime(LocalDateTime value) {
-        this.outboundTime = value;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime value) {
-        this.createdAt = value;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime value) {
-        this.updatedAt = value;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long value) {
-        this.createdBy = value;
-    }
-
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(Long value) {
-        this.updatedBy = value;
-    }
 }

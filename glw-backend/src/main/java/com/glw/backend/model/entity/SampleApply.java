@@ -6,9 +6,12 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import lombok.Data;
+
 import java.time.LocalDateTime;
 
 /** 样品申请表（sample_apply）。 */
+@Data
 @TableName(
         value = "sample_apply",
         resultMap = "com.glw.backend.mapper.SampleApplyMapper.BaseResultMap")
@@ -62,92 +65,4 @@ public class SampleApply {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long value) {
-        this.id = value;
-    }
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long value) {
-        this.customerId = value;
-    }
-
-    public LocalDateTime getApplyTime() {
-        return applyTime;
-    }
-
-    public void setApplyTime(LocalDateTime value) {
-        this.applyTime = value;
-    }
-
-    public String getProject() {
-        return project;
-    }
-
-    public void setProject(String value) {
-        this.project = value;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public void setProductId(Long value) {
-        this.productId = value;
-    }
-
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Integer value) {
-        this.quantity = value;
-    }
-
-    public Integer getIsDelivered() {
-        return isDelivered;
-    }
-
-    public void setIsDelivered(Integer value) {
-        this.isDelivered = value;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime value) {
-        this.createdAt = value;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime value) {
-        this.updatedAt = value;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long value) {
-        this.createdBy = value;
-    }
-
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(Long value) {
-        this.updatedBy = value;
-    }
 }
