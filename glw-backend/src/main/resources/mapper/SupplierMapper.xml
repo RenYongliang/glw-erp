@@ -9,6 +9,7 @@
         <result column="address" property="address" jdbcType="VARCHAR"/>
         <result column="contact" property="contact" jdbcType="VARCHAR"/>
         <result column="contact_phone" property="contactPhone" jdbcType="VARCHAR"/>
+        <result column="version" property="version" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
@@ -16,6 +17,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `name`, `short_name`, `brand`, `address`, `contact`, `contact_phone`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `name`, `short_name`, `brand`, `address`, `contact`, `contact_phone`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

@@ -9,6 +9,7 @@
         <result column="product_id" property="productId" jdbcType="BIGINT"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
         <result column="is_delivered" property="isDelivered" javaType="com.glw.backend.model.enums.SampleDeliveryStatus" jdbcType="INTEGER"/>
+        <result column="version" property="version" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
@@ -16,6 +17,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `customer_id`, `apply_time`, `project`, `product_id`, `quantity`, `is_delivered`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `customer_id`, `apply_time`, `project`, `product_id`, `quantity`, `is_delivered`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

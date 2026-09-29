@@ -18,6 +18,12 @@ public class SysUser {
     private String department;
     private Boolean enabled;
     @TableLogic private Integer deleted;
+
+    /** 乐观锁版本号；新增默认 0，更新时携带查询得到的版本。 */
+    @Version
+    @TableField("version")
+    private Integer version;
+
     private java.time.LocalDateTime createdAt;
     private java.time.LocalDateTime updatedAt;
 }

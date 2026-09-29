@@ -10,6 +10,7 @@
         <result column="inbound_type" property="inboundType" javaType="com.glw.backend.model.enums.InboundType" jdbcType="VARCHAR"/>
         <result column="status" property="status" javaType="com.glw.backend.model.enums.InboundStatus" jdbcType="VARCHAR"/>
         <result column="inbound_time" property="inboundTime" jdbcType="TIMESTAMP"/>
+        <result column="version" property="version" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
@@ -17,6 +18,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `purchase_order_id`, `purchase_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `status`, `inbound_time`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `purchase_order_id`, `purchase_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `status`, `inbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

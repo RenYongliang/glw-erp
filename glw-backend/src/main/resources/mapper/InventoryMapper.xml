@@ -6,6 +6,7 @@
         <result column="product_id" property="productId" jdbcType="BIGINT"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
         <result column="reserved_quantity" property="reservedQuantity" jdbcType="INTEGER"/>
+        <result column="version" property="version" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
@@ -13,6 +14,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `product_id`, `quantity`, `reserved_quantity`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `product_id`, `quantity`, `reserved_quantity`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>
