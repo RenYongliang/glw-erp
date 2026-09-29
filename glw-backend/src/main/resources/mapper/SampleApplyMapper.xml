@@ -8,7 +8,7 @@
         <result column="project" property="project" jdbcType="VARCHAR"/>
         <result column="product_id" property="productId" jdbcType="BIGINT"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
-        <result column="is_delivered" property="isDelivered" jdbcType="INTEGER"/>
+        <result column="is_delivered" property="isDelivered" javaType="com.glw.backend.model.enums.SampleDeliveryStatus" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>

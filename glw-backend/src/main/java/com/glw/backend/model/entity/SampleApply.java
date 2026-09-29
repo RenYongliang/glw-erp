@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.glw.backend.model.enums.SampleDeliveryStatus;
 
 import lombok.Data;
 
@@ -42,7 +43,7 @@ public class SampleApply {
 
     /** 是否送样 0未送样 1已送样。 */
     @TableField("is_delivered")
-    private Integer isDelivered;
+    private SampleDeliveryStatus isDelivered;
 
     /** 创建时间。 */
     @TableField(

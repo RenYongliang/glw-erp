@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.glw.backend.model.enums.OutboundStatus;
+import com.glw.backend.model.enums.OutboundType;
 
 import lombok.Data;
 
@@ -38,11 +40,11 @@ public class OutboundOrder {
 
     /** 出库类型, SALE:销售出库。 */
     @TableField("outbound_type")
-    private String outboundType;
+    private OutboundType outboundType;
 
     /** 状态, PENDING:待出库; COMPLETED:已出库;。 */
     @TableField("status")
-    private String status;
+    private OutboundStatus status;
 
     /** 出库时间。 */
     @TableField("outbound_time")

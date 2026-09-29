@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.glw.backend.model.enums.TaxIncluded;
 
 import lombok.Data;
 
@@ -51,7 +52,7 @@ public class SalesOrderItem {
 
     /** 是否含税 0未税 1含税。 */
     @TableField("tax_included")
-    private Integer taxIncluded;
+    private TaxIncluded taxIncluded;
 
     /** 增值税税率。 */
     @TableField("tax_rate")

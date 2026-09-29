@@ -10,7 +10,7 @@
         <result column="part_no" property="partNo" jdbcType="VARCHAR"/>
         <result column="package_type" property="packageType" jdbcType="VARCHAR"/>
         <result column="unit_price" property="unitPrice" jdbcType="DECIMAL"/>
-        <result column="tax_included" property="taxIncluded" jdbcType="INTEGER"/>
+        <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="tax_rate" property="taxRate" jdbcType="INTEGER"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
         <result column="amount" property="amount" jdbcType="DECIMAL"/>

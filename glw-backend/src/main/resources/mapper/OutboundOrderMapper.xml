@@ -7,8 +7,8 @@
         <result column="customer_order_no" property="customerOrderNo" jdbcType="VARCHAR"/>
         <result column="customer_id" property="customerId" jdbcType="BIGINT"/>
         <result column="customer_name" property="customerName" jdbcType="VARCHAR"/>
-        <result column="outbound_type" property="outboundType" jdbcType="VARCHAR"/>
-        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="outbound_type" property="outboundType" javaType="com.glw.backend.model.enums.OutboundType" jdbcType="VARCHAR"/>
+        <result column="status" property="status" javaType="com.glw.backend.model.enums.OutboundStatus" jdbcType="VARCHAR"/>
         <result column="outbound_time" property="outboundTime" jdbcType="TIMESTAMP"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>

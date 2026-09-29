@@ -113,17 +113,30 @@ class BusinessMapperTest {
                         case "timestamp" -> LocalDateTime.class;
                         default -> String.class;
                     };
-            assertThat(entityClass.getDeclaredField(property).getType()).isEqualTo(type);
+            Class<?> actualType = entityClass.getDeclaredField(property).getType();
+            if (actualType.isEnum()) {
+                var code = actualType.getDeclaredField("code");
+                assertThat(code.getType()).isEqualTo(type);
+                assertThat(
+                                code.isAnnotationPresent(
+                                        com.baomidou.mybatisplus.annotation.EnumValue.class))
+                        .isTrue();
+                type = actualType;
+            } else {
+                assertThat(actualType).isEqualTo(type);
+            }
             Object value =
-                    type == Long.class
-                            ? 1L
-                            : type == Integer.class
-                                    ? 1
-                                    : type == BigDecimal.class
-                                            ? new BigDecimal("12.34")
-                                            : type == LocalDateTime.class
-                                                    ? LocalDateTime.of(2026, 9, 28, 12, 0)
-                                                    : "test";
+                    type.isEnum()
+                            ? type.getEnumConstants()[0]
+                            : type == Long.class
+                                    ? 1L
+                                    : type == Integer.class
+                                            ? 1
+                                            : type == BigDecimal.class
+                                                    ? new BigDecimal("12.34")
+                                                    : type == LocalDateTime.class
+                                                            ? LocalDateTime.of(2026, 9, 28, 12, 0)
+                                                            : "test";
             entityClass.getMethod("set" + pascal(column.getKey()), type).invoke(entity, value);
         }
         // Even entities loaded from a previous query must not write stale database timestamps.

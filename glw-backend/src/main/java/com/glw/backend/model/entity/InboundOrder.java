@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.glw.backend.model.enums.InboundStatus;
+import com.glw.backend.model.enums.InboundType;
 
 import lombok.Data;
 
@@ -38,11 +40,11 @@ public class InboundOrder {
 
     /** 入库类型, PURCHASE:采购入库。 */
     @TableField("inbound_type")
-    private String inboundType;
+    private InboundType inboundType;
 
     /** 状态, PENDING:待入库; COMPLETED:已入库;。 */
     @TableField("status")
-    private String status;
+    private InboundStatus status;
 
     /** 入库时间。 */
     @TableField("inbound_time")

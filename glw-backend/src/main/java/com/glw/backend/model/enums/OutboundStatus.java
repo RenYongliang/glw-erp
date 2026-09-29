@@ -1,0 +1,29 @@
+package com.glw.backend.model.enums;
+
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+/** 出库状态，编码与 glw.sql 保持一致。 */
+@Getter
+@RequiredArgsConstructor
+public enum OutboundStatus {
+    PENDING("PENDING", "待出库"),
+    COMPLETED("COMPLETED", "已出库");
+
+    @EnumValue @JsonValue private final String code;
+
+    private final String description;
+
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+    public static OutboundStatus fromCode(String code) {
+        if (code == null) return null;
+        for (OutboundStatus value : values()) {
+            if (value.code.equals(code)) return value;
+        }
+        throw new IllegalArgumentException("未知的出库状态编码: " + code);
+    }
+}

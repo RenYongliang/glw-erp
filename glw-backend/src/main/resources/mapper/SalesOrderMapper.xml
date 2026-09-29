@@ -7,10 +7,10 @@
         <result column="order_time" property="orderTime" jdbcType="TIMESTAMP"/>
         <result column="customer_id" property="customerId" jdbcType="BIGINT"/>
         <result column="customer_name" property="customerName" jdbcType="VARCHAR"/>
-        <result column="settle_type" property="settleType" jdbcType="VARCHAR"/>
+        <result column="settle_type" property="settleType" javaType="com.glw.backend.model.enums.SettlementType" jdbcType="VARCHAR"/>
         <result column="delivery_time" property="deliveryTime" jdbcType="TIMESTAMP"/>
-        <result column="order_status" property="orderStatus" jdbcType="VARCHAR"/>
-        <result column="payment_status" property="paymentStatus" jdbcType="VARCHAR"/>
+        <result column="order_status" property="orderStatus" javaType="com.glw.backend.model.enums.SalesOrderStatus" jdbcType="VARCHAR"/>
+        <result column="payment_status" property="paymentStatus" javaType="com.glw.backend.model.enums.SalesPaymentStatus" jdbcType="VARCHAR"/>
         <result column="remark" property="remark" jdbcType="VARCHAR"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>

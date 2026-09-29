@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.glw.backend.model.enums.SalesOrderStatus;
+import com.glw.backend.model.enums.SalesPaymentStatus;
+import com.glw.backend.model.enums.SettlementType;
 
 import lombok.Data;
 
@@ -38,7 +41,7 @@ public class SalesOrder {
 
     /** 结算类型, CASH:现金; MONTHLY:月结; PREPAID:预付; COD:货到付款。 */
     @TableField("settle_type")
-    private String settleType;
+    private SettlementType settleType;
 
     /** 交付日期。 */
     @TableField("delivery_time")
@@ -46,11 +49,11 @@ public class SalesOrder {
 
     /** 订单状态, PENDING_SHIPMENT:待发货; PARTIALLY_SHIPPED:部分发货; COMPLETED:已完成。 */
     @TableField("order_status")
-    private String orderStatus;
+    private SalesOrderStatus orderStatus;
 
     /** 收款状态, UNPAID:待收款; PARTIALLY_PAID:部分收款; PAID:已收款。 */
     @TableField("payment_status")
-    private String paymentStatus;
+    private SalesPaymentStatus paymentStatus;
 
     /** 备注。 */
     @TableField("remark")

@@ -10,7 +10,7 @@
         <result column="product_id" property="productId" jdbcType="BIGINT"/>
         <result column="demand_quantity" property="demandQuantity" jdbcType="INTEGER"/>
         <result column="unit_price" property="unitPrice" jdbcType="DECIMAL"/>
-        <result column="tax_included" property="taxIncluded" jdbcType="INTEGER"/>
+        <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="progress" property="progress" jdbcType="VARCHAR"/>
         <result column="detail" property="detail" jdbcType="LONGVARCHAR"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>

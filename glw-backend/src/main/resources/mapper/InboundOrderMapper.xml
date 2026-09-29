@@ -7,8 +7,8 @@
         <result column="purchase_order_no" property="purchaseOrderNo" jdbcType="VARCHAR"/>
         <result column="supplier_id" property="supplierId" jdbcType="BIGINT"/>
         <result column="supplier_name" property="supplierName" jdbcType="VARCHAR"/>
-        <result column="inbound_type" property="inboundType" jdbcType="VARCHAR"/>
-        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="inbound_type" property="inboundType" javaType="com.glw.backend.model.enums.InboundType" jdbcType="VARCHAR"/>
+        <result column="status" property="status" javaType="com.glw.backend.model.enums.InboundStatus" jdbcType="VARCHAR"/>
         <result column="inbound_time" property="inboundTime" jdbcType="TIMESTAMP"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>

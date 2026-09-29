@@ -8,8 +8,8 @@
         <result column="supplier_id" property="supplierId" jdbcType="BIGINT"/>
         <result column="supplier_name" property="supplierName" jdbcType="VARCHAR"/>
         <result column="delivery_time" property="deliveryTime" jdbcType="TIMESTAMP"/>
-        <result column="order_status" property="orderStatus" jdbcType="VARCHAR"/>
-        <result column="payment_status" property="paymentStatus" jdbcType="VARCHAR"/>
+        <result column="order_status" property="orderStatus" javaType="com.glw.backend.model.enums.PurchaseOrderStatus" jdbcType="VARCHAR"/>
+        <result column="payment_status" property="paymentStatus" javaType="com.glw.backend.model.enums.PurchasePaymentStatus" jdbcType="VARCHAR"/>
         <result column="remark" property="remark" jdbcType="VARCHAR"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>

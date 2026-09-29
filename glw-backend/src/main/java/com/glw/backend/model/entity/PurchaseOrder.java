@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.glw.backend.model.enums.PurchaseOrderStatus;
+import com.glw.backend.model.enums.PurchasePaymentStatus;
 
 import lombok.Data;
 
@@ -42,11 +44,11 @@ public class PurchaseOrder {
 
     /** 订单状态, PENDING_RECEIPT:待收货; PARTIALLY_RECEIVED:部分收货; COMPLETED:已完成。 */
     @TableField("order_status")
-    private String orderStatus;
+    private PurchaseOrderStatus orderStatus;
 
     /** 付款状态, UNPAID:待付款; PARTIALLY_PAID:部分付款; PAID:已付款。 */
     @TableField("payment_status")
-    private String paymentStatus;
+    private PurchasePaymentStatus paymentStatus;
 
     /** 备注。 */
     @TableField("remark")
