@@ -16,6 +16,7 @@ import {
   FullScreen,
   Document,
 } from "@element-plus/icons-vue";
+import { emptySalesOrderFilters, salesFulfillmentStatus, salesOrderMonth, salesFilterCount, matchesSalesOrderFilters, type FulfillmentStatus } from "../domain/salesOrderFilters";
 import SalesRecordDialog from "../components/sales/SalesRecordDialog.vue";
 import { useSalesStore } from "../stores/sales";
 import {
@@ -41,7 +42,7 @@ const props = defineProps<{ kind: SalesKind }>(),
   store = useSalesStore(),
   isOrder = props.kind === "orders";
 const tabs = isOrder
-  ? ["全部订单", "待审批订单", "已审批订单", "待上传合同附件", "不通过订单"]
+  ? ["全部订单", "待发货订单", "部分发货订单", "已完成订单"]
   : ["全部出库", "已出库", "库存冻结", "计划出库"];
 const tab = ref(tabs[0]!),
   keyword = ref(""),
@@ -58,6 +59,36 @@ const tab = ref(tabs[0]!),
   logsOpen = ref(false),
   expanded = ref(false),
   rowHeight = ref("normal");
+const groupMode = ref<'month' | 'customer' | 'none'>(isOrder ? 'month' : 'customer');
+const orderFilterOpen = ref(false);
+const orderFilters = ref(emptySalesOrderFilters());
+const draftFilters = ref(emptySalesOrderFilters());
+const activeFilterCount = computed(() => salesFilterCount(orderFilters.value));
+const orderTextFilters = [
+  {key:'code',label:'订单编号'}, {key:'customer',label:'客户名称'},
+  {key:'purchaseNumber',label:'客户采购单号'}, {key:'term',label:'账期'}, {key:'owner',label:'销售负责人'},
+] as const;
+const productTextFilters = [{key:'brands',label:'品牌'}, {key:'productNames',label:'型号'}, {key:'models',label:'封装'}] as const;
+const productNumberFilters = [{key:'prices',label:'单价'}, {key:'ordered',label:'数量'}, {key:'amounts',label:'金额'}] as const;
+function openFilters() {
+  if (!isOrder) { filterOpen.value = !filterOpen.value; return; }
+  draftFilters.value = structuredClone(JSON.parse(JSON.stringify(orderFilters.value)));
+  orderFilterOpen.value = true;
+}
+function applyOrderFilters() {
+  for (const range of Object.values(draftFilters.value.numbers)) {
+    if (range.some(n => n != null && (!Number.isFinite(n) || n < 0))) return void ElMessage.warning('请输入有效的非负数值');
+    if (range[0] != null && range[1] != null && range[0] > range[1]) return void ElMessage.warning('范围最小值不能大于最大值');
+  }
+  orderFilters.value = JSON.parse(JSON.stringify(draftFilters.value));
+  orderFilterOpen.value = false;
+  collapsed.value = [];
+}
+function changeGrouping(mode: 'month' | 'customer' | 'none') {
+  groupMode.value = mode;
+  grouped.value = mode !== 'none';
+  collapsed.value = [];
+}
 const editor = ref(false),
   editorKind = ref<SalesKind>(props.kind),
   editingOrder = ref<SalesOrder>(),
@@ -226,6 +257,7 @@ const records = computed<TableRow[]>(() =>
             attachments: o.attachments.map((a) => a.name).join("、"),
             address: o.address,
             status: o.status,
+            fulfillmentStatus: salesFulfillmentStatus(o, store.state.shipments),
           },
         };
       })
@@ -260,26 +292,7 @@ const records = computed<TableRow[]>(() =>
 );
 const filtered = computed(() => {
   const rows = records.value.filter((r) => {
-    if (
-      isOrder &&
-      tab.value !== tabs[0] &&
-      tab.value !== "待上传合同附件" &&
-      r.values.status !==
-        (
-          {
-            待审批订单: "待审批",
-            已审批订单: "审批通过",
-            不通过订单: "不通过",
-          } as Record<string, string>
-        )[tab.value]
-    )
-      return false;
-    if (
-      isOrder &&
-      tab.value === "待上传合同附件" &&
-      r.order?.attachments.length
-    )
-      return false;
+    if (isOrder && tab.value !== tabs[0] && r.values.fulfillmentStatus !== tab.value.replace(/订单$/, '')) return false;
     if (!isOrder && tab.value === "已出库" && !r.shipment?.confirmed)
       return false;
     if (
@@ -296,6 +309,7 @@ const filtered = computed(() => {
         .includes(keyword.value.trim().toLowerCase())
     )
       return false;
+    if (isOrder && r.order) return matchesSalesOrderFilters(r.order, products, orderCustomerName(r.order), Number(r.values.total), r.values.fulfillmentStatus as FulfillmentStatus, orderFilters.value);
     if (!filterOpen.value) return true;
     const v = String(r.values[filterKey.value] ?? "");
     if (filterOperator.value === "为空") return !v;
@@ -320,21 +334,20 @@ const filtered = computed(() => {
     });
   return rows;
 });
-const groups = computed(() =>
-  grouped.value
-    ? [...new Set(filtered.value.map((r) => r.group))].map((name) => ({
-        name,
-        rows: filtered.value.filter((r) => r.group === name),
-      }))
-    : [{ name: "", rows: filtered.value }],
-);
+const groups = computed(() => {
+  if (!grouped.value) return [{name: '', rows: filtered.value}];
+  const key = (row: TableRow) => isOrder && groupMode.value === 'month' ? salesOrderMonth(row.order?.signed || '') : row.group;
+  const names = [...new Set(filtered.value.map(key))];
+  if (isOrder && groupMode.value === 'month') names.sort((a,b) => a === '未填写订单日期' ? 1 : b === '未填写订单日期' ? -1 : b.localeCompare(a));
+  return names.map(name => ({name, rows: filtered.value.filter(row => key(row) === name)}));
+});
 const allSelected = computed(
   () =>
     !!filtered.value.length &&
     filtered.value.every((r) => selected.value.includes(r.id)),
 );
 watch(
-  [tab, keyword, filterOpen, filterKey, filterValue, filterOperator],
+  [tab, keyword, filterOpen, filterKey, filterValue, filterOperator, orderFilters, groupMode],
   () => (selected.value = []),
 );
 function selectRows(rows: TableRow[], checked: boolean) {
@@ -693,10 +706,10 @@ function confirmImport() {
           clearable
         /><el-button
           :icon="Filter"
-          :type="filterOpen ? 'primary' : ''"
+          :type="(isOrder ? activeFilterCount > 0 : filterOpen) ? 'primary' : ''"
           plain
-          @click="filterOpen = !filterOpen"
-          >筛选</el-button
+          @click="openFilters"
+          >筛选{{ isOrder && activeFilterCount ? `（${activeFilterCount}）` : "" }}</el-button
         >
         <el-popover trigger="click" width="220"
           ><template #reference
@@ -741,14 +754,16 @@ function confirmImport() {
             ><el-radio value="desc">降序</el-radio></el-radio-group
           ><el-button text @click="sortKey = ''">重置</el-button></el-popover
         >
+        <el-dropdown v-if="isOrder" trigger="click" @command="changeGrouping">
+          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain aria-label="订单分组方式">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'customer' ? '按客户分组' : '不分组' }}</el-button>
+          <template #dropdown><el-dropdown-menu>
+            <el-dropdown-item command="month">按订单日期月份分组</el-dropdown-item>
+            <el-dropdown-item command="customer">按客户分组</el-dropdown-item>
+            <el-dropdown-item command="none">不分组</el-dropdown-item>
+          </el-dropdown-menu></template>
+        </el-dropdown>
+        <el-button v-else :icon="Operation" :type="grouped ? 'primary' : ''" plain aria-label="切换分组" title="按客户分组" @click="grouped = !grouped" />
         <el-button
-          :icon="Operation"
-          :type="grouped ? 'primary' : ''"
-          plain
-          aria-label="切换分组"
-          title="按客户分组"
-          @click="grouped = !grouped"
-        /><el-button
           :icon="Refresh"
           text
           aria-label="刷新销售数据"
@@ -761,7 +776,10 @@ function confirmImport() {
         />
       </div>
     </div>
-    <div v-if="filterOpen" class="purchase-filters">
+    <div v-if="isOrder && activeFilterCount" class="sales-active-filters">
+      <span>已应用 {{ activeFilterCount }} 项筛选条件</span><el-button text type="primary" @click="orderFilters = emptySalesOrderFilters(); collapsed = []">清空筛选</el-button>
+    </div>
+    <div v-if="!isOrder && filterOpen" class="purchase-filters">
       <el-select v-model="filterKey" aria-label="筛选字段"
         ><el-option
           v-for="c in columns"
@@ -1006,6 +1024,25 @@ function confirmImport() {
       }}</span>
     </footer>
   </section>
+  <el-dialog v-if="isOrder" v-model="orderFilterOpen" title="销售订单筛选" width="min(900px,94vw)" top="5vh" append-to-body class="sales-order-filter-dialog">
+    <p class="sales-filter-tip">填写的条件同时生效；留空表示不限。产品条件匹配同一条产品明细。</p>
+    <el-form label-position="top" @submit.prevent="applyOrderFilters">
+      <h3>订单信息</h3>
+      <div class="sales-filter-grid">
+        <el-form-item v-for="field in orderTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.text[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item>
+        <el-form-item label="发货状态"><el-select v-model="draftFilters.status" aria-label="筛选发货状态" placeholder="不限" clearable><el-option v-for="status in ['待发货','部分发货','已完成']" :key="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="订单日期"><el-date-picker v-model="draftFilters.dates.signed" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选订单日期" /></el-form-item>
+        <el-form-item label="交付日期"><el-date-picker v-model="draftFilters.dates.delivery" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选交付日期" /></el-form-item>
+        <el-form-item label="订单金额"><div class="sales-filter-range"><el-input-number v-model="draftFilters.numbers.total[0]" :min="0" :precision="2" :controls="false" placeholder="最小值" aria-label="订单金额最小值" /><span>至</span><el-input-number v-model="draftFilters.numbers.total[1]" :min="0" :precision="2" :controls="false" placeholder="最大值" aria-label="订单金额最大值" /></div></el-form-item>
+      </div>
+      <h3>产品信息</h3>
+      <div class="sales-filter-grid">
+        <el-form-item v-for="field in productTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.text[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item>
+        <el-form-item v-for="field in productNumberFilters" :key="field.key" :label="field.label"><div class="sales-filter-range"><el-input-number v-model="draftFilters.numbers[field.key][0]" :min="0" :precision="field.key === 'ordered' ? 0 : 2" :controls="false" placeholder="最小值" :aria-label="field.label + '最小值'" /><span>至</span><el-input-number v-model="draftFilters.numbers[field.key][1]" :min="0" :precision="field.key === 'ordered' ? 0 : 2" :controls="false" placeholder="最大值" :aria-label="field.label + '最大值'" /></div></el-form-item>
+      </div>
+    </el-form>
+    <template #footer><el-button @click="draftFilters = emptySalesOrderFilters()">重置条件</el-button><el-button @click="orderFilterOpen = false">取消</el-button><el-button type="primary" @click="applyOrderFilters">应用筛选</el-button></template>
+  </el-dialog>
   <SalesRecordDialog
     v-if="editor"
     :key="editorVersion"
@@ -1223,4 +1260,16 @@ function confirmImport() {
 .sales-order-page .sales-management-table .purchase-group td {
   text-align: left;
 }
+</style>
+
+<style>
+.sales-filter-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0 18px; }
+.sales-order-filter-dialog .el-form-item { margin-bottom: 14px; }
+.sales-order-filter-dialog h3 { font-size: 14px; margin: 12px 0; }
+.sales-filter-tip { color: #8491a4; font-size: 13px; margin: 0 0 16px; }
+.sales-filter-range { display: flex; align-items: center; gap: 8px; width: 100%; }
+.sales-filter-range .el-input-number { flex: 1; width: 0; min-width: 0; }
+.sales-filter-grid .el-date-editor { width: 100%; min-width: 0; }
+.sales-active-filters { display: flex; align-items: center; gap: 12px; padding: 0 16px 8px; font-size: 13px; color: #65738a; }
+@media(max-width: 700px) { .sales-filter-grid { grid-template-columns: 1fr; } }
 </style>
