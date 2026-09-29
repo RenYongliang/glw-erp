@@ -150,6 +150,15 @@ class BusinessMapperTest {
                 .contains("INSERT INTO " + table)
                 .doesNotContain("created_at", "updated_at");
         assertThat(update).contains("UPDATE " + table).doesNotContain("created_at", "updated_at");
+        if (table.equals("inventory")) {
+            assertThat(insert).contains("reserved_quantity");
+            assertThat(update).contains("reserved_quantity");
+            // A quantity-only update must not reset existing reservations to zero.
+            entityClass.getMethod("setReservedQuantity", Integer.class).invoke(entity, new Object[] {null});
+            String partialUpdate = config.getMappedStatement(namespace + ".updateById")
+                    .getBoundSql(Map.of("et", entity)).getSql();
+            assertThat(partialUpdate).doesNotContain("reserved_quantity");
+        }
         String delete =
                 config.getMappedStatement(namespace + ".deleteById")
                         .getBoundSql(Map.of("id", 1L))
@@ -161,7 +170,7 @@ class BusinessMapperTest {
         String defaultInsert =
                 config.getMappedStatement(namespace + ".insert").getBoundSql(empty).getSql();
         for (String field :
-                List.of("order_status", "payment_status", "tax_included", "is_delivered")) {
+                List.of("order_status", "payment_status", "tax_included", "is_delivered", "reserved_quantity")) {
             assertThat(defaultInsert).doesNotContain(field);
         }
     }

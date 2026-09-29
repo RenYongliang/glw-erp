@@ -26,6 +26,10 @@ public class Inventory {
     @TableField("quantity")
     private Integer quantity;
 
+    /** 预占库存数量（已下单未发货），数据库默认值为 0。 */
+    @TableField("reserved_quantity")
+    private Integer reservedQuantity;
+
     /** 创建时间。 */
     @TableField(
             value = "created_at",

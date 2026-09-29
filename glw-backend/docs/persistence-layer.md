@@ -27,3 +27,11 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 每个枚举提供 code、description、fromCode。@EnumValue 使 MyBatis-Plus 读写数据库原有编码，@JsonValue / @JsonCreator 保持 JSON 使用原有字符串或数字，非法 JSON 编码会报参数错误；不使用 ordinal。XML 明确标注对应的 javaType，原 jdbcType 不变。数据库默认值仍由 MySQL 处理，不在实体中硬编码初始状态。
 
 客户 customer.settle_type、拜访进度等字段在 DDL 中没有限定完整取值，仍为 String。SysUser.enabled 和 deleted 保留原有布尔及逻辑删除映射。
+
+## 库存预占字段
+
+`inventory.reserved_quantity` 为 INT NOT NULL DEFAULT 0，对应 `Inventory.reservedQuantity`（Integer），表示已下单但尚未发货的预占数量。可用库存按 `quantity - reserved_quantity` 计算，不单独存储。
+
+实体不初始化为 0：新增时省略该字段由数据库使用默认值；部分更新时未赋值不覆盖已有预占量。Mapper 的 resultMap、列清单及继承的 Mapper/Service CRUD 已支持此字段。
+
+数据库尚未初始化，直接使用 `src/main/resources/db/glw.sql` 中包含 reserved_quantity 的建表语句，无需增量 SQL。当前仅补充表结构及持久层映射，下单预占、取消释放、发货扣减逻辑尚未接入。

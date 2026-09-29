@@ -110,6 +110,7 @@ CREATE TABLE `inventory`  (
   `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `product_id` bigint(0) NOT NULL COMMENT '产品id',
   `quantity` int(0) NOT NULL COMMENT '库存数量',
+  `reserved_quantity` int(0) NOT NULL DEFAULT 0 COMMENT '预占库存数量（已下单未发货）',
   `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
