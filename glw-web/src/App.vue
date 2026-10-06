@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   DataAnalysis,
@@ -11,6 +11,7 @@ import {
   Fold,
   Expand,
   ArrowDown,
+  Close,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
@@ -77,7 +78,45 @@ const basicExpanded = ref(route.path.startsWith('/products/'))
 const purchaseExpanded = ref(route.path.startsWith('/purchase/'))
 const customerExpanded = ref(['/customers', '/followups'].includes(route.path))
 const boardExpanded = ref(route.path.startsWith('/boards/'))
-const pageTitle = computed(() => String(route.meta.title || '首页'))
+// FIFO: revisiting an existing page updates its URL without changing opening order.
+const pageTabs = ref<{ path: string; url: string; title: string }[]>([])
+const pageNavigation = ref<HTMLElement>()
+async function closePageTab(path: string) {
+  const index = pageTabs.value.findIndex(tab => tab.path === path)
+  if (index < 0) return
+  if (route.path === path) {
+    const next = pageTabs.value[index + 1] || pageTabs.value[index - 1]
+    const target = next?.url || '/'
+    if (target !== route.fullPath) {
+      const failure = await router.push(target)
+      if (failure) return
+    }
+  }
+  pageTabs.value = pageTabs.value.filter(tab => tab.path !== path)
+}
+
+watch(
+  () => [route.fullPath, auth.isAuthenticated] as const,
+  async () => {
+    if (!auth.isAuthenticated || route.meta.public) {
+      pageTabs.value = []
+      return
+    }
+    if (!route.matched.length) return
+    const title = String(route.meta.title || (route.path === '/orders' ? '首页表单' : '首页'))
+    const existing = pageTabs.value.find(tab => tab.path === route.path)
+    if (existing) {
+      existing.url = route.fullPath
+      existing.title = title
+    } else {
+      pageTabs.value.push({ path: route.path, url: route.fullPath, title })
+      if (pageTabs.value.length > 5) pageTabs.value.shift()
+    }
+    await nextTick()
+    pageNavigation.value?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  },
+  { immediate: true },
+)
 watch(
   () => route.path,
   () => {
@@ -312,11 +351,24 @@ async function fullscreen() {
         </aside>
         <main ref="workspace" class="workspace">
           <div class="page-heading">
-            <strong>{{ pageTitle }}</strong
-            ><RouterLink v-if="['/', '/orders'].includes(route.path)" to="/">首页看板</RouterLink
-            ><RouterLink v-if="['/', '/orders'].includes(route.path)" to="/orders"
-              >首页表单</RouterLink
-            ><span class="heading-divider" /><el-button
+            <nav ref="pageNavigation" class="page-tabs" aria-label="已打开的页面">
+              <div v-for="tab in pageTabs" :key="tab.path" class="page-tab-item" :class="{ 'is-active': route.path === tab.path }">
+                <RouterLink
+                  :to="tab.url"
+                  class="page-tab"
+                  :aria-current="route.path === tab.path ? 'page' : undefined"
+                  :title="tab.title"
+                >{{ tab.title }}</RouterLink>
+                <button type="button" class="page-tab-close" :aria-label="'关闭' + tab.title" :title="'关闭' + tab.title" @click.stop="closePageTab(tab.path)">
+                  <el-icon><Close /></el-icon>
+                </button>
+              </div>
+            </nav>
+            <span v-if="['/', '/orders'].includes(route.path)" class="home-page-links">
+              <RouterLink to="/">首页看板</RouterLink>
+              <RouterLink to="/orders">首页表单</RouterLink>
+            </span>
+            <span class="heading-divider" /><el-button
               text
               :icon="FullScreen"
               aria-label="切换全屏"
@@ -330,3 +382,39 @@ async function fullscreen() {
     </div>
   </el-config-provider>
 </template>
+
+<style scoped>
+.page-tabs {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.page-heading .page-tab {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 8px 0 16px;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.page-heading .page-tab:hover { color: #1687ff; background: #f3f8ff; }
+.page-heading .page-tab-item.is-active { color: #1687ff; background: #e8f2ff; border-bottom-color: #1687ff; }
+.page-tab-close:focus-visible, .page-tab:focus-visible { outline: 2px solid #1687ff; outline-offset: -3px; }
+.page-tab-item { display: flex; align-items: center; flex-shrink: 0; border-bottom: 2px solid transparent; }
+.page-tab-item .page-tab { height: 100%; border-bottom: 0; }
+.page-tab-item.is-active .page-tab { color: #1687ff; background: transparent; }
+.page-tab-close { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; margin-right: 8px; border: 0; border-radius: 50%; background: transparent; color: #8491a4; cursor: pointer; }
+.page-tab-close:hover { color: #1687ff; background: #d7eaff; }
+.home-page-links { display: flex; flex-shrink: 0; white-space: nowrap; }
+.heading-divider { flex-shrink: 0; }
+@media (max-width: 700px) {
+  .page-heading .page-tab { padding: 0 10px; }
+  .home-page-links a { padding: 5px; }
+}
+</style>

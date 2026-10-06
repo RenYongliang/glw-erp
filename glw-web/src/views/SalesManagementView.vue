@@ -43,7 +43,7 @@ const props = defineProps<{ kind: SalesKind }>(),
   isOrder = props.kind === "orders";
 const tabs = isOrder
   ? ["全部订单", "待发货订单", "部分发货订单", "已完成订单"]
-  : ["全部出库", "已出库", "库存冻结", "计划出库"];
+  : ["全部出库", "已出库", "待出库"];
 const tab = ref(tabs[0]!),
   keyword = ref(""),
   filterOpen = ref(false),
@@ -59,7 +59,7 @@ const tab = ref(tabs[0]!),
   logsOpen = ref(false),
   expanded = ref(false),
   rowHeight = ref("normal");
-const groupMode = ref<'month' | 'customer' | 'none'>(isOrder ? 'month' : 'customer');
+const groupMode = ref<'month' | 'customer' | 'none'>('month');
 const orderFilterOpen = ref(false);
 const orderFilters = ref(emptySalesOrderFilters());
 const draftFilters = ref(emptySalesOrderFilters());
@@ -105,8 +105,9 @@ type TableRow = {
 };
 const orderColumns = [
   ["code", "订单编号"],
-  ["signed", "订单日期"],
+  ["purchaseNumber", "客户采购单号"],
   ["customer", "客户名称"],
+  ["signed", "订单日期"],
   ["brands", "品牌"],
   ["productNames", "型号"],
   ["models", "封装"],
@@ -120,6 +121,7 @@ const orderColumns = [
 ];
 const orderWidths: Record<string, number> = {
   code: 140,
+  purchaseNumber: 140,
   signed: 95,
   customer: 135,
   brands: 65,
@@ -137,24 +139,15 @@ function columnWidth(key: string) {
   return isOrder ? orderWidths[key] || 100 : key === "name" ? 230 : 130;
 }
 const shipmentColumns = [
-  ["name", "销售订单名称"],
-  ["orderCode", "销售订单编号"],
-  ["contact", "客户联系人姓名"],
-  ["phone", "客户联系人手机"],
-  ["owner", "销售负责人"],
-  ["department", "销售归属部门"],
-  ["code", "销售出库单编号"],
-  ["tag", "产品出库标签"],
-  ["warehouse", "出库仓库"],
-  ["productNames", "产品名称"],
-  ["productCodes", "产品编码"],
+  ["code", "出库单号"],
+  ["purchaseNumber", "客户采购单号"],
+  ["customer", "客户名称"],
+  ["shippedAt", "出库日期"],
   ["brands", "品牌"],
-  ["models", "规格型号"],
-  ["units", "单位"],
+  ["productNames", "型号"],
+  ["models", "封装"],
   ["ordered", "销售数量"],
   ["pending", "待出库数量"],
-  ["quantity", "本次出库数量"],
-  ["total", "出库产品售价总额(含税)/元"],
   ["status", "出库状态"],
 ];
 function productSummary(
@@ -195,22 +188,14 @@ const shownColumns = computed(() =>
 );
 const productKeys = isOrder
   ? ["brands", "productNames", "models", "prices", "ordered", "amounts"]
-  : [
-      "productNames",
-      "productCodes",
-      "brands",
-      "models",
-      "units",
-      "ordered",
-      "pending",
-    ];
+  : ["brands", "productNames", "models", "ordered", "pending"];
 const productColumns = computed(() =>
   shownColumns.value.filter((c) => productKeys.includes(c.key)),
 );
 const leadingColumns = computed(() =>
   shownColumns.value.filter((c) =>
     isOrder
-      ? ["code", "signed", "customer"].includes(c.key)
+      ? ["code", "purchaseNumber", "signed", "customer"].includes(c.key)
       : (!productKeys.includes(c.key) &&
           !["total", "quantity", "status"].includes(c.key)) ||
         (isOrder && c.key === "status"),
@@ -245,6 +230,7 @@ const records = computed<TableRow[]>(() =>
             phone: customers.find((c) => c.id === o.customerId)?.phone || "",
             name: o.name,
             code: o.code,
+            purchaseNumber: o.purchaseNumber || "—",
             owner: o.owner,
             department: o.department,
             warehouse: o.warehouse,
@@ -283,6 +269,8 @@ const records = computed<TableRow[]>(() =>
             owner: o?.owner || "—",
             department: o?.department || "—",
             code: r.code,
+            purchaseNumber: o?.purchaseNumber || "—",
+            shippedAt: r.shippedAt || "—",
             quantity: t.quantity,
             total: t.total,
             status: r.confirmed ? "已出库" : "待出库",
@@ -295,11 +283,7 @@ const filtered = computed(() => {
     if (isOrder && tab.value !== tabs[0] && r.values.fulfillmentStatus !== tab.value.replace(/订单$/, '')) return false;
     if (!isOrder && tab.value === "已出库" && !r.shipment?.confirmed)
       return false;
-    if (
-      !isOrder &&
-      ["库存冻结", "计划出库"].includes(tab.value) &&
-      r.shipment?.tag !== tab.value
-    )
+    if (!isOrder && tab.value === "待出库" && r.shipment?.confirmed)
       return false;
     if (
       keyword.value.trim() &&
@@ -336,9 +320,14 @@ const filtered = computed(() => {
 });
 const groups = computed(() => {
   if (!grouped.value) return [{name: '', rows: filtered.value}];
-  const key = (row: TableRow) => isOrder && groupMode.value === 'month' ? salesOrderMonth(row.order?.signed || '') : row.group;
+  const missingDate = isOrder ? '未填写订单日期' : '未填写出库日期';
+  const key = (row: TableRow) => {
+    if (groupMode.value !== 'month') return row.group;
+    const month = salesOrderMonth((isOrder ? row.order?.signed : row.shipment?.shippedAt) || '');
+    return month === '未填写订单日期' ? missingDate : month;
+  };
   const names = [...new Set(filtered.value.map(key))];
-  if (isOrder && groupMode.value === 'month') names.sort((a,b) => a === '未填写订单日期' ? 1 : b === '未填写订单日期' ? -1 : b.localeCompare(a));
+  if (groupMode.value === 'month') names.sort((a,b) => a === b ? 0 : a === missingDate ? 1 : b === missingDate ? -1 : b.localeCompare(a));
   return names.map(name => ({name, rows: filtered.value.filter(row => key(row) === name)}));
 });
 const allSelected = computed(
@@ -754,15 +743,14 @@ function confirmImport() {
             ><el-radio value="desc">降序</el-radio></el-radio-group
           ><el-button text @click="sortKey = ''">重置</el-button></el-popover
         >
-        <el-dropdown v-if="isOrder" trigger="click" @command="changeGrouping">
-          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain aria-label="订单分组方式">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'customer' ? '按客户分组' : '不分组' }}</el-button>
+        <el-dropdown trigger="click" @command="changeGrouping">
+          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain :aria-label="isOrder ? '订单分组方式' : '销售出库分组方式'">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'customer' ? '按客户分组' : '不分组' }}</el-button>
           <template #dropdown><el-dropdown-menu>
-            <el-dropdown-item command="month">按订单日期月份分组</el-dropdown-item>
+            <el-dropdown-item command="month">{{ isOrder ? '按订单日期月份分组' : '按出库日期月份分组' }}</el-dropdown-item>
             <el-dropdown-item command="customer">按客户分组</el-dropdown-item>
             <el-dropdown-item command="none">不分组</el-dropdown-item>
           </el-dropdown-menu></template>
         </el-dropdown>
-        <el-button v-else :icon="Operation" :type="grouped ? 'primary' : ''" plain aria-label="切换分组" title="按客户分组" @click="grouped = !grouped" />
         <el-button
           :icon="Refresh"
           text
@@ -1232,18 +1220,8 @@ function confirmImport() {
   white-space: nowrap;
 }
 .sales-management-table .purchase-fixed-actions {
-  position: sticky;
-  right: 0;
-  box-shadow: -3px 0 5px #20334d0a;
-}
-.sales-management-table th.purchase-fixed-actions {
-  z-index: 4;
-}
-@media (max-width: 1050px) {
-  .sales-management-table .purchase-fixed-actions {
-    position: static;
-    box-shadow: none;
-  }
+  min-width: 200px;
+  width: 200px;
 }
 .sales-order-page .sales-management-table td:not(.sales-product-cell),
 .sales-order-page .sales-management-table th {

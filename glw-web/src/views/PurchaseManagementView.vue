@@ -44,11 +44,11 @@ const props = defineProps<{ kind: PurchaseKind }>(),
   isOrder = props.kind === 'orders'
 const tabs = isOrder
   ? ['全部订单', '待审批订单', '已审批订单', '不通过订单']
-  : ['全部仓库', '待入库', '杭州仓', '无锡仓']
+  : ['全部入库', '已入库', '待入库']
 const tab = ref(tabs[0]!),
   keyword = ref(''),
   filterOpen = ref(false),
-  filterKey = ref(isOrder ? 'supplier' : 'name'),
+  filterKey = ref('supplier'),
   filterOperator = ref('包含'),
   filterValue = ref(''),
   grouped = ref(true),
@@ -60,6 +60,13 @@ const tab = ref(tabs[0]!),
   logsOpen = ref(false),
   expanded = ref(false),
   rowHeight = ref('normal')
+const groupMode = ref<'month' | 'supplier' | 'none'>('month')
+function changeGrouping(mode: 'month' | 'supplier' | 'none') {
+  groupMode.value = mode
+  grouped.value = mode !== 'none'
+  collapsed.value = []
+  selected.value = []
+}
 const editor = ref(false),
   editorKind = ref<PurchaseKind>(props.kind),
   editingOrder = ref<PurchaseOrder>(),
@@ -75,35 +82,34 @@ type TableRow = {
   receipt?: PurchaseReceipt
 }
 const orderColumns = [
-  ['code', '采购单号'], ['signed', '采购日期'], ['supplier', '供应商名称'],
-  ['contact', '联系人'], ['phone', '联系人手机'],
-  ['specs', '规格'], ['quantities', '数量'], ['units', '单位'], ['taxes', '税率'],
-  ['prices', '单价(含税)'], ['amounts', '合计'], ['deliveries', '交付日期'], ['remarks', '备注'],
-  ['quantity', '合计数量'], ['total', '合计金额'], ['status', '审批状态'],
+  ['code', '采购单号'], ['supplier', '供应商名称'], ['signed', '采购日期'],
+  ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
+  ['prices', '单价(含税)'], ['quantities', '数量'],
+  ['amounts', '金额'], ['deliveries', '交付日期'],
+  ['total', '订单金额'],
+  ['owner', '采购负责人'],
 ]
-const productKeys = ['specs', 'quantities', 'units', 'taxes', 'prices', 'amounts', 'deliveries', 'remarks']
-function productCells(order: PurchaseOrder, key: string): string[] {
+const productKeys = isOrder
+  ? ['brands', 'productNames', 'models', 'prices', 'quantities', 'amounts', 'deliveries']
+  : ['brands', 'productNames', 'models', 'quantities', 'pending']
+function productCells(order: PurchaseOrder, key: string, receipt?: PurchaseReceipt): string[] {
   const totals = orderTotals(order)
-  return order.lines.map((l, i) => {
+  return order.lines.flatMap((l, i) => {
+    if (receipt && !receipt.lines.some(line => line.lineId === l.id)) return []
     const product = products.find(p => p.id === l.productId)
-    const cells: Record<string, string> = { specs: product?.model || '', quantities: String(l.quantity), units: product?.unit || '', taxes: `${l.tax}%`, prices: money(l.price), amounts: money(totals.details[i]?.total || 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
+    const cells: Record<string, string> = { brands: product?.brand || '', productNames: product?.model || '', models: product?.packaging || '', quantities: String(l.quantity), pending: String(remainingQuantity(store.state, order.id, l.id, receipt?.id)), taxes: `${l.tax}%`, prices: money(l.price), amounts: money(totals.details[i]?.total || 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
     return cells[key] || '—'
   })
 }
 const receiptColumns = [
-  ['name', '采购订单名称'],
-  ['orderCode', '采购订单编号'],
+  ['code', '入库单号'],
+  ['orderCode', '采购单号'],
   ['supplier', '供应商名称'],
-  ['supplierCode', '供应商编码'],
-  ['contact', '供应商联系人姓名'],
-  ['phone', '供应商联系人手机'],
-  ['owner', '采购负责人'],
-  ['department', '采购归属部门'],
-  ['code', '采购入库单编号'],
+  ['receivedAt', '入库日期'],
+  ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
+  ['quantities', '采购数量'], ['pending', '待入库数量'],
   ['quantity', '入库产品总数'],
   ['total', '入库产品采购价总额(含税)/元'],
-  ['quality', '是否存在不合格品'],
-  ['inspectedAt', '质检时间'],
   ['status', '入库状态'],
 ]
 const columns = (isOrder ? orderColumns : receiptColumns).map(([key, label]) => ({
@@ -151,8 +157,9 @@ const records = computed<TableRow[]>(() =>
           id: r.id,
           receipt: r,
           order: o,
-          group: r.warehouse,
+          group: purchaseSupplierName(o) || '未填写',
           values: {
+            ...Object.fromEntries(productKeys.map(key => [key, o ? productCells(o, key, r).join('、') : '—'])),
             name: o?.name || '—',
             orderCode: o?.code || '—',
             supplier: purchaseSupplierName(o) || '—',
@@ -162,6 +169,7 @@ const records = computed<TableRow[]>(() =>
             owner: o?.owner || '—',
             department: o?.department || '—',
             code: r.code,
+            receivedAt: r.receivedAt?.slice(0, 10) || '—',
             quantity: t.quantity,
             total: t.total,
             quality: r.quality,
@@ -186,7 +194,7 @@ const filtered = computed(() => {
     )
       return false
     if (!isOrder && tab.value === '待入库' && r.receipt?.confirmed) return false
-    if (!isOrder && ['杭州仓', '无锡仓'].includes(tab.value) && r.group !== tab.value) return false
+    if (!isOrder && tab.value === '已入库' && !r.receipt?.confirmed) return false
     if (
       keyword.value.trim() &&
       ![r.group, ...Object.values(r.values)]
@@ -218,14 +226,19 @@ const filtered = computed(() => {
     })
   return rows
 })
-const groups = computed(() =>
-  grouped.value
-    ? [...new Set(filtered.value.map((r) => r.group))].map((name) => ({
-        name,
-        rows: filtered.value.filter((r) => r.group === name),
-      }))
-    : [{ name: '', rows: filtered.value }],
-)
+const groups = computed(() => {
+  if (!grouped.value) return [{ name: '', rows: filtered.value }]
+  const monthly = groupMode.value === 'month'
+  const missingDate = isOrder ? '未填写采购日期' : '未填写入库日期'
+  const key = (row: TableRow) => {
+    if (!monthly) return row.group
+    const match = /^(\d{4})-(0[1-9]|1[0-2])-\d{2}/.exec((isOrder ? row.order?.signed : row.receipt?.receivedAt) || '')
+    return match ? `${match[1]}年${match[2]}月` : missingDate
+  }
+  const names = [...new Set(filtered.value.map(key))]
+  if (monthly) names.sort((a, b) => a === b ? 0 : a === missingDate ? 1 : b === missingDate ? -1 : b.localeCompare(a))
+  return names.map(name => ({ name, rows: filtered.value.filter(row => key(row) === name) }))
+})
 const allSelected = computed(
   () => !!filtered.value.length && filtered.value.every((r) => selected.value.includes(r.id)),
 )
@@ -610,14 +623,15 @@ function confirmImport() {
             ><el-radio value="desc">降序</el-radio></el-radio-group
           ><el-button text @click="sortKey = ''">重置</el-button></el-popover
         >
-        <el-button
-          :icon="Operation"
-          :type="grouped ? 'primary' : ''"
-          plain
-          aria-label="切换分组"
-          :title="isOrder ? '按供应商分组' : '按仓库分组'"
-          @click="grouped = !grouped"
-        /><el-button :icon="Refresh" text aria-label="刷新采购数据" @click="refresh" /><el-button
+        <el-dropdown trigger="click" @command="changeGrouping">
+          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain :aria-label="isOrder ? '采购订单分组方式' : '采购入库分组方式'">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'supplier' ? '按供应商分组' : '不分组' }}</el-button>
+          <template #dropdown><el-dropdown-menu>
+            <el-dropdown-item command="month">{{ isOrder ? '按采购日期月份分组' : '按入库时间月份分组' }}</el-dropdown-item>
+            <el-dropdown-item command="supplier">按供应商分组</el-dropdown-item>
+            <el-dropdown-item command="none">不分组</el-dropdown-item>
+          </el-dropdown-menu></template>
+        </el-dropdown>
+        <el-button :icon="Refresh" text aria-label="刷新采购数据" @click="refresh" /><el-button
           :icon="FullScreen"
           text
           aria-label="切换表格全屏"
@@ -654,42 +668,19 @@ function confirmImport() {
       :class="{ 'purchase-comfortable': rowHeight === 'comfortable' }"
     >
       <table class="purchase-table">
-        <thead v-if="isOrder" class="purchase-order-head">
+        <thead class="purchase-order-head">
           <tr>
             <th class="purchase-selection" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">
               <el-checkbox :model-value="allSelected" :indeterminate="selected.length > 0 && !allSelected" aria-label="选择全部采购数据" @change="selectRows(filtered, !!$event)" />
             </th>
             <template v-for="c in shownColumns" :key="c.key">
               <th v-if="!productKeys.includes(c.key)" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1" :style="{minWidth: c.key === 'supplier' ? '190px' : ['code','phone'].includes(c.key) ? '150px' : '120px'}">{{ c.label }}</th>
-              <th v-else-if="c.key === shownColumns.find(c => productKeys.includes(c.key))?.key" :colspan="shownColumns.filter(c => productKeys.includes(c.key)).length" class="purchase-product-heading">采购产品信息</th>
+              <th v-else-if="c.key === shownColumns.find(c => productKeys.includes(c.key))?.key" :colspan="shownColumns.filter(c => productKeys.includes(c.key)).length" class="purchase-product-heading">产品明细</th>
             </template>
-            <th class="purchase-fixed-actions" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">操作</th>
+            <th v-if="isOrder" class="purchase-fixed-actions" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">操作</th>
           </tr>
           <tr v-if="shownColumns.some(c => productKeys.includes(c.key))">
-            <th v-for="c in shownColumns.filter(c => productKeys.includes(c.key))" :key="c.key" :style="{minWidth: ['specs','remarks'].includes(c.key) ? '190px' : '120px'}">{{ c.label }}</th>
-          </tr>
-        </thead>
-        <thead v-else>
-          <tr>
-            <th class="purchase-selection">
-              <el-checkbox
-                :model-value="allSelected"
-                :indeterminate="selected.length > 0 && !allSelected"
-                aria-label="选择全部采购数据"
-                @change="selectRows(filtered, !!$event)"
-              />
-            </th>
-            <th
-              v-for="c in shownColumns"
-              :key="c.key"
-              :class="{ 'purchase-name-col': c.key === 'name' }"
-              :style="{
-                minWidth: ['supplier', 'specs', 'remarks'].includes(c.key) ? '190px' : ['code', 'phone'].includes(c.key) ? '150px' : c.key === 'name' ? '230px' : '120px',
-              }"
-            >
-              {{ c.label }}
-            </th>
-            <th v-if="isOrder" class="purchase-fixed-actions">操作</th>
+            <th v-for="c in shownColumns.filter(c => productKeys.includes(c.key))" :key="c.key" :style="{minWidth: c.key === 'brands' ? '65px' : ['productNames','models'].includes(c.key) ? '85px' : c.key === 'remarks' ? '190px' : '120px'}">{{ c.label }}</th>
           </tr>
         </thead>
         <tbody>
@@ -735,13 +726,14 @@ function confirmImport() {
                   :key="c.key"
                   :title="String(display(row, c.key) || '')"
                   :class="{
+                    'purchase-product-td': productKeys.includes(c.key),
                     'purchase-money': ['gross', 'discount', 'total', 'net', 'quantity'].includes(
                       c.key,
                     ),
                   }"
                 >
-                  <div v-if="isOrder && row.order && productKeys.includes(c.key)" class="purchase-product-cell">
-                    <div v-for="(value,index) in productCells(row.order, c.key)" :key="index">{{ value }}</div>
+                  <div v-if="row.order && productKeys.includes(c.key)" class="purchase-product-cell">
+                    <div v-for="(value,index) in productCells(row.order, c.key, row.receipt)" :key="index">{{ value }}</div>
                   </div>
                   <button
                     v-else-if="['name', 'code', 'orderCode'].includes(c.key)"
@@ -929,12 +921,14 @@ function confirmImport() {
 </template>
 
 <style>
-.purchase-product-cell > div { height: 32px; line-height: 32px; white-space: nowrap; }
+.purchase-product-td { padding: 0 !important; text-align: left; }
+.purchase-product-cell > div { min-height: 35px; padding: 8px 10px; box-sizing: border-box; white-space: nowrap; }
 .purchase-product-cell > div + div { border-top: 1px solid #eef0f3; }
 </style>
 
 <style>
 .purchase-order-head tr:first-child { height: 37px; }
 .purchase-order-head tr:nth-child(2) th { top: 37px; }
+.purchase-order-head tr:nth-child(2) th { text-align: left; white-space: nowrap; }
 .purchase-order-head .purchase-product-heading { text-align: center; }
 </style>

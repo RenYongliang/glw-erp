@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import {
   suppliers,
   products,
+  legacyPurchaseProductIds,
   purchaseStorageKey,
   nextPurchaseCode,
   orderTotals,
@@ -115,6 +116,11 @@ export const usePurchaseStore = defineStore('purchase', () => {
         )
       )
         throw Error()
+      for (const order of saved.orders as PurchaseOrder[]) {
+        for (const line of order.lines) {
+          line.productId = legacyPurchaseProductIds[line.productId] || line.productId
+        }
+      }
       state.value = saved
       loadError.value = ''
     } catch {

@@ -150,20 +150,23 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-/* Keep action cells in the horizontal table flow so they cannot cover amounts. */
+/* Keep order actions visible at the right edge while scrolling horizontally. */
 .purchase-table .purchase-fixed-actions {
-  position: static;
+  position: sticky;
+  right: 0;
   background: white;
-  min-width: 285px;
-  width: 285px;
-  box-shadow: none;
+  min-width: 224px;
+  width: 224px;
+  padding-left: 8px;
+  padding-right: 8px;
+  box-shadow: -3px 0 5px #20334d0a;
   z-index: 1;
   overflow: visible;
 }
 .purchase-table th.purchase-fixed-actions {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 4;
   background: #f5f6fa;
 }
 .purchase-fixed-actions .el-button {
@@ -173,7 +176,7 @@
   margin-left: 0;
 }
 .purchase-fixed-actions .el-button + .el-button {
-  margin-left: 6px;
+  margin-left: 4px;
 }
 .purchase-pay:not(.is-disabled) {
   color: #e4a000;
@@ -454,10 +457,6 @@
   }
   .purchase-table-scroll {
     max-height: calc(100vh - 350px);
-  }
-  .purchase-table .purchase-fixed-actions {
-    position: static;
-    box-shadow: none;
   }
   .purchase-page {
     min-height: calc(100vh - 115px);

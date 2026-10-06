@@ -1,3 +1,4 @@
+import catalog from '../data/products.json' with { type: 'json' }
 export type PurchaseKind = 'orders' | 'receipts'
 export interface Product {
   id: string
@@ -5,6 +6,7 @@ export interface Product {
   code: string
   brand: string
   model: string
+  packaging?: string
   unit: string
   price: number
   tax: number
@@ -145,74 +147,23 @@ export const suppliers: Supplier[] = [
     account: '6222000011110001',
   },
 ]
-export const products: Product[] = [
-  {
-    id: 'p1',
-    name: '32位微控制器',
-    code: 'CP001',
-    brand: '兆易创新',
-    model: 'GD32F103C8T6',
-    unit: '颗',
-    price: 8.5,
-    tax: 13,
-    stock: 12500,
-  },
-  {
-    id: 'p2',
-    name: 'SPI NOR Flash',
-    code: 'CP002',
-    brand: '兆易创新',
-    model: 'GD25Q64CSIG',
-    unit: '颗',
-    price: 4.8,
-    tax: 13,
-    stock: 8600,
-  },
-  {
-    id: 'p3',
-    name: '低功耗微控制器',
-    code: 'CP003',
-    brand: 'ST',
-    model: 'STM32F103C8T6',
-    unit: '颗',
-    price: 12.6,
-    tax: 13,
-    stock: 4200,
-  },
-  {
-    id: 'p4',
-    name: '同步降压芯片',
-    code: 'CP004',
-    brand: 'TI',
-    model: 'TPS5430DDAR',
-    unit: '颗',
-    price: 6.8,
-    tax: 13,
-    stock: 6800,
-  },
-  {
-    id: 'p5',
-    name: '贴片电容',
-    code: 'CP005',
-    brand: '村田',
-    model: 'GRM188R71C104KA01D',
-    unit: '颗',
-    price: 0.12,
-    tax: 13,
-    stock: 50000,
-  },
-  {
-    id: 'p6',
-    name: '嵌入式处理器',
-    code: 'CP006',
-    brand: '北京君正',
-    model: 'X2000',
-    unit: '颗',
-    price: 68,
-    tax: 13,
-    stock: 1500,
-  },
-]
+// Purchase and sales share the same catalog. Purchase model is the part number.
+export const products: Product[] = catalog.map(p => ({
+  id: p.code,
+  code: p.code,
+  name: p.name,
+  brand: p.brand,
+  model: p.name,
+  packaging: p.model,
+  unit: p.unit,
+  price: p.cost,
+  tax: 13,
+  stock: 150000,
+}))
+// Keep previously saved demo orders readable after replacing the six legacy products.
+export const legacyPurchaseProductIds: Record<string, string> = Object.fromEntries(
+  Array.from({ length: 6 }, (_, index) => [`p${index + 1}`, products[index % products.length]!.id]),
+)
 export const warehouses = ['杭州仓', '无锡仓']
 export const money = (n: number) =>
   n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

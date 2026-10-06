@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { validateOrder, purchaseSupplierName, purchaseContact, purchasePhone, orderTotals } from '../src/domain/purchase.ts'
+import { products, legacyPurchaseProductIds, validateOrder, purchaseSupplierName, purchaseContact, purchasePhone, orderTotals } from '../src/domain/purchase.ts'
 
-const order = () => ({id:'new-order',code:'',name:'新供应商-采购订单',supplierId:'',supplierName:'新供应商',contact:'联系人',phone:'13800138000',signed:'2026-09-27',delivery:'',owner:'张睿',department:'采购部',warehouse:'杭州仓',address:'',discount:0,lines:[{id:'l1',productId:'p1',quantity:3,price:10,tax:13,delivery:'2026-12-20',remark:'独立包装'},{id:'l2',productId:'p2',quantity:2,price:20,tax:13,delivery:'2026-12-25',remark:''}],arrivals:[],payments:[],attachments:[],term:'月结30天',status:'待审批',reason:'',approver:'',approvedAt:''})
+const order = () => ({id:'new-order',code:'',name:'新供应商-采购订单',supplierId:'',supplierName:'新供应商',contact:'联系人',phone:'13800138000',signed:'2026-09-27',delivery:'',owner:'张睿',department:'采购部',warehouse:'杭州仓',address:'',discount:0,lines:[{id:'l1',productId:products[0].id,quantity:3,price:10,tax:13,delivery:'2026-12-20',remark:'独立包装'},{id:'l2',productId:products[1].id,quantity:2,price:20,tax:13,delivery:'2026-12-25',remark:''}],arrivals:[],payments:[],attachments:[],term:'月结30天',status:'待审批',reason:'',approver:'',approvedAt:''})
 test('unregistered supplier and per-line dates persist without a hidden order delivery field',()=>{
  const o=JSON.parse(JSON.stringify(order()))
  assert.equal(validateOrder(o),'')
@@ -26,4 +26,13 @@ test('legacy supplier contacts and order-level dates remain readable and valid',
  assert.equal(purchaseContact(o),'纪泽')
  assert.equal(purchasePhone(o),'17777777772')
  o.contact='自定义联系人';assert.equal(purchaseContact(o),'自定义联系人')
+})
+
+test('purchase products use the sales catalog model and package content', async()=>{
+ const {default:catalog}=await import('../src/data/products.json',{with:{type:'json'}})
+ assert.equal(products.length,catalog.length)
+ products.forEach((p,i)=>{
+  assert.deepEqual([p.code,p.brand,p.model,p.packaging],[catalog[i].code,catalog[i].brand,catalog[i].name,catalog[i].model])
+ })
+ for(const id of ['p1','p2','p3','p4','p5','p6']) assert.ok(products.some(p=>p.id===legacyPurchaseProductIds[id]))
 })
