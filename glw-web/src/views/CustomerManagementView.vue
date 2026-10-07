@@ -1,4 +1,5 @@
 ﻿<script setup lang="ts">
+import { useListPagination } from "../composables/useListPagination";
 import { computed, ref, watch, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -119,7 +120,7 @@ const sorted = computed(() =>
         );
       }),
 );
-const groups = computed(() =>
+const allGroups = computed(() =>
   grouped.value
     ? [...allGroupNames.value, "未填写"]
         .map((name) => ({
@@ -131,10 +132,17 @@ const groups = computed(() =>
         .filter((g) => g.rows.length)
     : [{ name: "", rows: sorted.value }],
 );
+const paginationSource = computed(() => allGroups.value.flatMap(group => group.rows));
+const { page, pageSize, pageRows } = useListPagination(paginationSource);
+watch([page, pageSize], () => { selected.value = []; collapsed.value = []; });
+const groups = computed(() => {
+  const visible = new Set(pageRows.value.map(row => row.id));
+  return allGroups.value.map(group => ({ ...group, rows: group.rows.filter(row => visible.has(row.id)) })).filter(group => group.rows.length);
+});
 const allSelected = computed(
   () =>
-    !!sorted.value.length &&
-    sorted.value.every((r) => selected.value.includes(r.id)),
+    !!pageRows.value.length &&
+    pageRows.value.every((r) => selected.value.includes(r.id)),
 );
 watch([tab, keyword, filterField, filterText, filterOperator], () => {
   selected.value = [];
@@ -346,28 +354,15 @@ const reconcileRows = computed(() => [
         ><el-button text :icon="Upload" @click="startImport">导入</el-button
         ><el-button text :icon="Download" @click="exportRows">导出</el-button
         ><el-button text :icon="Delete" @click="remove()">删除</el-button
-        ><el-button text :icon="Clock" @click="logsOpen = true"
-          >操作记录</el-button
         >
       </div>
       <div class="crm-toolbar-search">
-        <el-input
-          v-model="keyword"
-          placeholder="搜索数据"
-          clearable
-          :prefix-icon="Search"
-          aria-label="搜索数据"
-        /><el-button
+        <el-button
           :icon="Filter"
           :type="filterOpen ? 'primary' : 'default'"
           @click="filterOpen = !filterOpen"
           >筛选</el-button
         ><el-button
-          :icon="Sort"
-          title="排序"
-          aria-label="排序"
-          @click="sortOpen = true"
-        /><el-button
           :icon="Operation"
           :type="grouped ? 'primary' : 'default'"
           plain
@@ -448,7 +443,7 @@ const reconcileRows = computed(() => [
                 aria-label="全选当前结果"
                 @change="
                   (value: string | number | boolean) =>
-                    selectRows(sorted, Boolean(value))
+                    selectRows(pageRows, Boolean(value))
                 "
               />
             </th>
@@ -585,7 +580,7 @@ const reconcileRows = computed(() => [
         @click="collapsed = groups.map((g) => g.name)"
         >⌃ 收起全部</el-button
       >
-    </footer>
+    <el-pagination class="list-pagination" v-model:current-page="page" v-model:page-size="pageSize" :page-sizes="[10,20,50,100]" :total="sorted.length" layout="total, sizes, prev, pager, next, jumper" /></footer>
     <CrmRecordDialog
       v-model="editor"
       :kind="editorKind"

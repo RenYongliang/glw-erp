@@ -293,10 +293,24 @@ const dispatchWidths = computed(() => {
     quantity: contentWidth('数量', lines.map(l => orderLine(l.lineId)?.quantity)),
     pending: contentWidth('待出库数量', lines.map(l => remainingQuantity(store.state, shipment.value.orderId, l.lineId, shipment.value.id))),
     dispatch: contentWidth('本次发货数量', lines.map(l => l.arrived), 128, 56),
-    remark: contentWidth('备注', lines.map(l => l.remark || '填写本产品发货备注'), 156, 24),
+    remark: 180,
   };
 });
-const dispatchTableWidth = computed(() => Object.values(dispatchWidths.value).reduce((sum, width) => sum + width, 2));
+const remarkOpen = ref(false);
+const remarkText = ref('');
+const remarkLine = ref<SalesShipment['lines'][number]>();
+function openRemark(line: SalesShipment['lines'][number]) {
+  remarkLine.value = line;
+  remarkText.value = line.remark || '';
+  remarkOpen.value = true;
+}
+function saveRemark() {
+  if (remarkLine.value && !view.value && !props.shipment?.confirmed) {
+    remarkLine.value.remark = remarkText.value;
+    dirty.value = true;
+  }
+  remarkOpen.value = false;
+}
 function openPicker(name: string) {
   pickerQuery.value = "";
   productSelection.value = [];
@@ -489,13 +503,7 @@ function quickFill() {
       <h3 class="purchase-section">
         {{ isOrder ? "销售订单信息" : props.dispatch ? "订单信息" : "销售订单信息" }}
       </h3>
-      <p class="purchase-tip">
-        {{
-          isOrder
-            ? "使用Tips：销售订单通过标签页，可以一站式查看销售业务流程"
-            : "选择销售订单后自动带入客户和产品明细；确认后计入已出库数量。"
-        }}
-      </p>
+
       <el-form
         v-if="props.dispatch"
         label-position="top"
@@ -615,12 +623,13 @@ function quickFill() {
       </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
-        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:100},{key:'name',label:'型号',width:150},{key:'model',label:'封装',width:110}]" :key="f.key" :label="f.label" :min-width="f.width">
+        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:65},{key:'name',label:'型号',width:85},{key:'model',label:'封装',width:85}]" :key="f.key" :label="f.label" :min-width="f.width">
           <template #default="{row}">{{ productValue(row.productId, f.key) }}</template>
         </el-table-column>
-        <el-table-column label="单价" width="150"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价" /></template></el-table-column>
-        <el-table-column label="数量" width="150"><template #default="{row}"><el-input-number v-model="row.quantity" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
+        <el-table-column label="单价(含税)" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价(含税)" /></template></el-table-column>
+        <el-table-column label="数量" width="130"><template #default="{row}"><el-input-number v-model="row.quantity" :step="100" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
         <el-table-column label="金额" width="120"><template #default="{row}">{{ money(row.price * row.quantity) }}</template></el-table-column>
+        <el-table-column label="税率" width="100"><template #default="{row}"><el-select v-model="row.tax" :disabled="view" aria-label="税率"><el-option v-for="rate in [13,6,3]" :key="rate" :label="rate + '%'" :value="rate" /></el-select></template></el-table-column>
         <el-table-column label="可用库存" width="120"><template #default="{row}">{{ availableStock(store.state, row.productId, order.warehouse) }}</template></el-table-column>
         <el-table-column v-if="!view" fixed="right" label="操作" width="90" align="center" class-name="sales-order-product-actions">
           <template #default="{$index}"><el-button text type="danger" :icon="Delete" aria-label="删除产品" @click="order.lines.splice($index,1); dirty=true" /></template>
@@ -683,6 +692,7 @@ function quickFill() {
           ><template #default="{ row }"
             ><el-input-number
               v-model="row.arrived"
+              :step="100"
               :disabled="view || !!props.shipment?.confirmed"
               :min="0"
               :max="
@@ -735,32 +745,32 @@ function quickFill() {
         border
         class="purchase-lines dispatch-product-table"
         ref="dispatchTable"
-        :fit="false"
-        :style="{ width: dispatchTableWidth + 'px', maxWidth: '100%' }"
+        :fit="true"
+        style="width: 100%"
         empty-text="请选择本次发货的产品"
       >
         <el-table-column type="index" :width="dispatchWidths.index" />
-        <el-table-column label="品牌" :width="dispatchWidths.brand"
+        <el-table-column label="品牌" :min-width="65"
           ><template #default="{ row }">{{
             productFor(row.lineId)?.brand
           }}</template></el-table-column
         >
-        <el-table-column label="型号" :width="dispatchWidths.model"
+        <el-table-column label="型号" :min-width="85"
           ><template #default="{ row }">{{
             productFor(row.lineId)?.name
           }}</template></el-table-column
         >
-        <el-table-column label="封装" :width="dispatchWidths.package"
+        <el-table-column label="封装" :min-width="85"
           ><template #default="{ row }">{{
             productFor(row.lineId)?.model
           }}</template></el-table-column
         >
-        <el-table-column label="数量" :width="dispatchWidths.quantity"
+        <el-table-column label="数量" :min-width="dispatchWidths.quantity"
           ><template #default="{ row }">{{
             orderLine(row.lineId)?.quantity
           }}</template></el-table-column
         >
-        <el-table-column label="待出库数量" :width="dispatchWidths.pending"
+        <el-table-column label="待出库数量" :min-width="dispatchWidths.pending"
           ><template #default="{ row }">{{
             remainingQuantity(
               store.state,
@@ -770,10 +780,11 @@ function quickFill() {
             )
           }}</template></el-table-column
         >
-        <el-table-column label="本次发货数量" :width="dispatchWidths.dispatch"
+        <el-table-column label="本次发货数量" :min-width="dispatchWidths.dispatch"
           ><template #default="{ row }"
             ><el-input-number
               v-model="row.arrived"
+              :step="100"
               :disabled="view || !!props.shipment?.confirmed"
               :min="0"
               :max="
@@ -788,9 +799,11 @@ function quickFill() {
               controls-position="right"
               aria-label="本次发货数量" /></template
         ></el-table-column>
-        <el-table-column label="备注" :width="dispatchWidths.remark">
+        <el-table-column label="备注" :min-width="dispatchWidths.remark">
           <template #default="{ row }">
-            <el-input v-model="row.remark" :disabled="view || !!props.shipment?.confirmed" maxlength="200" placeholder="填写本产品发货备注" aria-label="产品备注" />
+            <el-tooltip :content="row.remark || '填写本产品发货备注'" placement="top" :show-after="300" popper-class="shipment-remark-tooltip">
+              <el-input :model-value="row.remark" readonly class="shipment-remark-preview" placeholder="填写本产品发货备注" aria-label="产品备注" @click="openRemark(row)" />
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
@@ -820,11 +833,7 @@ function quickFill() {
       <el-form v-if="isOrder || !props.dispatch" label-position="top" class="purchase-form-grid" :disabled="view">
         <template v-if="isOrder">
           
-          <el-form-item label="销售原价总额(含税)/元"
-            ><div class="purchase-read">
-              {{ money(totals.gross) }}
-            </div></el-form-item
-          >
+
           
           
           <el-form-item label="销售订单金额(含税)/元"
@@ -1377,6 +1386,10 @@ function quickFill() {
       ></template
     ></el-dialog
   >
+  <el-dialog v-model="remarkOpen" title="产品发货备注" width="min(600px,92vw)" append-to-body class="shipment-remark-editor">
+    <el-input v-model="remarkText" type="textarea" :rows="8" maxlength="2000" show-word-limit :readonly="view || !!props.shipment?.confirmed" placeholder="填写本产品发货备注" aria-label="完整产品备注" />
+    <template #footer><el-button @click="remarkOpen = false">取消</el-button><el-button type="primary" @click="saveRemark">确定</el-button></template>
+  </el-dialog>
 </template>
 
 <style>
@@ -1468,4 +1481,10 @@ function quickFill() {
 .sales-order-dialog .purchase-detail-tabs {
   margin: 20px 0 16px;
 }
+</style>
+
+<style>
+.shipment-remark-preview .el-input__inner { text-overflow: ellipsis; cursor: text; }
+.shipment-remark-tooltip { max-width: min(600px,80vw); white-space: pre-wrap; overflow-wrap: anywhere; }
+.sales-order-products .el-input-number { width: 100%; }
 </style>

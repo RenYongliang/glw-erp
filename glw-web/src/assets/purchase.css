@@ -498,3 +498,5 @@
     gap: 18px;
   }
 }
+
+.purchase-table-footer, .crm-table-footer { flex-wrap: wrap; height: auto; min-height: 46px; gap: 8px; }

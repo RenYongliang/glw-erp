@@ -7,6 +7,7 @@ export interface SalesOrderFilters {
   dates: Record<'signed' | 'delivery', string[] | null>
   numbers: Record<'total' | 'prices' | 'ordered' | 'amounts', NumberRange>
   status: FulfillmentStatus | ''
+  paymentStatus: '' | '未收款' | '部分收款' | '已收款'
 }
 export function emptySalesOrderFilters(): SalesOrderFilters {
   return {
@@ -14,6 +15,7 @@ export function emptySalesOrderFilters(): SalesOrderFilters {
     dates: { signed: null, delivery: null },
     numbers: { total: [null, null], prices: [null, null], ordered: [null, null], amounts: [null, null] },
     status: '',
+    paymentStatus: '',
   }
 }
 export function salesFulfillmentStatus(order: SalesOrder, shipments: SalesShipment[]): FulfillmentStatus {
@@ -33,13 +35,15 @@ export function salesFilterCount(filters: SalesOrderFilters): number {
   return Object.values(filters.text).filter(v => v.trim()).length
     + Object.values(filters.dates).filter(v => v?.some(Boolean)).length
     + Object.values(filters.numbers).filter(v => v.some(n => n != null)).length
-    + Number(!!filters.status)
+    + Number(!!filters.status) + Number(!!filters.paymentStatus)
 }
 const includes = (value: string, query: string) => value.toLowerCase().includes(query.trim().toLowerCase())
 const inRange = (value: number, range: NumberRange) => (range[0] == null || value >= range[0]) && (range[1] == null || value <= range[1])
-export function matchesSalesOrderFilters(order: SalesOrder, catalog: Product[], customer: string, total: number, status: FulfillmentStatus, filters: SalesOrderFilters): boolean {
+export function matchesSalesOrderFilters(order: SalesOrder, catalog: Product[], customer: string, total: number, status: FulfillmentStatus, filters: SalesOrderFilters, paid = 0): boolean {
   const text = {code: order.code, customer, purchaseNumber: order.purchaseNumber || '', term: order.term, owner: order.owner}
   for (const key of Object.keys(text) as (keyof typeof text)[]) if (!includes(text[key], filters.text[key])) return false
+  if (filters.text.customer && customer !== filters.text.customer) return false
+  if (filters.paymentStatus && salesPaymentStatus(total, paid) !== filters.paymentStatus) return false
   if (filters.status && filters.status !== status) return false
   for (const key of ['signed', 'delivery'] as const) {
     const range = filters.dates[key]
@@ -61,4 +65,9 @@ export function matchesSalesOrderFilters(order: SalesOrder, catalog: Product[], 
       && inRange(line.quantity, filters.numbers.ordered)
       && inRange(line.price * line.quantity, filters.numbers.amounts)
   })
+}
+
+export function salesPaymentStatus(total: number, paid: number): '未收款' | '部分收款' | '已收款' {
+  if (Math.round(paid * 100) <= 0) return '未收款'
+  return Math.round(paid * 100) >= Math.round(total * 100) ? '已收款' : '部分收款'
 }

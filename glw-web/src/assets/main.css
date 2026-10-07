@@ -1,3 +1,5 @@
 @import './dashboard.css';
 
 @import './order-boards.css';
+
+.list-pagination { margin-left: auto; padding: 8px 0; overflow-x: auto; max-width: 100%; }

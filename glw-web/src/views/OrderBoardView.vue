@@ -47,6 +47,8 @@ const tag = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const executionPage = ref(1)
+const executionPageSize = ref(50)
+watch(executionPageSize, () => { executionPage.value = 1 })
 const sort = ref({ prop: 'signed', order: 'descending' })
 const detailsId = ref('')
 const drawerFullscreen = ref(false)
@@ -161,8 +163,8 @@ const filteredExecution = computed(() =>
 )
 const executionRows = computed(() => {
   const lines = filteredExecution.value.slice(
-    (executionPage.value - 1) * 50,
-    executionPage.value * 50,
+    (executionPage.value - 1) * executionPageSize.value,
+    executionPage.value * executionPageSize.value,
   )
   return lines.map((line, index) => ({
     ...line,
@@ -501,30 +503,7 @@ function exportCsv() {
               title="刷新数据"
               @click="refreshTable"
             />
-            <el-popover
-              v-if="tab === 'statistics'"
-              v-model:visible="sortVisible"
-              trigger="click"
-              :width="280"
-            >
-              <template #reference
-                ><el-button text :icon="Sort" aria-label="排序设置" title="排序设置"
-              /></template>
-              <div class="board-sort-settings">
-                <strong>排序设置</strong
-                ><el-select :teleported="false" v-model="sortField" aria-label="排序字段"
-                  ><el-option
-                    v-for="item in sortOptions"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value" /></el-select
-                ><el-select :teleported="false" v-model="sortDirection" aria-label="排序方向"
-                  ><el-option label="升序" value="ascending" /><el-option
-                    label="降序"
-                    value="descending" /></el-select
-                ><el-button type="primary" @click="applySort">确定排序</el-button>
-              </div> </el-popover
-            ><el-button
+            <el-button
               text
               :icon="Download"
               aria-label="导出当前数据"
@@ -734,31 +713,7 @@ function exportCsv() {
             layout="sizes, total, ->, prev, pager, next, jumper"
           />
         </div>
-        <div v-else class="board-execution-pagination">
-          <el-button :disabled="executionPage === 1" aria-label="第一页" @click="executionPage = 1"
-            >|‹</el-button
-          ><el-button :disabled="executionPage === 1" aria-label="上一页" @click="executionPage--"
-            >‹</el-button
-          ><el-input-number
-            v-model="executionPage"
-            :min="1"
-            :max="Math.max(1, Math.ceil(filteredExecution.length / 50))"
-            :controls="false"
-            aria-label="页码"
-            @change="executionPage = executionPage || 1"
-          /><span>/ {{ Math.max(1, Math.ceil(filteredExecution.length / 50)) }}</span
-          ><el-button
-            :disabled="executionPage >= Math.ceil(filteredExecution.length / 50)"
-            aria-label="下一页"
-            @click="executionPage++"
-            >›</el-button
-          ><el-button
-            :disabled="executionPage >= Math.ceil(filteredExecution.length / 50)"
-            aria-label="最后一页"
-            @click="executionPage = Math.max(1, Math.ceil(filteredExecution.length / 50))"
-            >›|</el-button
-          >
-        </div>
+        <div v-else class="board-execution-pagination"><el-pagination v-model:current-page="executionPage" v-model:page-size="executionPageSize" :page-sizes="[10,20,50,100]" :total="filteredExecution.length" layout="total, sizes, prev, pager, next, jumper" /></div>
       </section>
     </section>
     <el-drawer

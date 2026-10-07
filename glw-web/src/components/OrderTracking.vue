@@ -51,12 +51,12 @@ const orders = ref<Order[]>(
 const keyword = ref('')
 const state = ref('')
 const page = ref(1)
-const pageSize = 4
+const pageSize = ref(20)
 function resetFilters() {
   keyword.value = ''
   state.value = ''
 }
-watch([keyword, state], () => {
+watch([keyword, state, pageSize], () => {
   page.value = 1
 })
 const filtered = computed(() =>
@@ -87,7 +87,7 @@ function amounts(order: Order, line: Line) {
   }
 }
 const rows = computed(() =>
-  filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize).flatMap((order) =>
+  filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value).flatMap((order) =>
     order.lines.map((line, index) => ({
       ...line,
       ...amounts(order, line),
@@ -152,12 +152,7 @@ function save() {
       <el-tag type="info">演示数据 · 刷新恢复</el-tag>
     </div>
     <div class="tracking-toolbar">
-      <el-input
-        v-model="keyword"
-        placeholder="搜索订单、客户或产品"
-        aria-label="搜索订单"
-        clearable
-      /><el-select v-model="state" placeholder="全部订单状态" aria-label="订单状态" clearable
+<el-select v-model="state" placeholder="全部订单状态" aria-label="订单状态" clearable
         ><el-option v-for="item in states" :key="item" :label="item" :value="item" /></el-select
       ><el-button @click="resetFilters">重置</el-button
       ><span class="tracking-legend"
@@ -233,9 +228,10 @@ function save() {
         条明细（按订单分页）</span
       ><el-pagination
         v-model:current-page="page"
-        :page-size="pageSize"
+        v-model:page-size="pageSize"
+        :page-sizes="[10,20,50,100]"
         :total="filtered.length"
-        layout="prev, pager, next"
+        layout="total, sizes, prev, pager, next, jumper"
         background
       />
     </div>

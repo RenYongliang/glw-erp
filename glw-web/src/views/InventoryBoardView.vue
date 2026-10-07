@@ -27,6 +27,7 @@ const filters = ref({ realtime: makeFilters(), warnings: makeFilters(), period: 
 const date = ref({ ...emptyDateFilter(), operator: '选择范围' })
 const warning = ref(false)
 const page = ref(1)
+const pageSize = ref(50)
 const pageInput = ref(1)
 const sortVisible = ref(false)
 const sortKey = ref('')
@@ -74,8 +75,8 @@ const sorted = computed(() => {
     )
   })
 })
-const pages = computed(() => Math.max(1, Math.ceil(sorted.value.length / 50)))
-const visibleRows = computed(() => sorted.value.slice((page.value - 1) * 50, page.value * 50))
+const pages = computed(() => Math.max(1, Math.ceil(sorted.value.length / pageSize.value)))
+const visibleRows = computed(() => sorted.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 const titles: Record<Tab, string> = {
   realtime: '库存统计查询',
   warnings: '库存预警查询',
@@ -167,7 +168,7 @@ function go(value: number) {
   pageInput.value = page.value
   scroll.value?.scrollTo({ top: 0 })
 }
-watch([rows, appliedSort], () => go(1))
+watch([rows, appliedSort, pageSize], () => go(1))
 watch(tab, () => {
   appliedSort.value = { key: '', direction: 'asc' }
   sortKey.value = ''
@@ -319,9 +320,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
             <button title="刷新" aria-label="刷新库存数据" @click="ElMessage.success('数据已刷新')">
               <el-icon><Refresh /></el-icon>
             </button>
-            <button title="排序" aria-label="库存表格排序" @click="sortVisible = true">
-              <el-icon><Sort /></el-icon>
-            </button>
+
             <button title="导出" aria-label="导出库存表格" @click="exportCsv">
               <el-icon><Download /></el-icon>
             </button>
@@ -379,21 +378,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
             </tbody>
           </table>
         </div>
-        <footer class="inventory-pagination">
-          <button aria-label="第一页" :disabled="page === 1" @click="go(1)">|‹</button
-          ><button aria-label="上一页" :disabled="page === 1" @click="go(page - 1)">‹</button
-          ><input
-            v-model.number="pageInput"
-            aria-label="库存页码"
-            type="number"
-            min="1"
-            :max="pages"
-            @change="go(Number(pageInput))"
-            @keydown.enter="go(Number(pageInput))"
-          /><span>/ {{ pages }}</span
-          ><button aria-label="下一页" :disabled="page === pages" @click="go(page + 1)">›</button
-          ><button aria-label="最后一页" :disabled="page === pages" @click="go(pages)">›|</button>
-        </footer>
+        <footer class="list-pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :page-sizes="[10,20,50,100]" :total="sorted.length" layout="total, sizes, prev, pager, next, jumper" /></footer>
       </section>
     </div>
     <el-dialog v-model="sortVisible" title="排序" width="400px"

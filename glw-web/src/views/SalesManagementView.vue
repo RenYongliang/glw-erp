@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useListPagination } from "../composables/useListPagination";
 import { computed, ref, watch, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -65,11 +66,11 @@ const orderFilters = ref(emptySalesOrderFilters());
 const draftFilters = ref(emptySalesOrderFilters());
 const activeFilterCount = computed(() => salesFilterCount(orderFilters.value));
 const orderTextFilters = [
-  {key:'code',label:'订单编号'}, {key:'customer',label:'客户名称'},
-  {key:'purchaseNumber',label:'客户采购单号'}, {key:'term',label:'账期'}, {key:'owner',label:'销售负责人'},
+  {key:'code',label:'订单编号'},
+  {key:'purchaseNumber',label:'客户采购单号'}, {key:'term',label:'账期'},
 ] as const;
 const productTextFilters = [{key:'brands',label:'品牌'}, {key:'productNames',label:'型号'}, {key:'models',label:'封装'}] as const;
-const productNumberFilters = [{key:'prices',label:'单价'}, {key:'ordered',label:'数量'}, {key:'amounts',label:'金额'}] as const;
+const filterCustomers = computed(() => [...new Set([...customers.map(c => c.name), ...store.state.orders.map(orderCustomerName)].filter(Boolean))]);
 function openFilters() {
   if (!isOrder) { filterOpen.value = !filterOpen.value; return; }
   draftFilters.value = structuredClone(JSON.parse(JSON.stringify(orderFilters.value)));
@@ -293,7 +294,7 @@ const filtered = computed(() => {
         .includes(keyword.value.trim().toLowerCase())
     )
       return false;
-    if (isOrder && r.order) return matchesSalesOrderFilters(r.order, products, orderCustomerName(r.order), Number(r.values.total), r.values.fulfillmentStatus as FulfillmentStatus, orderFilters.value);
+    if (isOrder && r.order) return matchesSalesOrderFilters(r.order, products, orderCustomerName(r.order), Number(r.values.total), r.values.fulfillmentStatus as FulfillmentStatus, orderFilters.value, store.state.payments.filter(p => p.orderId === r.order!.id).reduce((sum,p) => sum + p.amount,0));
     if (!filterOpen.value) return true;
     const v = String(r.values[filterKey.value] ?? "");
     if (filterOperator.value === "为空") return !v;
@@ -318,7 +319,7 @@ const filtered = computed(() => {
     });
   return rows;
 });
-const groups = computed(() => {
+const allGroups = computed(() => {
   if (!grouped.value) return [{name: '', rows: filtered.value}];
   const missingDate = isOrder ? '未填写订单日期' : '未填写出库日期';
   const key = (row: TableRow) => {
@@ -330,10 +331,17 @@ const groups = computed(() => {
   if (groupMode.value === 'month') names.sort((a,b) => a === b ? 0 : a === missingDate ? 1 : b === missingDate ? -1 : b.localeCompare(a));
   return names.map(name => ({name, rows: filtered.value.filter(row => key(row) === name)}));
 });
+const paginationSource = computed(() => allGroups.value.flatMap(group => group.rows));
+const { page, pageSize, pageRows } = useListPagination(paginationSource);
+watch([page, pageSize], () => { selected.value = []; collapsed.value = []; });
+const groups = computed(() => {
+  const visible = new Set(pageRows.value.map(row => row.id));
+  return allGroups.value.map(group => ({ ...group, rows: group.rows.filter(row => visible.has(row.id)) })).filter(group => group.rows.length);
+});
 const allSelected = computed(
   () =>
-    !!filtered.value.length &&
-    filtered.value.every((r) => selected.value.includes(r.id)),
+    !!pageRows.value.length &&
+    pageRows.value.every((r) => selected.value.includes(r.id)),
 );
 watch(
   [tab, keyword, filterOpen, filterKey, filterValue, filterOperator, orderFilters, groupMode],
@@ -682,18 +690,10 @@ function confirmImport() {
           >导入</el-button
         ><el-button text :icon="Download" @click="exportData">导出</el-button
         ><el-button text :icon="Delete" @click="remove">删除</el-button
-        ><el-button text :icon="Clock" @click="logsOpen = true"
-          >操作记录</el-button
         >
       </div>
       <div class="purchase-toolbar-search">
-        <el-input
-          v-model="keyword"
-          :prefix-icon="Search"
-          placeholder="搜索数据"
-          aria-label="搜索销售数据"
-          clearable
-        /><el-button
+        <el-button
           :icon="Filter"
           :type="(isOrder ? activeFilterCount > 0 : filterOpen) ? 'primary' : ''"
           plain
@@ -727,22 +727,7 @@ function confirmImport() {
             >恢复默认</el-button
           ></el-popover
         >
-        <el-popover trigger="click" width="260"
-          ><template #reference
-            ><el-button :icon="Sort" aria-label="排序" title="排序"
-          /></template>
-          <p>排序字段</p>
-          <el-select v-model="sortKey" clearable placeholder="默认顺序"
-            ><el-option
-              v-for="c in columns"
-              :key="c.key"
-              :value="c.key"
-              :label="c.label" /></el-select
-          ><el-radio-group v-model="sortDirection"
-            ><el-radio value="asc">升序</el-radio
-            ><el-radio value="desc">降序</el-radio></el-radio-group
-          ><el-button text @click="sortKey = ''">重置</el-button></el-popover
-        >
+
         <el-dropdown trigger="click" @command="changeGrouping">
           <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain :aria-label="isOrder ? '订单分组方式' : '销售出库分组方式'">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'customer' ? '按客户分组' : '不分组' }}</el-button>
           <template #dropdown><el-dropdown-menu>
@@ -810,7 +795,7 @@ function confirmImport() {
                 :model-value="allSelected"
                 :indeterminate="selected.length > 0 && !allSelected"
                 aria-label="选择全部销售数据"
-                @change="selectRows(filtered, !!$event)"
+                @change="selectRows(pageRows, !!$event)"
               />
             </th>
             <th
@@ -955,7 +940,7 @@ function confirmImport() {
                     plain
                     :disabled="row.order?.status !== '审批通过'"
                     @click="business(row.order!, '收款')"
-                    >销售收款</el-button
+                    >收款</el-button
                   ><el-button
                     class="purchase-ship"
                     size="small"
@@ -968,18 +953,6 @@ function confirmImport() {
                     "
                     @click="ship(row.order!)"
                     >发货</el-button
-                  ><el-button
-                    class="purchase-return"
-                    size="small"
-                    plain
-                    :disabled="
-                      !row.order?.lines.some(
-                        (l) =>
-                          returnableQuantity(store.state, row.id, l.id) > 0,
-                      )
-                    "
-                    @click="business(row.order!, '退货')"
-                    >销售退货</el-button
                   >
                 </td>
               </tr></template
@@ -994,11 +967,7 @@ function confirmImport() {
       </table>
     </div>
     <footer class="purchase-table-footer">
-      <el-select v-model="rowHeight" aria-label="行高" size="small"
-        ><el-option label="紧凑行高" value="normal" /><el-option
-          label="舒适行高"
-          value="comfortable" /></el-select
-      ><span>共 {{ filtered.length }} 条</span
+      <span>共 {{ filtered.length }} 条</span
       ><span v-if="selected.length">已选择 {{ selected.length }} 条</span
       ><el-button v-if="grouped" text @click="collapsed = []"
         >⌄ 展开全部</el-button
@@ -1010,7 +979,7 @@ function confirmImport() {
       ><span class="purchase-footer-hint">{{
         isOrder ? "单击订单编号查看详情" : "单击名称查看详情"
       }}</span>
-    </footer>
+    <el-pagination class="list-pagination" v-model:current-page="page" v-model:page-size="pageSize" :page-sizes="[10,20,50,100]" :total="filtered.length" layout="total, sizes, prev, pager, next, jumper" /></footer>
   </section>
   <el-dialog v-if="isOrder" v-model="orderFilterOpen" title="销售订单筛选" width="min(900px,94vw)" top="5vh" append-to-body class="sales-order-filter-dialog">
     <p class="sales-filter-tip">填写的条件同时生效；留空表示不限。产品条件匹配同一条产品明细。</p>
@@ -1018,15 +987,14 @@ function confirmImport() {
       <h3>订单信息</h3>
       <div class="sales-filter-grid">
         <el-form-item v-for="field in orderTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.text[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item>
+        <el-form-item label="客户名称"><el-select v-model="draftFilters.text.customer" filterable clearable placeholder="全部客户" aria-label="筛选客户名称"><el-option v-for="name in filterCustomers" :key="name" :label="name" :value="name" /></el-select></el-form-item>
+        <el-form-item label="收款状态"><el-select v-model="draftFilters.paymentStatus" clearable placeholder="不限" aria-label="筛选收款状态"><el-option v-for="status in ['未收款','部分收款','已收款']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
         <el-form-item label="发货状态"><el-select v-model="draftFilters.status" aria-label="筛选发货状态" placeholder="不限" clearable><el-option v-for="status in ['待发货','部分发货','已完成']" :key="status" :value="status" /></el-select></el-form-item>
         <el-form-item label="订单日期"><el-date-picker v-model="draftFilters.dates.signed" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选订单日期" /></el-form-item>
-        <el-form-item label="交付日期"><el-date-picker v-model="draftFilters.dates.delivery" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选交付日期" /></el-form-item>
-        <el-form-item label="订单金额"><div class="sales-filter-range"><el-input-number v-model="draftFilters.numbers.total[0]" :min="0" :precision="2" :controls="false" placeholder="最小值" aria-label="订单金额最小值" /><span>至</span><el-input-number v-model="draftFilters.numbers.total[1]" :min="0" :precision="2" :controls="false" placeholder="最大值" aria-label="订单金额最大值" /></div></el-form-item>
       </div>
       <h3>产品信息</h3>
       <div class="sales-filter-grid">
         <el-form-item v-for="field in productTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.text[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item>
-        <el-form-item v-for="field in productNumberFilters" :key="field.key" :label="field.label"><div class="sales-filter-range"><el-input-number v-model="draftFilters.numbers[field.key][0]" :min="0" :precision="field.key === 'ordered' ? 0 : 2" :controls="false" placeholder="最小值" :aria-label="field.label + '最小值'" /><span>至</span><el-input-number v-model="draftFilters.numbers[field.key][1]" :min="0" :precision="field.key === 'ordered' ? 0 : 2" :controls="false" placeholder="最大值" :aria-label="field.label + '最大值'" /></div></el-form-item>
       </div>
     </el-form>
     <template #footer><el-button @click="draftFilters = emptySalesOrderFilters()">重置条件</el-button><el-button @click="orderFilterOpen = false">取消</el-button><el-button type="primary" @click="applyOrderFilters">应用筛选</el-button></template>
@@ -1220,8 +1188,8 @@ function confirmImport() {
   white-space: nowrap;
 }
 .sales-management-table .purchase-fixed-actions {
-  min-width: 200px;
-  width: 200px;
+  min-width: 116px;
+  width: 116px;
 }
 .sales-order-page .sales-management-table td:not(.sales-product-cell),
 .sales-order-page .sales-management-table th {
