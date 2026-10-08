@@ -126,9 +126,7 @@ const receiptColumns = [
   ['supplier', '供应商名称'],
   ['receivedAt', '入库日期'],
   ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
-  ['quantities', '采购数量'], ['pending', '待入库数量'],
-  ['quantity', '入库产品总数'],
-  ['total', '入库产品采购价总额(含税)/元'],
+  ['quantities', '采购数量'], ['pending', '入库数量'],
   ['status', '入库状态'],
 ]
 const columns = (isOrder ? orderColumns : receiptColumns).map(([key, label]) => ({
@@ -684,7 +682,7 @@ function confirmImport() {
             </th>
             <template v-for="c in shownColumns" :key="c.key">
               <th v-if="!productKeys.includes(c.key)" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1" :style="{minWidth: c.key === 'supplier' ? '190px' : ['code','phone'].includes(c.key) ? '150px' : '120px'}">{{ c.label }}</th>
-              <th v-else-if="c.key === shownColumns.find(c => productKeys.includes(c.key))?.key" :colspan="shownColumns.filter(c => productKeys.includes(c.key)).length" class="purchase-product-heading">产品明细</th>
+              <th v-else-if="c.key === shownColumns.find(c => productKeys.includes(c.key))?.key" :colspan="shownColumns.filter(c => productKeys.includes(c.key)).length" class="purchase-product-heading">{{ isOrder ? "采购产品明细" : "入库产品明细" }}</th>
             </template>
             <th v-if="isOrder" class="purchase-fixed-actions" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">操作</th>
           </tr>

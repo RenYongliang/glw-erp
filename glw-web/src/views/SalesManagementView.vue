@@ -812,7 +812,7 @@ function confirmImport() {
               :colspan="productColumns.length"
               class="sales-product-group"
             >
-              {{ isOrder ? "产品明细" : "出库产品明细" }}
+              {{ isOrder ? "销售产品明细" : "出库产品明细" }}
             </th>
             <th
               v-for="c in trailingColumns"
