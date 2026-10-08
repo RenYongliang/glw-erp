@@ -222,7 +222,7 @@ function save() {
     </el-table>
     <div class="tracking-footer">
       <span
-        >共 {{ filtered.length }} 笔订单，{{
+        >{{
           filtered.reduce((sum, order) => sum + order.lines.length, 0)
         }}
         条明细（按订单分页）</span

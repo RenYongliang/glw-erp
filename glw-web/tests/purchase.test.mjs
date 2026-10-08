@@ -76,7 +76,12 @@ test('invalid quality, quantities, approval and confirmation cannot be submitted
   assert.match(validateReceipt(r, s), /不合格数量/)
   r.lines[0].rejected = 0
   r.lines[0].location = ''
-  assert.match(validateReceipt(r, s), /仓位/)
+  assert.equal(validateReceipt(r, s), '')
+  r.inspector = ''; r.inspectedAt = ''
+  assert.equal(validateReceipt(r, s), '')
+  r.receivedAt = ''
+  assert.match(validateReceipt(r, s), /入库员和入库时间/)
+  r.receivedAt = '2026-09-24 10:00'
   s.orders[0].status = '待审批'
   assert.match(validateReceipt(r, s), /已审批/)
 })

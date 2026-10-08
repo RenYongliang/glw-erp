@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { emptyPurchaseOrderFilters, purchaseFilterCount, matchesPurchaseOrderFilters } from "../domain/purchaseOrderFilters";
 import { useListPagination } from "../composables/useListPagination";
 import { computed, ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -61,6 +62,23 @@ const tab = ref(tabs[0]!),
   logsOpen = ref(false),
   expanded = ref(false),
   rowHeight = ref('normal')
+const orderFilterOpen = ref(false)
+const orderFilters = ref(emptyPurchaseOrderFilters())
+const draftFilters = ref(emptyPurchaseOrderFilters())
+const activeFilterCount = computed(() => purchaseFilterCount(orderFilters.value))
+const filterSuppliers = computed(() => [...new Set([...suppliers.map(s => s.name), ...store.state.orders.map(purchaseSupplierName)].filter(Boolean))])
+const productTextFilters = [{key:'brand',label:'品牌'}, {key:'model',label:'型号'}, {key:'packaging',label:'封装'}] as const
+function openFilters() {
+  if (!isOrder) { filterOpen.value = !filterOpen.value; return }
+  draftFilters.value = JSON.parse(JSON.stringify(orderFilters.value))
+  orderFilterOpen.value = true
+}
+function applyOrderFilters() {
+  orderFilters.value = JSON.parse(JSON.stringify(draftFilters.value))
+  orderFilterOpen.value = false
+  selected.value = []
+  collapsed.value = []
+}
 const groupMode = ref<'month' | 'supplier' | 'none'>('month')
 function changeGrouping(mode: 'month' | 'supplier' | 'none') {
   groupMode.value = mode
@@ -204,6 +222,7 @@ const filtered = computed(() => {
         .includes(keyword.value.trim().toLowerCase())
     )
       return false
+    if (isOrder && r.order) return matchesPurchaseOrderFilters(r.order, products, purchaseSupplierName(r.order), Number(r.values.total), store.state.payments.filter(p => p.orderId === r.order!.id).reduce((sum, p) => sum + p.amount, 0), store.state.receipts, orderFilters.value)
     if (!filterOpen.value) return true
     const v = String(r.values[filterKey.value] ?? '')
     if (filterOperator.value === '为空') return !v
@@ -251,7 +270,7 @@ const allSelected = computed(
   () => !!pageRows.value.length && pageRows.value.every((r) => selected.value.includes(r.id)),
 )
 watch(
-  [tab, keyword, filterOpen, filterKey, filterValue, filterOperator],
+  [tab, keyword, filterOpen, filterKey, filterValue, filterOperator, orderFilters],
   () => (selected.value = []),
 )
 function selectRows(rows: TableRow[], checked: boolean) {
@@ -584,10 +603,10 @@ function confirmImport() {
       <div class="purchase-toolbar-search">
         <el-button
           :icon="Filter"
-          :type="filterOpen ? 'primary' : ''"
+          :type="(isOrder ? activeFilterCount > 0 : filterOpen) ? 'primary' : ''"
           plain
-          @click="filterOpen = !filterOpen"
-          >筛选</el-button
+          @click="openFilters"
+          >筛选{{ isOrder && activeFilterCount ? `（${activeFilterCount}）` : "" }}</el-button
         >
         <el-popover trigger="click" width="220"
           ><template #reference
@@ -628,7 +647,8 @@ function confirmImport() {
         />
       </div>
     </div>
-    <div v-if="filterOpen" class="purchase-filters">
+    <div v-if="isOrder && activeFilterCount" class="purchase-active-filters"><span>已应用 {{ activeFilterCount }} 项筛选条件</span><el-button text type="primary" @click="orderFilters = emptyPurchaseOrderFilters(); selected = []; collapsed = []">清空筛选</el-button></div>
+    <div v-if="!isOrder && filterOpen" class="purchase-filters">
       <el-select v-model="filterKey" aria-label="筛选字段"
         ><el-option v-for="c in columns" :key="c.key" :value="c.key" :label="c.label" /></el-select
       ><el-select v-model="filterOperator" aria-label="筛选方式"
@@ -750,7 +770,7 @@ function confirmImport() {
                     plain
                     :disabled="row.order?.status !== '审批通过'"
                     @click="business(row.order!, '付款')"
-                    >采购付款</el-button
+                    >付款</el-button
                   ><el-button
                     class="purchase-receive"
                     size="small"
@@ -760,18 +780,7 @@ function confirmImport() {
                       !row.order.lines.some((l) => remainingQuantity(store.state, row.id, l.id) > 0)
                     "
                     @click="receive(row.order!)"
-                    >采购入库</el-button
-                  ><el-button
-                    class="purchase-return"
-                    size="small"
-                    plain
-                    :disabled="
-                      !row.order?.lines.some(
-                        (l) => returnableQuantity(store.state, row.id, l.id) > 0,
-                      )
-                    "
-                    @click="business(row.order!, '退货')"
-                    >采购退货</el-button
+                    >入库</el-button
                   >
                 </td>
               </tr></template
@@ -786,14 +795,29 @@ function confirmImport() {
       </table>
     </div>
     <footer class="purchase-table-footer">
-      <span>共 {{ filtered.length }} 条</span
-      ><span v-if="selected.length">已选择 {{ selected.length }} 条</span
+      <span v-if="selected.length">已选择 {{ selected.length }} 条</span
       ><el-button v-if="grouped" text @click="collapsed = []">⌄ 展开全部</el-button
       ><el-button v-if="grouped" text @click="collapsed = groups.map((g) => g.name)"
         >⌃ 收起全部</el-button
       ><span class="purchase-footer-hint">单击名称查看详情</span>
     <el-pagination class="list-pagination" v-model:current-page="page" v-model:page-size="pageSize" :page-sizes="[10,20,50,100]" :total="filtered.length" layout="total, sizes, prev, pager, next, jumper" /></footer>
   </section>
+  <el-dialog v-if="isOrder" v-model="orderFilterOpen" title="采购订单筛选" width="min(900px,94vw)" top="5vh" append-to-body class="purchase-order-filter-dialog">
+    <p class="purchase-filter-tip">填写的条件同时生效；留空表示不限。产品条件匹配同一条产品明细。</p>
+    <el-form label-position="top" @submit.prevent="applyOrderFilters">
+      <h3>采购单信息</h3>
+      <div class="purchase-filter-grid">
+        <el-form-item label="采购单号"><el-input v-model="draftFilters.code" aria-label="筛选采购单号" placeholder="包含关键词" clearable /></el-form-item>
+        <el-form-item label="供应商名称"><el-select v-model="draftFilters.supplier" filterable clearable placeholder="全部供应商" aria-label="筛选供应商名称"><el-option v-for="name in filterSuppliers" :key="name" :label="name" :value="name" /></el-select></el-form-item>
+        <el-form-item label="付款状态"><el-select v-model="draftFilters.paymentStatus" clearable placeholder="不限" aria-label="筛选付款状态"><el-option v-for="status in ['未付款','部分付款','已付款']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="收货状态"><el-select v-model="draftFilters.receiptStatus" clearable placeholder="不限" aria-label="筛选收货状态"><el-option v-for="status in ['待收货','部分收货','已收货']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="订单日期"><el-date-picker v-model="draftFilters.dates" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选订单日期" /></el-form-item>
+      </div>
+      <h3>产品信息</h3>
+      <div class="purchase-filter-grid"><el-form-item v-for="field in productTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.product[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item></div>
+    </el-form>
+    <template #footer><el-button @click="draftFilters = emptyPurchaseOrderFilters()">重置条件</el-button><el-button @click="orderFilterOpen = false">取消</el-button><el-button type="primary" @click="applyOrderFilters">应用筛选</el-button></template>
+  </el-dialog>
   <PurchaseRecordDialog
     v-if="editor"
     :key="editorVersion"
@@ -916,4 +940,14 @@ function confirmImport() {
 .purchase-order-head tr:nth-child(2) th { top: 37px; }
 .purchase-order-head tr:nth-child(2) th { text-align: left; white-space: nowrap; }
 .purchase-order-head .purchase-product-heading { text-align: center; }
+</style>
+
+<style>
+.purchase-filter-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0 18px; }
+.purchase-order-filter-dialog .el-form-item { margin-bottom: 14px; }
+.purchase-order-filter-dialog h3 { font-size: 14px; margin: 12px 0; }
+.purchase-filter-tip { color: #8491a4; font-size: 13px; margin: 0 0 16px; }
+.purchase-filter-grid .el-date-editor { width: 100%; min-width: 0; }
+.purchase-active-filters { display: flex; align-items: center; gap: 12px; padding: 0 16px 8px; font-size: 13px; color: #65738a; }
+@media(max-width: 700px) { .purchase-filter-grid { grid-template-columns: 1fr; } }
 </style>

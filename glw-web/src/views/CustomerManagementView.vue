@@ -570,8 +570,7 @@ const reconcileRows = computed(() => [
       </table>
     </div>
     <footer class="crm-table-footer">
-      <span>共 {{ sorted.length }} 条</span
-      ><span v-if="selected.length">已选 {{ selected.length }} 条</span
+      <span v-if="selected.length">已选 {{ selected.length }} 条</span
       ><el-button v-if="grouped" text @click="collapsed = []"
         >⌄ 展开全部</el-button
       ><el-button

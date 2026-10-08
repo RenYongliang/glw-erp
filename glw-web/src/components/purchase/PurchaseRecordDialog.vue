@@ -79,9 +79,9 @@ const receipt = ref<PurchaseReceipt>(
         lines: [],
         quality: '合格',
         qualityNote: '',
-        inspector: '李敏',
-        inspectionDepartment: '质量部',
-        inspectedAt: today() + ' 09:00',
+        inspector: '',
+        inspectionDepartment: '',
+        inspectedAt: '',
         confirmed: false,
         receivedAt: '',
         keeper: '陈晨',
@@ -99,7 +99,6 @@ const totals = computed(() => orderTotals(order.value)),
   received = computed(() => receiptTotals(receipt.value, linkedOrder.value))
 const baseFields = computed(() => [
   ['供应商名称', purchaseSupplierName(linkedOrder.value)],
-  ['供应商编码', supplier.value?.code],
   ['供应商联系人姓名', purchaseContact(linkedOrder.value)],
   ['供应商联系人手机', purchasePhone(linkedOrder.value)],
 ])
@@ -386,8 +385,6 @@ function quickFill() {
           ></el-form-item
         >
         <template v-if="!isOrder"
-          ><el-form-item label="采购订单名称"
-            ><div class="purchase-read">{{ linkedOrder?.name || '暂无内容' }}</div></el-form-item
           ><el-form-item label="采购订单编号"
             ><div class="purchase-read">{{ linkedOrder?.code || '暂无内容' }}</div></el-form-item
           ></template
@@ -425,26 +422,10 @@ function quickFill() {
             {{ linkedOrder?.owner || '暂无内容' }}
           </div></el-form-item
         >
-        <el-form-item label="采购归属部门"
-          ><el-select v-if="isOrder" v-model="order.department" filterable allow-create
-            ><el-option v-for="n in ['采购部', '业务部', '生产部', '市场部']" :key="n" :value="n"
-          /></el-select>
-          <div v-else class="purchase-read">
-            {{ linkedOrder?.department || '暂无内容' }}
-          </div></el-form-item
-        >
+
       </el-form>
       <h3 class="purchase-section">{{ isOrder ? '采购产品信息' : '入库产品明细' }}</h3>
-      <el-form v-if="!isOrder" label-position="top" :disabled="view"
-        ><el-form-item label="入库仓库" required class="purchase-third"
-          ><el-select v-if="isOrder" v-model="order.warehouse" aria-label="入库仓库"
-            ><el-option v-for="w in warehouses" :key="w" :value="w"
-          /></el-select>
-          <div v-else class="purchase-read">
-            {{ receipt.warehouse || '选择订单后自动带入' }}
-          </div></el-form-item
-        ></el-form
-      >
+
       <div v-if="!isOrder" class="purchase-field-label">
         <span>*</span> {{ isOrder ? '采购产品信息' : '入库产品明细' }}
       </div>
@@ -471,21 +452,16 @@ function quickFill() {
         class="purchase-lines"
         empty-text="请先选择采购订单"
       >
-        <el-table-column type="index" width="45" /><el-table-column label="产品名称" width="145"
-          ><template #default="{ row }">{{
-            productFor(row.lineId)?.name
-          }}</template></el-table-column
-        >
+        <el-table-column type="index" width="45" />
         <el-table-column
           v-for="f in [
-            { key: 'code', label: '产品编码' },
-            { key: 'brand', label: '品牌' },
-            { key: 'model', label: '规格型号' },
-            { key: 'unit', label: '单位' },
+            { key: 'brand', label: '品牌', width: 130 },
+            { key: 'model', label: '型号', width: 170 },
+            { key: 'packaging', label: '封装', width: 170 },
           ]"
           :key="f.key"
           :label="f.label"
-          :width="f.key === 'model' ? 190 : 100"
+          :width="f.width"
           ><template #default="{ row }">{{
             productValue(productFor(row.lineId)?.id, f.key)
           }}</template></el-table-column
@@ -500,46 +476,14 @@ function quickFill() {
             remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id)
           }}</template></el-table-column
         >
-        <el-table-column label="本次到货数量" width="160"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.arrived"
-              :disabled="view"
-              :min="0"
-              :max="remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id)"
-              :precision="0"
-              controls-position="right"
-              aria-label="本次到货数量" /></template
-        ></el-table-column>
-        <el-table-column label="不合格数量" width="150"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.rejected"
-              :disabled="view"
-              :min="0"
-              :max="row.arrived"
-              :precision="0"
-              controls-position="right"
-              aria-label="不合格数量"
-              @change="
-                () => {
-                  receipt.quality = receipt.lines.some((l) => l.rejected > 0)
-                    ? '存在不合格品'
-                    : '合格'
-                }
-              " /></template
-        ></el-table-column>
-        <el-table-column label="本次入库数量" width="125"
-          ><template #default="{ row }">{{ row.arrived - row.rejected }}</template></el-table-column
-        >
-        <el-table-column label="入库仓位" width="145"
-          ><template #default="{ row }"
-            ><el-input
-              v-model="row.location"
-              :disabled="view"
-              placeholder="如 HZ-A01"
-              aria-label="入库仓位" /></template
-        ></el-table-column>
+
+
+        <el-table-column label="本次入库数量" min-width="160">
+          <template #default="{ row }">
+            <el-input-number :model-value="row.arrived - row.rejected" :disabled="view || !!props.receipt?.confirmed" :min="0" :max="Math.max(0, remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id) - row.rejected)" :precision="0" controls-position="right" aria-label="本次入库数量" @update:model-value="(value: number | undefined) => { row.arrived = (value || 0) + row.rejected; dirty = true }" />
+          </template>
+        </el-table-column>
+
       </el-table>
       <div v-if="!view" class="purchase-line-actions">
         <el-button v-if="isOrder" text type="primary" :icon="Plus" @click="openPicker('product')"
@@ -556,20 +500,13 @@ function quickFill() {
           >快速填报</el-button
         >
       </div>
-      <el-form label-position="top" class="purchase-form-grid" :disabled="view">
+      <el-form v-if="isOrder" label-position="top" class="purchase-form-grid" :disabled="view">
         <template v-if="isOrder">
           <el-form-item label="合计数量"><div class="purchase-read">{{ order.lines.reduce((n,l) => n + (l.quantity || 0), 0) }}</div></el-form-item>
           <el-form-item label="合计金额"><div class="purchase-read">{{ money(totals.total) }}</div></el-form-item>
           <el-form-item label="合计金额大写"><div class="purchase-read">{{ chineseMoney(totals.total) }}</div></el-form-item>
         </template>
-        <template v-else
-          ><el-form-item label="入库产品总数"
-            ><div class="purchase-read">{{ received.quantity }}</div></el-form-item
-          ><el-form-item label="入库产品采购价总额(含税)/元"
-            ><div class="purchase-read">{{ money(received.total) }}</div></el-form-item
-          ></template
-        >
-      </el-form>
+</el-form>
       <PurchaseContractActions v-if="isOrder" :order="order" />
       <template v-if="isOrder">
         <el-collapse v-if="order.code" class="purchase-order-business"><el-collapse-item title="更多信息与业务记录" name="business">
@@ -813,26 +750,6 @@ function quickFill() {
         </el-collapse-item></el-collapse>
       </template>
       <template v-else>
-        <h3 class="purchase-section">入库质检</h3>
-        <el-form label-position="top" :disabled="view"
-          ><el-form-item label="是否存在不合格品" required
-            ><el-radio-group v-model="receipt.quality"
-              ><el-radio value="合格">合格</el-radio
-              ><el-radio value="存在不合格品">存在不合格品</el-radio></el-radio-group
-            ></el-form-item
-          ><el-form-item v-if="receipt.quality === '存在不合格品'" label="不合格品说明"
-            ><el-input v-model="receipt.qualityNote" type="textarea" /></el-form-item
-        ></el-form>
-        <el-form label-position="top" class="purchase-form-grid" :disabled="view"
-          ><el-form-item label="质检时间"
-            ><el-date-picker
-              v-model="receipt.inspectedAt"
-              type="datetime"
-              value-format="YYYY-MM-DD HH:mm" /></el-form-item
-          ><el-form-item label="质检员"><el-input v-model="receipt.inspector" /></el-form-item
-          ><el-form-item label="质检员归属部门"
-            ><el-input v-model="receipt.inspectionDepartment" /></el-form-item
-        ></el-form>
         <h3 class="purchase-section">入库确认</h3>
         <el-checkbox
           v-model="receipt.confirmed"

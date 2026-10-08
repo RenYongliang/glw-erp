@@ -344,16 +344,14 @@ export function validateReceipt(receipt: PurchaseReceipt, state: PurchaseState) 
       return '不合格数量不能超过本次到货数量，数量须为非负整数'
     if (l.arrived > remainingQuantity(state, order.id, l.lineId, receipt.id))
       return '本次到货数量不能超过待入库数量'
-    if (receipt.confirmed && l.arrived - l.rejected > 0 && !l.location.trim())
-      return '请填写入库仓位'
   }
   if (!receipt.lines.some((l) => l.arrived - l.rejected > 0)) return '本次入库数量须大于 0'
   if (receipt.lines.some((l) => l.rejected > 0) && receipt.quality !== '存在不合格品')
     return '存在不合格数量时，请选择“存在不合格品”'
-  if (!receipt.inspector.trim() || !dateValid(receipt.inspectedAt)) return '请填写质检员和质检时间'
+  if ((receipt.inspector.trim() || receipt.inspectedAt) && (!receipt.inspector.trim() || !dateValid(receipt.inspectedAt))) return '请填写质检员和质检时间'
   if (receipt.confirmed && (!receipt.keeper.trim() || !dateValid(receipt.receivedAt)))
     return '请填写入库员和入库时间'
-  if (receipt.confirmed && receipt.receivedAt < receipt.inspectedAt)
+  if (receipt.confirmed && receipt.inspectedAt && receipt.receivedAt < receipt.inspectedAt)
     return '入库时间不能早于质检时间'
   return ''
 }

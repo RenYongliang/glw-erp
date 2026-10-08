@@ -890,6 +890,7 @@ function confirmImport() {
                   :title="String(display(row, c.key) || '')"
                   :class="{
                     'sales-product-cell': productKeys.includes(c.key),
+                    'shipment-centered-cell': !isOrder && ['code', 'purchaseNumber', 'customer', 'shippedAt', 'status'].includes(c.key),
                     'sales-code-cell': ['code', 'orderCode'].includes(c.key),
                     'purchase-money': [
                       'gross',
@@ -967,8 +968,7 @@ function confirmImport() {
       </table>
     </div>
     <footer class="purchase-table-footer">
-      <span>共 {{ filtered.length }} 条</span
-      ><span v-if="selected.length">已选择 {{ selected.length }} 条</span
+      <span v-if="selected.length">已选择 {{ selected.length }} 条</span
       ><el-button v-if="grouped" text @click="collapsed = []"
         >⌄ 展开全部</el-button
       ><el-button
@@ -1162,6 +1162,9 @@ function confirmImport() {
 }
 .sales-management-table td {
   vertical-align: top;
+}
+.sales-management-table td.shipment-centered-cell {
+  vertical-align: middle;
 }
 .sales-management-table thead tr:first-child th {
   height: 38px;
