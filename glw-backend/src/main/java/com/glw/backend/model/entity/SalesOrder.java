@@ -24,6 +24,7 @@ public class SalesOrder {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
+    /** 销售订单号。 */
     @TableField(value = "order_no")
     private String orderNo;
 

@@ -11,6 +11,8 @@ public class SalesOrderVO {
 
     private Long id;
 
+    private String orderNo;
+
     private String customerOrderNo;
 
     private String orderTime;

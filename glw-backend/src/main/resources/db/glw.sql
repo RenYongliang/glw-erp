@@ -242,6 +242,7 @@ CREATE TABLE `purchase_order_item`  (
 DROP TABLE IF EXISTS `sales_order`;
 CREATE TABLE `sales_order`  (
   `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '销售订单号',
   `customer_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '客户采购单号',
   `order_time` timestamp(0) NOT NULL COMMENT '下单时间',
   `customer_id` bigint(0) NOT NULL COMMENT '客户id',
@@ -257,6 +258,7 @@ CREATE TABLE `sales_order`  (
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_order_no`(`order_no`) USING BTREE,
   INDEX `idx_customer_order_no`(`customer_order_no`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '销售订单表' ROW_FORMAT = Dynamic;
 
