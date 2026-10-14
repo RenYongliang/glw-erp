@@ -24,6 +24,9 @@ public class SalesOrder {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
+    @TableField(value = "order_no")
+    private String orderNo;
+
     /** 客户采购单号。 */
     @TableField("customer_order_no")
     private String customerOrderNo;
@@ -50,11 +53,11 @@ public class SalesOrder {
 
     /** 订单状态, PENDING_SHIPMENT:待发货; PARTIALLY_SHIPPED:部分发货; COMPLETED:已完成。 */
     @TableField("order_status")
-    private SalesOrderStatus orderStatus;
+    private String orderStatus;
 
     /** 收款状态, UNPAID:待收款; PARTIALLY_PAID:部分收款; PAID:已收款。 */
     @TableField("payment_status")
-    private SalesPaymentStatus paymentStatus;
+    private String paymentStatus;
 
     /** 备注。 */
     @TableField("remark")
@@ -86,4 +89,11 @@ public class SalesOrder {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
+
+
+    @TableField(exist = false)
+    private String orderTimeStart;
+
+    @TableField(exist = false)
+    private String orderTimeEnd;
 }
