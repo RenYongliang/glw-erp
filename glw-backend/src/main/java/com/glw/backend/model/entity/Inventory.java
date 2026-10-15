@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.annotation.Version;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /** 库存表（inventory）。 */
@@ -23,11 +24,27 @@ public class Inventory {
     @TableField("product_id")
     private Long productId;
 
-    /** 库存数量。 */
+    /** 内部批次号。 */
+    @TableField("batch_no")
+    private String batchNo;
+
+    /** 来源入库明细id。 */
+    @TableField("inbound_order_item_id")
+    private Long inboundOrderItemId;
+
+    /** 批次单位成本。 */
+    @TableField("unit_cost")
+    private BigDecimal unitCost;
+
+    /** 初始入库数量。 */
+    @TableField("initial_quantity")
+    private Integer initialQuantity;
+
+    /** 当前库存数量。 */
     @TableField("quantity")
     private Integer quantity;
 
-    /** 预占库存数量（已下单未发货），数据库默认值为 0。 */
+    /** 已预占数量（已下单未发货），数据库默认值为 0。 */
     @TableField("reserved_quantity")
     private Integer reservedQuantity;
 
