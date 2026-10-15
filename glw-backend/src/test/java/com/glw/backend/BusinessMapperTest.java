@@ -65,7 +65,7 @@ class BusinessMapperTest {
             String table = matcher.group(1), body = matcher.group(2);
             tests.add(DynamicTest.dynamicTest(table, () -> verifyTable(table, body)));
         }
-        assertThat(tests).hasSize(14);
+        assertThat(tests).hasSize(16);
         return tests.stream();
     }
 
