@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent
 TABLES = {}
 ISSUES = []
 TRACE = []
-CENT = Decimal('0.01')
+MONEY_QUANTUM = Decimal('0.0001')
 
 
 def note(sheet, row, message):
@@ -33,7 +33,7 @@ def text(value):
 
 
 def money(value):
-    return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
+    return Decimal(str(value)).quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
 
 
 def price(value):
@@ -151,7 +151,7 @@ for (number, vendor), group in purchase_groups.items():
         if remaining is not None and received + remaining != quantity:
             note('采购订单', events[0][0], f'{number}/{part} 历史最大数量{original}，累计入库{received}、末次余额{remaining}；导入数量{quantity}，余额存在冲突，不据此推测追加采购。')
         if Decimal(unit) != money(unit):
-            note('采购订单', events[0][0], f'{part} 原单价{unit}，decimal(12,2)只能保存为{money(unit)}；金额保留原精度计算值，单价×数量将不等于金额。')
+            note('采购订单', events[0][0], f'{part} 原单价{unit}超过四位小数，导入值为{money(unit)}，需核实精度。')
         item = add('purchase_order_item', purchase_order_id=po['id'], purchase_order_no=number,
                    product_id=p['id'], brand=p['brand'], part_no=part, package_type=package,
                    unit_price=money(unit), tax_included=1, tax_rate=None, quantity=quantity,
@@ -298,7 +298,11 @@ for table, records in TABLES.items():
             if limit and value is not None:
                 assert len(value) <= int(limit[1]), (table, name, value)
             if isinstance(value, Decimal):
-                assert abs(value) < Decimal('10000000000'), (table, name, value)
+                precision = re.search(r'decimal\((\d+),\s*(\d+)\)', columns[name])
+                assert precision, (table, name)
+                digits, scale = map(int, precision.groups())
+                assert abs(value) < Decimal(10) ** (digits - scale), (table, name, value)
+                assert value == value.quantize(Decimal(1).scaleb(-scale)), (table, name, value)
 
 references = {'customer_id': 'customer', 'supplier_id': 'supplier', 'product_id': 'product',
               'purchase_order_id': 'purchase_order', 'purchase_order_item_id': 'purchase_order_item',
@@ -364,8 +368,8 @@ notes = '''# Excel 数据整理与导入说明
   数量取历史最大数量与累计收货量的较大者，末次未交余额冲突逐条列出，不据此推测追加采购。
 - 已取消明细不导入。取消销售订单与出库表的型号及单号冲突保持待核对。
 - 内部销售单号生成XL-SO-前缀，客户采购单号保留原值，包括原文“无”。
-- 销售金额按数量×单价纠正；采购0.075按表结构四舍五入为0.08，金额仍按原0.075计算。
-  该精度损失会影响后续成本核算，正式使用前建议确认是否将相关单价列统一改为更多小数位。
+- 单价、成本、报价和金额按decimal(12,4)保留四位小数，采购0.075原值导入为0.0750。
+  销售金额按数量×单价纠正；采购金额按原始单价×整理后的订单数量计算。
 - 采购付款按明确标记“是”的入库数量×原价汇总，付款金额栏不直接视为已付款。
   销售收款按明确标记“是”的有效出库记录汇总；订单金额未全付时为PARTIALLY_PAID。
   原表没有资金流水表对应结构，付款/收款日期和原金额等在JSON留档中保留。
