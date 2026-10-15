@@ -110,17 +110,22 @@ CREATE TABLE `inbound_order_item`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `inventory`;
 CREATE TABLE `inventory`  (
-  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `product_id` bigint(0) NOT NULL COMMENT '产品id',
-  `quantity` int(0) NOT NULL COMMENT '库存数量',
-  `reserved_quantity` int(0) NOT NULL DEFAULT 0 COMMENT '预占库存数量（已下单未发货）',
-  `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
-  `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
-  `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
-  `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
-  `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE KEY `uk_inventory_product_id` (`product_id`)
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `product_id` bigint NOT NULL COMMENT '产品ID',
+    `batch_no` varchar(64) NOT NULL COMMENT '内部批次号',
+    `inbound_order_item_id` bigint DEFAULT NULL COMMENT '来源入库明细ID',
+    `unit_cost` decimal(12, 4) NOT NULL COMMENT '批次单位成本',
+    `initial_quantity` int NOT NULL COMMENT '初始入库数量',
+    `quantity` int NOT NULL COMMENT '当前库存数量',
+    `reserved_quantity` int NOT NULL DEFAULT 0 COMMENT '已预占数量',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `created_by` bigint DEFAULT NULL COMMENT '创建人',
+    `updated_by` bigint DEFAULT NULL COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_batch_no` (`batch_no`),
+    KEY `idx_product_id` (`product_id`),
+    KEY `idx_inbound_order_item_id` (`inbound_order_item_id`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '库存表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -166,6 +171,25 @@ CREATE TABLE `outbound_order_item`  (
   INDEX `idx_sales_order_id`(`sales_order_id`) USING BTREE,
   INDEX `idx_customer_order_no`(`customer_order_no`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '出库商品表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for outbound_order_batch_item
+-- ----------------------------
+DROP TABLE IF EXISTS `outbound_order_batch_item`;
+CREATE TABLE `outbound_order_batch_item` (
+    `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `outbound_order_item_id` bigint NOT NULL COMMENT '出库订单明细ID',
+    `inventory_id` bigint NOT NULL COMMENT '库存批次ID',
+    `quantity` int NOT NULL COMMENT '实际出库数量',
+    `unit_cost` decimal(12, 4) NOT NULL COMMENT '出库成本单价快照',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `created_by` bigint DEFAULT NULL COMMENT '创建人',
+    `updated_by` bigint DEFAULT NULL COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_outbound_order_item_inventory` (`outbound_order_item_id`, `inventory_id`),
+    KEY `idx_inventory_id` (`inventory_id`)
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '出库商品批次表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for product
@@ -285,6 +309,24 @@ CREATE TABLE `sales_order_item`  (
   INDEX `idx_sales_order_id`(`sales_order_id`) USING BTREE,
   INDEX `idx_customer_order_no`(`customer_order_no`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '销售订单商品表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for sales_order_batch_item
+-- ----------------------------
+DROP TABLE IF EXISTS `sales_order_batch_item`;
+CREATE TABLE `sales_order_batch_item` (
+    `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `sales_order_item_id` bigint NOT NULL COMMENT '销售订单明细ID',
+    `inventory_id` bigint NOT NULL COMMENT '库存批次ID',
+    `quantity` int NOT NULL COMMENT '该批次预占数量',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `created_by` bigint DEFAULT NULL COMMENT '创建人',
+    `updated_by` bigint DEFAULT NULL COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_sales_order_item_inventory` (`sales_order_item_id`, `inventory_id`),
+    KEY `idx_inventory_id` (`inventory_id`)
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '销售商品批次表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for sample_apply
