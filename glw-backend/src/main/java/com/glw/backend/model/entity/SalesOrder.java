@@ -52,7 +52,7 @@ public class SalesOrder {
     @TableField("delivery_time")
     private LocalDateTime deliveryTime;
 
-    /** 订单状态, PENDING_SHIPMENT:待发货; PARTIALLY_SHIPPED:部分发货; COMPLETED:已完成。 */
+    /** 订单状态, PENDING_SHIPMENT:待发货; PARTIALLY_SHIPPED:部分发货; COMPLETED:已完成; CANCELLED:剩余未交取消。 */
     @TableField("order_status")
     private String orderStatus;
 

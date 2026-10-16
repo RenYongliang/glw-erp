@@ -62,6 +62,10 @@ public class SalesOrderItem {
     @TableField("quantity")
     private Integer quantity;
 
+    /** Cancelled unshipped quantity; original ordered quantity is retained. */
+    @TableField("cancelled_quantity")
+    private Integer cancelledQuantity;
+
     /** 金额。 */
     @TableField("amount")
     private BigDecimal amount;

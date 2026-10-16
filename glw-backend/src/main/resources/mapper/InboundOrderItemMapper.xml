@@ -7,6 +7,7 @@
         <result column="purchase_order_id" property="purchaseOrderId" jdbcType="BIGINT"/>
         <result column="purchase_order_no" property="purchaseOrderNo" jdbcType="VARCHAR"/>
         <result column="purchase_order_item_id" property="purchaseOrderItemId" jdbcType="BIGINT"/>
+        <result column="batch_no" property="batchNo" jdbcType="VARCHAR"/>
         <result column="inbound_quantity" property="inboundQuantity" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
@@ -15,6 +16,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `inbound_order_id`, `purchase_order_id`, `purchase_order_no`, `purchase_order_item_id`, `inbound_quantity`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `inbound_order_id`, `purchase_order_id`, `purchase_order_no`, `purchase_order_item_id`, `batch_no`, `inbound_quantity`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

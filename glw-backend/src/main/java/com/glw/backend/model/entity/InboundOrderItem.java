@@ -36,6 +36,10 @@ public class InboundOrderItem {
     @TableField("purchase_order_item_id")
     private Long purchaseOrderItemId;
 
+    /** 入库批次号，与库存批次一致。 */
+    @TableField("batch_no")
+    private String batchNo;
+
     /** 入库数量。 */
     @TableField("inbound_quantity")
     private Integer inboundQuantity;

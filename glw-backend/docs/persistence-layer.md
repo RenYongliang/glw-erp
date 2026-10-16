@@ -30,11 +30,28 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 
 ## 库存预占字段
 
-`inventory.reserved_quantity` 为 INT NOT NULL DEFAULT 0，对应 `Inventory.reservedQuantity`（Integer），表示已下单但尚未发货的预占数量。可用库存按 `quantity - reserved_quantity` 计算，不单独存储。
+`inbound_order_item.batch_no` 为必填且唯一的入库批次号，对应实体 `InboundOrderItem.batchNo`。
+一条产品入库明细形成一个批次，`inventory.inbound_order_item_id` 指向该明细且 `inventory.batch_no` 与其一致。
+同一入库单中的不同产品有各自的批次；出库经 `outbound_order_batch_item.inventory_id` 关联实际消耗批次。
+数据导入按实际入库日期、入库明细ID进行FIFO分配，仅消耗出库当日及之前的入库，不使用未来批次。
+这是导入数据的分配规则，当前基础Service仍不自动执行线上FIFO扣减。
+
+已确认业务规则：销售下单不预占、不根据库存限制下单，未交订单可以超过库存，随后再安排采购。
+`inventory.reserved_quantity` 暂保留兼容，初始化全部为0；`sales_order_batch_item` 为预占关系表，本次不生成记录。
+实际已出库批次只记录在 `outbound_order_batch_item`，不将其冒充预占关系。
 
 实体不初始化为 0：新增时省略该字段由数据库使用默认值；部分更新时未赋值不覆盖已有预占量。Mapper 的 resultMap、列清单及继承的 Mapper/Service CRUD 已支持此字段。
 
-数据库尚未初始化，直接使用 `src/main/resources/db/glw.sql` 中包含 reserved_quantity 的建表语句，无需增量 SQL。当前仅补充表结构及持久层映射，下单预占、取消释放、发货扣减逻辑尚未接入。
+使用最新 `src/main/resources/db/glw.sql` 建表。当前基础Service没有库存校验或预占逻辑；本次导入生成历史FIFO及结余，线上发货扣减逻辑尚未接入。
+
+## 销售取消余量
+
+`sales_order_item.cancelled_quantity` 为 INT NOT NULL DEFAULT 0，对应 `SalesOrderItem.cancelledQuantity`。
+`quantity` 和 `amount` 保留原订数量、原订金额，有效数量为 `quantity - cancelled_quantity`，有效应收为有效数量乘单价。
+未交量为有效数量减累计实际出库量。业务写入时应校验取消量在0至原订量减已出库量之间。
+`SalesOrderStatus.CANCELLED` 表示剩余未交已取消，保留已出库及已收款历史。
+初始化脚本据有效应收计算付款状态，中诺泽订单原订200000、已交24000、取消176000，实际应收7680已结清。
+本次只补充持久层与导入，线上金额汇总及取消流程尚未实现，后续需使用上述有效数量口径。
 
 ## 乐观锁版本号
 

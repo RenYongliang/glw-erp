@@ -13,7 +13,8 @@ import lombok.RequiredArgsConstructor;
 public enum SalesOrderStatus {
     PENDING_SHIPMENT("PENDING_SHIPMENT", "待发货"),
     PARTIALLY_SHIPPED("PARTIALLY_SHIPPED", "部分发货"),
-    COMPLETED("COMPLETED", "已完成");
+    COMPLETED("COMPLETED", "已完成"),
+    CANCELLED("CANCELLED", "剩余未交取消");
 
     @EnumValue @JsonValue private final String code;
 

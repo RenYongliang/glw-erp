@@ -13,6 +13,7 @@
         <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="tax_rate" property="taxRate" jdbcType="INTEGER"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
+        <result column="cancelled_quantity" property="cancelledQuantity" jdbcType="INTEGER"/>
         <result column="amount" property="amount" jdbcType="DECIMAL"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
@@ -21,6 +22,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `sales_order_id`, `customer_order_no`, `product_id`, `brand`, `part_no`, `package_type`, `unit_price`, `tax_included`, `tax_rate`, `quantity`, `amount`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `sales_order_id`, `customer_order_no`, `product_id`, `brand`, `part_no`, `package_type`, `unit_price`, `tax_included`, `tax_rate`, `quantity`, `cancelled_quantity`, `amount`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>
