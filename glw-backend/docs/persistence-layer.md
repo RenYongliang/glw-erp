@@ -36,9 +36,13 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 `inventory.unit_cost` 记录批次单位成本，`outbound_order_batch_item.unit_cost` 保留实际出库时的成本快照。
 当前初始化数据的采购明细均为含税价，库存单位成本直接沿用对应合同含税单价，不进行税额剥离或运费分摊；税率未明确时保留NULL。
 
-`inbound_order_item.batch_no` 为必填且唯一的入库批次号，对应实体 `InboundOrderItem.batchNo`。
-一条产品入库明细形成一个批次，`inventory.inbound_order_item_id` 指向该明细且 `inventory.batch_no` 与其一致。
+批次号只存储在 `inventory.batch_no`，不在入库明细或出库批次明细中重复存储。
+一条产品入库明细形成一个批次，`inventory.inbound_order_item_id` 指向该明细；入库详情通过该关联查询批次号。
 同一入库单中的不同产品有各自的批次；出库经 `outbound_order_batch_item.inventory_id` 关联实际消耗批次。
+编号为 `BAT` + 实际入库日期yyyyMMdd + 当天全局三位流水号，例如 `BAT20261016001`，不按产品重置流水。
+初始化脚本中同日按入库明细ID递增编号，保持现有库存ID及全部出库批次关联不变。
+`inventory.batch_no` 保留唯一索引，批次号创建后不修改；耗尽批次保留记录、数量为0，不物理删除。
+线上入库流程尚未接入编号生成，后续需使用数据库事务或原子计数器分配当天流水，不能直接用MAX+1；超过999时明确报错，不循环复用编号。
 数据导入按实际入库日期、入库明细ID进行FIFO分配，仅消耗出库当日及之前的入库，不使用未来批次。
 这是导入数据的分配规则，当前基础Service仍不自动执行线上FIFO扣减。
 

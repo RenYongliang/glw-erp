@@ -94,14 +94,12 @@ CREATE TABLE `inbound_order_item`  (
   `purchase_order_id` bigint(0) NOT NULL COMMENT '采购单id',
   `purchase_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '采购单编号',
   `purchase_order_item_id` bigint(0) NOT NULL COMMENT '采购商品表id',
-  `batch_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '入库批次号，与库存批次一致',
   `inbound_quantity` int(0) NOT NULL COMMENT '入库数量',
   `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE KEY `uk_inbound_item_batch_no` (`batch_no`),
   INDEX `idx_inbound_order_id`(`inbound_order_id`) USING BTREE,
   INDEX `idx_purchase_order_id`(`purchase_order_id`) USING BTREE,
   INDEX `idx_purchase_order_no`(`purchase_order_no`) USING BTREE
@@ -114,7 +112,7 @@ DROP TABLE IF EXISTS `inventory`;
 CREATE TABLE `inventory`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `product_id` bigint NOT NULL COMMENT '产品ID',
-    `batch_no` varchar(64) NOT NULL COMMENT '内部批次号',
+    `batch_no` varchar(64) NOT NULL COMMENT '库存批次号：BAT+实际入库日期yyyyMMdd+当天全局三位流水号',
     `inbound_order_item_id` bigint DEFAULT NULL COMMENT '来源入库明细ID',
     `unit_cost` decimal(12, 4) NOT NULL COMMENT '批次单位成本',
     `initial_quantity` int NOT NULL COMMENT '初始入库数量',
