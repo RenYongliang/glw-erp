@@ -12,20 +12,20 @@ import com.glw.backend.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
+@AllArgsConstructor
 public class UserController {
+
     private final UserService service;
 
     private final LoginEncryptionService encryption;
 
-    public UserController(UserService service, LoginEncryptionService encryption) {
-        this.service = service;
-        this.encryption = encryption;
-    }
 
     @GetMapping("/login-key")
     public ApiResponse<LoginEncryptionService.LoginKey> loginKey(HttpServletResponse response) {

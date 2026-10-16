@@ -4,4 +4,3 @@ target/
 .vscode/
 logs/
 .env
-application-local.yml

@@ -4,6 +4,14 @@
 
 ## 本地启动
 
+连接本机 MySQL/Redis 时，使用 local profile：
+
+```powershell
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+本地连接默认配置位于 `application-local.yml`；如本机配置不同，请通过 `DB_USERNAME`、`DB_PASSWORD`、`REDIS_PASSWORD` 等环境变量覆盖。
+
 配置 JDK 21 的 JAVA_HOME 后执行：
 
 ```powershell
