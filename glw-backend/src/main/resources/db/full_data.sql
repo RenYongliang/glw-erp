@@ -72,15 +72,15 @@ BEGIN
     (1, '深圳中盛昌', '力芯微'),
     (2, '深圳联思微', '芯洲');
   -- product: 8 confirmed rows
-  INSERT INTO `product` (`id`, `supplier_id`, `brand`, `part_no`, `package_type`, `base_price`, `tax_rate`) VALUES
-    (1, 1, '力芯微', 'ET7303Y', 'QFN14', 0.7000, NULL),
-    (2, 1, '力芯微', 'ET8211', 'SOP16', 0.2800, NULL),
-    (3, 1, '力芯微', 'ET5A033YB', 'DFN1*1', 0.3000, NULL),
-    (4, 1, '力芯微', 'ET5A2ADJZB', 'WLCSP6(0.4 Pitch)', 0.3200, NULL),
-    (5, 2, '芯洲', 'SCT9330STER', 'ESOP-8L', 2.0000, NULL),
-    (6, 1, '力芯微', 'ET5907', 'WLCSP20(0.35 Pitch)', 0.8500, NULL),
-    (7, 1, '力芯微', 'ET2104', 'WLCSP12(0.5 Pitch)/ QFN12/TSSOP14', 0.7000, NULL),
-    (8, 1, '力芯微', 'ET52318YB', 'DFN1*1', 0.0750, NULL);
+  INSERT INTO `product` (`id`, `supplier_id`, `brand`, `part_no`, `package_type`, `tax_rate`) VALUES
+    (1, 1, '力芯微', 'ET7303Y', 'QFN14', NULL),
+    (2, 1, '力芯微', 'ET8211', 'SOP16', NULL),
+    (3, 1, '力芯微', 'ET5A033YB', 'DFN1*1', NULL),
+    (4, 1, '力芯微', 'ET5A2ADJZB', 'WLCSP6(0.4 Pitch)', NULL),
+    (5, 2, '芯洲', 'SCT9330STER', 'ESOP-8L', NULL),
+    (6, 1, '力芯微', 'ET5907', 'WLCSP20(0.35 Pitch)', NULL),
+    (7, 1, '力芯微', 'ET2104', 'WLCSP12(0.5 Pitch)/ QFN12/TSSOP14', NULL),
+    (8, 1, '力芯微', 'ET52318YB', 'DFN1*1', NULL);
   -- purchase_order: 17 confirmed rows
   INSERT INTO `purchase_order` (`id`, `purchase_order_no`, `order_time`, `supplier_id`, `supplier_name`, `delivery_time`, `order_status`, `payment_status`, `remark`) VALUES
     (1, 'gl20260407001', '2026-04-10 00:00:00', 1, '深圳中盛昌', NULL, 'PARTIALLY_RECEIVED', 'PARTIALLY_PAID', 'Excel采购订单合同;源行:3,5,23;采购人:Eric;结算:当月结25号前付款;已付款:44100.0000;已入库未付款:0.0000;预计交期原文:1周'),

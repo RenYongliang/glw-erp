@@ -9,7 +9,6 @@ import com.baomidou.mybatisplus.annotation.Version;
 
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /** 产品信息表（product）。 */
@@ -35,10 +34,6 @@ public class Product {
     /** 封装。 */
     @TableField("package_type")
     private String packageType;
-
-    /** 基础价格。 */
-    @TableField("base_price")
-    private BigDecimal basePrice;
 
     /** 增值税税率。 */
     @TableField("tax_rate")
