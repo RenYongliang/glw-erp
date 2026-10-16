@@ -24,7 +24,7 @@ public class Inventory {
     @TableField("product_id")
     private Long productId;
 
-    /** 库存批次号：BAT + 实际入库日期yyyyMMdd + 当天全局三位流水号。 */
+    /** 库存批次号：BAT + 实际入库日期yyMMdd + 五位产品ID + 同产品当天三位流水号。 */
     @TableField("batch_no")
     private String batchNo;
 
