@@ -30,6 +30,12 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 
 ## 库存预占字段
 
+产品表只维护供应商、品牌、型号、封装等资料，不维护基础价格或税率。
+采购合同约定的 `unit_price`、`tax_included`、`tax_rate` 保留在 `purchase_order_item`，未入库时也能记录合同价格。
+`inbound_order_item` 通过采购明细关联价格，不重复存储价格及税务字段。
+`inventory.unit_cost` 记录批次单位成本，`outbound_order_batch_item.unit_cost` 保留实际出库时的成本快照。
+当前初始化数据的采购明细均为含税价，库存单位成本直接沿用对应合同含税单价，不进行税额剥离或运费分摊；税率未明确时保留NULL。
+
 `inbound_order_item.batch_no` 为必填且唯一的入库批次号，对应实体 `InboundOrderItem.batchNo`。
 一条产品入库明细形成一个批次，`inventory.inbound_order_item_id` 指向该明细且 `inventory.batch_no` 与其一致。
 同一入库单中的不同产品有各自的批次；出库经 `outbound_order_batch_item.inventory_id` 关联实际消耗批次。

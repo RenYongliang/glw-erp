@@ -35,10 +35,6 @@ public class Product {
     @TableField("package_type")
     private String packageType;
 
-    /** 增值税税率。 */
-    @TableField("tax_rate")
-    private Integer taxRate;
-
     /** 乐观锁版本号；新增默认 0，更新时携带查询得到的版本。 */
     @Version
     @TableField("version")
