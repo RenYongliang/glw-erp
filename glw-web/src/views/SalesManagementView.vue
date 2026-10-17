@@ -127,7 +127,7 @@ const orderWidths: Record<string, number> = {
   customer: 135,
   brands: 65,
   productNames: 85,
-  models: 85,
+  models: 160,
   prices: 65,
   ordered: 65,
   amounts: 90,
@@ -137,6 +137,10 @@ const orderWidths: Record<string, number> = {
   owner: 95,
 };
 function columnWidth(key: string) {
+  if (['code', 'orderCode', 'purchaseNumber'].includes(key)) return 140;
+  if (key === 'brands') return 65;
+  if (key === 'productNames') return 85;
+  if (key === 'models') return 160;
   return isOrder ? orderWidths[key] || 100 : key === "name" ? 230 : 130;
 }
 const shipmentColumns = [
@@ -890,6 +894,7 @@ function confirmImport() {
                   :title="String(display(row, c.key) || '')"
                   :class="{
                     'sales-product-cell': productKeys.includes(c.key),
+                    'sales-packaging-cell': c.key === 'models',
                     'shipment-centered-cell': !isOrder && ['code', 'purchaseNumber', 'customer', 'shippedAt', 'status'].includes(c.key),
                     'sales-code-cell': ['code', 'orderCode'].includes(c.key),
                     'purchase-money': [
@@ -928,6 +933,7 @@ function confirmImport() {
                         row.values[c.key] ?? '',
                       ).split('\n')"
                       :key="index"
+                      :title="value || '—'"
                     >
                       {{ value || "—" }}
                     </div>
@@ -1190,6 +1196,10 @@ function confirmImport() {
 .sales-code-cell .purchase-record-link {
   white-space: nowrap;
 }
+.sales-management-table .sales-code-cell { width: 1%; padding-left: 8px; padding-right: 8px; }
+.sales-management-table .sales-packaging-cell { width: 160px; max-width: 160px; }
+.sales-packaging-cell .sales-product-values { width: 160px; }
+.sales-packaging-cell .sales-product-values > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sales-management-table .purchase-fixed-actions {
   min-width: 116px;
   width: 116px;

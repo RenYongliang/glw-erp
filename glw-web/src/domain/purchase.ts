@@ -31,6 +31,7 @@ export interface PurchaseLine {
   id: string
   productId: string
   quantity: number
+  pendingQuantity?: number
   price: number
   tax: number
 }
@@ -52,6 +53,7 @@ export interface Attachment {
 }
 export interface PurchaseOrder {
   supplierName?: string
+  supplierShortName?: string
   contact?: string
   phone?: string
   id: string
@@ -164,6 +166,11 @@ export const products: Product[] = catalog.map(p => ({
   tax: 13,
   stock: 150000,
 }))
+export function purchaseLineProductText(line: PurchaseLine | undefined, key: string): string {
+  if (!line || !['brand', 'model', 'packaging'].includes(key)) return ''
+  const field = key as 'brand' | 'model' | 'packaging'
+  return line[field] ?? products.find(product => product.id === line.productId)?.[field] ?? ''
+}
 // Keep previously saved demo orders readable after replacing the six legacy products.
 export const legacyPurchaseProductIds: Record<string, string> = Object.fromEntries(
   Array.from({ length: 6 }, (_, index) => [`p${index + 1}`, products[index % products.length]!.id]),
@@ -214,18 +221,33 @@ export function orderTotals(order: Pick<PurchaseOrder, 'lines' | 'discount'>) {
     details,
   }
 }
+export function pendingDeliveryQuantity(
+  order: PurchaseOrder,
+  line: PurchaseLine,
+  receipts: PurchaseReceipt[],
+) {
+  if (line.pendingQuantity !== undefined) return Math.max(0, line.pendingQuantity)
+  const received = receipts
+    .filter(receipt => receipt.orderId === order.id && receipt.confirmed)
+    .flatMap(receipt => receipt.lines)
+    .filter(receiptLine => receiptLine.lineId === line.id)
+    .reduce((sum, receiptLine) => sum + Math.max(0, receiptLine.arrived - receiptLine.rejected), 0)
+  return Math.max(0, line.quantity - received)
+}
+
 export function remainingQuantity(
   state: PurchaseState,
   orderId: string,
   lineId: string,
   excludeReceipt = '',
 ) {
-  const ordered =
-    state.orders.find((o) => o.id === orderId)?.lines.find((l) => l.id === lineId)?.quantity || 0
+  const line = state.orders.find((o) => o.id === orderId)?.lines.find((l) => l.id === lineId)
+  const ordered = line?.pendingQuantity ?? line?.quantity ?? 0
   return (
     ordered -
     state.receipts
-      .filter((r) => r.orderId === orderId && r.id !== excludeReceipt)
+      .filter((r) => r.orderId === orderId && r.id !== excludeReceipt &&
+        (line?.pendingQuantity === undefined || !r.confirmed))
       .reduce(
         (sum, r) =>
           sum +
@@ -253,6 +275,12 @@ export function returnableQuantity(state: PurchaseState, orderId: string, lineId
       .reduce((a, r) => a + r.quantity, 0)
   )
 }
+export function receiptLineQuantity(receipt: PurchaseReceipt, lineId: string) {
+  return receipt.lines
+    .filter(line => line.lineId === lineId)
+    .reduce((sum, line) => sum + line.arrived - line.rejected, 0)
+}
+
 export function receiptTotals(receipt: PurchaseReceipt, order?: PurchaseOrder) {
   if (!order) return { quantity: 0, total: 0 }
   const totals = orderTotals(order)
@@ -331,7 +359,8 @@ export function validateOrder(order: PurchaseOrder) {
 }
 export function validateReceipt(receipt: PurchaseReceipt, state: PurchaseState) {
   const order = state.orders.find((o) => o.id === receipt.orderId)
-  if (!order || order.status !== '审批通过') return '请选择已审批通过的采购订单'
+  if (!order || !['审批通过', '待收货', '部分收货'].includes(order.status))
+    return '请选择可入库的采购订单'
   if (receipt.warehouse !== order.warehouse) return '入库仓库必须与采购订单一致'
   if (!receipt.lines.length) return '本次入库数量须大于 0'
   if (new Set(receipt.lines.map((l) => l.lineId)).size !== receipt.lines.length)

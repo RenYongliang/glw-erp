@@ -3,7 +3,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/glw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:ryl123}
+    password: ${DB_PASSWORD:Zyylno.1!}
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}

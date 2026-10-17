@@ -4,11 +4,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
 import { usePurchaseStore } from '../../stores/purchase'
+import { useAuthStore } from '../../stores/auth'
 import {
   suppliers,
   purchaseSupplierName,
   purchaseContact,
   purchasePhone,
+  purchaseLineProductText,
   products,
   warehouses,
   today,
@@ -17,6 +19,7 @@ import {
   orderTotals,
   receiptTotals,
   remainingQuantity,
+  pendingDeliveryQuantity,
   type PurchaseKind,
   type PurchaseOrder,
   type PurchaseReceipt,
@@ -31,6 +34,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ close: []; saved: []; receive: [order: PurchaseOrder] }>()
 const store = usePurchaseStore(),
+  auth = useAuthStore(),
   view = ref(!!props.readonly),
   full = ref(false),
   tab = ref('订单明细'),
@@ -120,7 +124,7 @@ const locked = computed(
 const availableOrders = computed(() =>
   store.state.orders.filter(
     (o) =>
-      o.status === '审批通过' &&
+      ['审批通过', '待收货', '部分收货'].includes(o.status) &&
       o.lines.some((l) => remainingQuantity(store.state, o.id, l.id, receipt.value.id) > 0) &&
       [o.name, o.code].join().includes(pickerQuery.value),
   ),
@@ -195,11 +199,6 @@ function productValue(id: string | undefined, key: string) {
   const p = products.find((p) => p.id === id)
   return p ? p[key as keyof typeof p] : ''
 }
-function productFor(lineId: string) {
-  return products.find(
-    (p) => p.id === linkedOrder.value?.lines.find((l) => l.id === lineId)?.productId,
-  )
-}
 function orderLine(lineId: string) {
   return linkedOrder.value?.lines.find((l) => l.id === lineId)
 }
@@ -211,7 +210,13 @@ function openPicker(name: string) {
 function save() {
   try {
     if (isOrder) store.saveOrder(order.value)
-    else store.saveReceipt(receipt.value)
+    else {
+      receipt.value.confirmed = true
+      receipt.value.receivedAt ||= new Date().toLocaleString('sv-SE').slice(0, 16)
+      receipt.value.keeper = auth.user?.name || receipt.value.keeper
+      receipt.value.department = auth.user?.department || receipt.value.department
+      store.saveReceipt(receipt.value)
+    }
     dirty.value = false
     ElMessage.success(
       isOrder ? '已提交，等待审批' : receipt.value.confirmed ? '入库已确认' : '已保存到待入库',
@@ -359,7 +364,7 @@ function quickFill() {
     ></template>
     <div class="purchase-form-body" @change="dirty = true" @input="dirty = true">
       <h3 class="purchase-section">采购订单信息</h3>
-      <p v-if="!isOrder" class="purchase-tip">
+      <p v-if="!isOrder && !props.relatedOrder && !props.receipt" class="purchase-tip">
         {{
           isOrder
             ? '使用Tips：采购订单通过标签页，可以一站式查看采购业务流程'
@@ -374,7 +379,7 @@ function quickFill() {
         <el-form-item label="采购单号"><div class="purchase-read">{{ order.code || '保存后自动生成' }}</div></el-form-item>
       </el-form>
       <el-form v-else label-position="top" class="purchase-form-grid" :disabled="view">
-        <el-form-item :label="isOrder ? '选择供应商' : '选择采购订单'" required
+        <el-form-item v-if="!props.relatedOrder && !props.receipt" label="选择采购订单" required
           ><el-button
             class="purchase-picker-button"
             :disabled="!isOrder && !!receipt.code"
@@ -431,7 +436,7 @@ function quickFill() {
       </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines purchase-order-lines" empty-text="点击“添加”选择采购产品">
         <el-table-column type="index" label="序号" width="60" />
-        <el-table-column label="规格" min-width="175"><template #default="{row}">{{ productValue(row.productId, 'model') }}</template></el-table-column>
+        <el-table-column label="规格" min-width="85" show-overflow-tooltip><template #default="{row}">{{ purchaseLineProductText(row, 'model') }}</template></el-table-column>
         <el-table-column label="数量" width="140"><template #default="{row}"><el-input-number v-model="row.quantity" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
         <el-table-column label="单位" width="65"><template #default="{row}">{{ productValue(row.productId, 'unit') }}</template></el-table-column>
         <el-table-column label="税率" width="130"><template #default="{row}"><el-input-number v-model="row.tax" :disabled="view" :min="0" :max="100" :precision="2" controls-position="right" aria-label="税率(%)" /></template></el-table-column>
@@ -455,15 +460,17 @@ function quickFill() {
         <el-table-column type="index" width="45" />
         <el-table-column
           v-for="f in [
-            { key: 'brand', label: '品牌', width: 130 },
-            { key: 'model', label: '型号', width: 170 },
-            { key: 'packaging', label: '封装', width: 170 },
+            { key: 'brand', label: '品牌', width: 65 },
+            { key: 'model', label: '型号', width: 105 },
+            { key: 'packaging', label: '封装', width: 160 },
           ]"
           :key="f.key"
           :label="f.label"
-          :width="f.width"
+          :min-width="f.width"
+          :width="f.key === 'packaging' ? f.width : undefined"
+          show-overflow-tooltip
           ><template #default="{ row }">{{
-            productValue(productFor(row.lineId)?.id, f.key)
+            purchaseLineProductText(orderLine(row.lineId), f.key) || '—'
           }}</template></el-table-column
         >
         <el-table-column label="采购数量" width="105"
@@ -478,9 +485,9 @@ function quickFill() {
         >
 
 
-        <el-table-column label="本次入库数量" min-width="160">
+        <el-table-column label="本次入库数量" min-width="140">
           <template #default="{ row }">
-            <el-input-number :model-value="row.arrived - row.rejected" :disabled="view || !!props.receipt?.confirmed" :min="0" :max="Math.max(0, remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id) - row.rejected)" :precision="0" controls-position="right" aria-label="本次入库数量" @update:model-value="(value: number | undefined) => { row.arrived = (value || 0) + row.rejected; dirty = true }" />
+            <el-input-number :model-value="row.arrived - row.rejected" :disabled="view || !!props.receipt?.confirmed" :min="0" :max="Math.max(0, remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id) - row.rejected)" :step="100" :precision="0" controls-position="right" aria-label="本次入库数量" @update:model-value="(value: number | undefined) => { row.arrived = (value || 0) + row.rejected; dirty = true }" />
           </template>
         </el-table-column>
 
@@ -697,7 +704,7 @@ function quickFill() {
               }}</template></el-table-column
             ></el-table
           ><el-button
-            v-if="view && order.status === '审批通过'"
+            v-if="view && order.lines.some(l => pendingDeliveryQuantity(order, l, store.state.receipts) > 0)"
             type="primary"
             @click="emit('receive', order)"
             >采购入库</el-button
@@ -706,7 +713,7 @@ function quickFill() {
         <el-table v-else-if="tab === '采购退货'" :data="linkedReturns" border
           ><el-table-column prop="date" label="退货日期" /><el-table-column label="产品"
             ><template #default="{ row }">{{
-              productFor(row.lineId)?.name
+              purchaseLineProductText(orderLine(row.lineId), 'model')
             }}</template></el-table-column
           ><el-table-column prop="quantity" label="退货数量" /><el-table-column
             prop="reason"
@@ -714,7 +721,7 @@ function quickFill() {
         /></el-table>
         <el-table v-else :data="order.lines" border
           ><el-table-column label="产品"
-            ><template #default="{ row }">{{ productFor(row.id)?.name }}</template></el-table-column
+            ><template #default="{ row }">{{ purchaseLineProductText(row, 'model') }}</template></el-table-column
           ><el-table-column prop="quantity" label="采购数量" /><el-table-column label="待收货数量"
             ><template #default="{ row }">{{
               remainingQuantity(store.state, order.id, row.id)
@@ -751,13 +758,6 @@ function quickFill() {
       </template>
       <template v-else>
         <h3 class="purchase-section">入库确认</h3>
-        <el-checkbox
-          v-model="receipt.confirmed"
-          :disabled="view"
-          @change="receipt.receivedAt ||= today() + ' 10:00'"
-          >合格品入库确认</el-checkbox
-        >
-        <p class="purchase-tip">未确认的单据保存在“待入库”，确认后更新为已入库。</p>
         <div class="purchase-field-label">拍照</div>
         <input
           v-if="!view"
@@ -782,16 +782,6 @@ function quickFill() {
             >移除</el-button
           >
         </div>
-        <el-form label-position="top" class="purchase-form-grid" :disabled="view"
-          ><el-form-item label="入库时间"
-            ><el-date-picker
-              v-model="receipt.receivedAt"
-              type="datetime"
-              value-format="YYYY-MM-DD HH:mm" /></el-form-item
-          ><el-form-item label="入库员"><el-input v-model="receipt.keeper" /></el-form-item
-          ><el-form-item label="库管归属部门"
-            ><el-input v-model="receipt.department" /></el-form-item
-        ></el-form>
       </template>
     </div>
     <template #footer
@@ -861,7 +851,8 @@ function quickFill() {
       ><el-table-column prop="name" label="采购订单名称" min-width="230" /><el-table-column
         prop="code"
         label="订单编号"
-        min-width="165"
+        min-width="140"
+        show-overflow-tooltip
       /><el-table-column prop="warehouse" label="入库仓库" width="100" /><el-table-column width="80"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="chooseOrder(row)">选择</el-button></template
@@ -881,7 +872,7 @@ function quickFill() {
         width="100" /><el-table-column
         prop="model"
         label="规格型号"
-        min-width="180" /><el-table-column prop="price" label="含税单价" width="100"
+        min-width="85" show-overflow-tooltip /><el-table-column prop="price" label="含税单价" width="100"
     /></el-table>
     <template #footer
       ><el-button @click="picker = ''">取消</el-button

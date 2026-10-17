@@ -178,7 +178,7 @@ function save() {
       empty-text="没有匹配的测试订单"
       class="tracking-table"
     >
-      <el-table-column label="销售订单编号" width="154" fixed
+      <el-table-column label="销售订单编号" width="140" fixed show-overflow-tooltip
         ><template #default="{ row }"
           ><el-button link type="primary" @click="open(row.order)">{{
             row.order.id

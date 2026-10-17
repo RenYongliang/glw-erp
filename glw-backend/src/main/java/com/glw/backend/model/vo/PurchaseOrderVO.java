@@ -15,6 +15,7 @@ public class PurchaseOrderVO {
     private String orderTime;
     private Long supplierId;
     private String supplierName;
+    private String supplierShortName;
     private String deliveryTime;
     private PurchaseOrderStatus orderStatus;
     private PurchasePaymentStatus paymentStatus;

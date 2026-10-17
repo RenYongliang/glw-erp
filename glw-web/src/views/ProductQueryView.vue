@@ -14,8 +14,8 @@ const columns: { key: Field; label: string; width: number; numeric?: boolean }[]
   { key: 'name', label: '产品名称', width: 140 },
   { key: 'type', label: '产品类型', width: 110 },
   { key: 'attribute', label: '产品属性', width: 90 },
-  { key: 'brand', label: '品牌', width: 100 },
-  { key: 'model', label: '规格型号', width: 170 },
+  { key: 'brand', label: '品牌', width: 65 },
+  { key: 'model', label: '规格型号', width: 85 },
   { key: 'unit', label: '单位', width: 65 },
   { key: 'cost', label: '成本单价/元', width: 120, numeric: true },
   { key: 'price', label: '标准售价/元', width: 120, numeric: true },
@@ -197,6 +197,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
             :prop="column.key"
             :label="column.label"
             :min-width="column.width"
+            show-overflow-tooltip
             sortable="custom"
             :align="column.numeric ? 'right' : 'left'"
           >

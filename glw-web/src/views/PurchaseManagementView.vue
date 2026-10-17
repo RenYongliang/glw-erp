@@ -30,8 +30,10 @@ import {
   today,
   orderTotals,
   receiptTotals,
+  receiptLineQuantity,
   returnableQuantity,
   remainingQuantity,
+  pendingDeliveryQuantity,
   chineseMoney,
   type PurchaseKind,
   type PurchaseOrder,
@@ -101,31 +103,31 @@ type TableRow = {
   receipt?: PurchaseReceipt
 }
 const orderColumns = [
-  ['code', '采购单号'], ['supplier', '供应商名称'], ['signed', '采购日期'],
+  ['code', '采购单号'], ['supplier', '供应商'], ['signed', '采购日期'],
   ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
-  ['prices', '单价(含税)'], ['quantities', '数量'],
+  ['prices', '单价(含税)'], ['quantities', '采购数量'], ['pendingDelivery', '待交数量'],
   ['amounts', '金额'], ['deliveries', '交付日期'],
   ['total', '订单金额'],
   ['owner', '采购负责人'],
 ]
 const productKeys = isOrder
-  ? ['brands', 'productNames', 'models', 'prices', 'quantities', 'amounts', 'deliveries']
-  : ['brands', 'productNames', 'models', 'quantities', 'pending']
+  ? ['brands', 'productNames', 'models', 'prices', 'quantities', 'pendingDelivery', 'amounts', 'deliveries']
+  : ['brands', 'productNames', 'models', 'quantities', 'received']
 function productCells(order: PurchaseOrder, key: string, receipt?: PurchaseReceipt): string[] {
   const totals = orderTotals(order)
   return order.lines.flatMap((l, i) => {
     if (receipt && !receipt.lines.some(line => line.lineId === l.id)) return []
-    const cells: Record<string, string> = { brands: l.brand || '', productNames: l.model || '', models: l.packaging || '', quantities: String(l.quantity), pending: String(remainingQuantity(store.state, order.id, l.id, receipt?.id)), taxes: `${l.tax}%`, prices: money(l.price), amounts: money(l.amount ?? totals.details[i]?.total ?? 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
+    const cells: Record<string, string> = { brands: l.brand || '', productNames: l.model || '', models: l.packaging || '', quantities: String(l.quantity), pendingDelivery: String(pendingDeliveryQuantity(order, l, store.state.receipts)), received: receipt ? String(receiptLineQuantity(receipt, l.id)) : '—', taxes: `${l.tax}%`, prices: money(l.price), amounts: money(l.amount ?? totals.details[i]?.total ?? 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
     return cells[key] || '—'
   })
 }
 const receiptColumns = [
   ['code', '入库单号'],
   ['orderCode', '采购单号'],
-  ['supplier', '供应商名称'],
+  ['supplier', '供应商'],
   ['receivedAt', '入库日期'],
   ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
-  ['quantities', '采购数量'], ['pending', '入库数量'],
+  ['quantities', '采购数量'], ['received', '入库数量'],
   ['status', '入库状态'],
 ]
 const columns = (isOrder ? orderColumns : receiptColumns).map(([key, label]) => ({
@@ -667,13 +669,13 @@ function confirmImport() {
               <el-checkbox :model-value="allSelected" :indeterminate="selected.length > 0 && !allSelected" aria-label="选择全部采购数据" @change="selectRows(pageRows, !!$event)" />
             </th>
             <template v-for="c in shownColumns" :key="c.key">
-              <th v-if="!productKeys.includes(c.key)" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1" :style="{minWidth: c.key === 'supplier' ? '190px' : ['code','phone'].includes(c.key) ? '150px' : '120px'}">{{ c.label }}</th>
+              <th v-if="!productKeys.includes(c.key)" :class="{ 'purchase-supplier-compact': c.key === 'supplier', 'purchase-code-compact': ['code', 'orderCode'].includes(c.key) }" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1" :style="{minWidth: c.key === 'supplier' ? 'auto' : ['code','orderCode'].includes(c.key) ? '140px' : c.key === 'phone' ? '150px' : '120px'}">{{ c.label }}</th>
               <th v-else-if="c.key === shownColumns.find(c => productKeys.includes(c.key))?.key" :colspan="shownColumns.filter(c => productKeys.includes(c.key)).length" class="purchase-product-heading">{{ isOrder ? "采购产品明细" : "入库产品明细" }}</th>
             </template>
             <th v-if="isOrder" class="purchase-fixed-actions" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">操作</th>
           </tr>
           <tr v-if="shownColumns.some(c => productKeys.includes(c.key))">
-            <th v-for="c in shownColumns.filter(c => productKeys.includes(c.key))" :key="c.key" :style="{minWidth: c.key === 'brands' ? '65px' : ['productNames','models'].includes(c.key) ? '85px' : c.key === 'remarks' ? '190px' : '120px'}">{{ c.label }}</th>
+            <th v-for="c in shownColumns.filter(c => productKeys.includes(c.key))" :key="c.key" :class="{ 'purchase-packaging-compact': c.key === 'models' }" :style="{minWidth: c.key === 'brands' ? '65px' : c.key === 'models' ? '160px' : c.key === 'productNames' ? '85px' : c.key === 'remarks' ? '190px' : '120px'}">{{ c.label }}</th>
           </tr>
         </thead>
         <tbody>
@@ -717,16 +719,20 @@ function confirmImport() {
                 <td
                   v-for="c in shownColumns"
                   :key="c.key"
-                  :title="String(display(row, c.key) || '')"
+                  :title="c.key === 'supplier' ? purchaseSupplierName(row.order) : String(display(row, c.key) || '')"
                   :class="{
+                    'purchase-supplier-compact': c.key === 'supplier',
+                    'purchase-code-compact': ['code', 'orderCode'].includes(c.key),
+                    'purchase-packaging-compact': c.key === 'models',
                     'purchase-product-td': productKeys.includes(c.key),
                     'purchase-money': ['gross', 'discount', 'total', 'net', 'quantity'].includes(
                       c.key,
                     ),
                   }"
                 >
-                  <div v-if="row.order && productKeys.includes(c.key)" class="purchase-product-cell">
-                    <div v-for="(value,index) in productCells(row.order, c.key, row.receipt)" :key="index">{{ value }}</div>
+                  <span v-if="c.key === 'supplier'">{{ row.order?.supplierShortName || purchaseSupplierName(row.order) || '—' }}</span>
+                  <div v-else-if="row.order && productKeys.includes(c.key)" class="purchase-product-cell">
+                    <div v-for="(value,index) in productCells(row.order, c.key, row.receipt)" :key="index" :title="c.key === 'models' ? value : undefined">{{ value }}</div>
                   </div>
                   <button
                     v-else-if="['name', 'code', 'orderCode'].includes(c.key)"
@@ -760,8 +766,7 @@ function confirmImport() {
                     size="small"
                     plain
                     :disabled="
-                      row.order?.status !== '审批通过' ||
-                      !row.order.lines.some((l) => remainingQuantity(store.state, row.id, l.id) > 0)
+                      !row.order?.lines.some((l) => pendingDeliveryQuantity(row.order!, l, store.state.receipts) > 0)
                     "
                     @click="receive(row.order!)"
                     >入库</el-button
@@ -917,6 +922,10 @@ function confirmImport() {
 .purchase-product-td { padding: 0 !important; text-align: left; }
 .purchase-product-cell > div { min-height: 35px; padding: 8px 10px; box-sizing: border-box; white-space: nowrap; }
 .purchase-product-cell > div + div { border-top: 1px solid #eef0f3; }
+.purchase-table .purchase-packaging-compact { width: 160px; max-width: 160px; }
+.purchase-table .purchase-code-compact { width: 1%; padding-left: 8px; padding-right: 8px; }
+.purchase-packaging-compact .purchase-product-cell { width: 160px; }
+.purchase-packaging-compact .purchase-product-cell > div { overflow: hidden; text-overflow: ellipsis; }
 </style>
 
 <style>

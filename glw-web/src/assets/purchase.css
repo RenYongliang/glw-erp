@@ -114,6 +114,12 @@
   z-index: 2;
   height: 37px;
 }
+.purchase-table .purchase-supplier-compact {
+  width: 1%;
+  min-width: 0;
+  padding-left: 16px;
+  padding-right: 16px;
+}
 .purchase-table tbody tr:hover td {
   background: #f4fbfa;
 }

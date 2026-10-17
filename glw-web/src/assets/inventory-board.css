@@ -134,6 +134,8 @@
   text-align: left;
   border-color: #fff;
 }
+.inventory-table .inventory-brand { min-width: 65px; width: 1%; box-sizing: border-box; }
+.inventory-table .inventory-model { min-width: 85px; width: 1%; box-sizing: border-box; }
 .inventory-table td,
 .inventory-table th {
   height: 35px;

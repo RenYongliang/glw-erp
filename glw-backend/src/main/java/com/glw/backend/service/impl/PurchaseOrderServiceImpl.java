@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.glw.backend.converter.PurchaseOrderConverter;
 import com.glw.backend.mapper.PurchaseOrderMapper;
+import com.glw.backend.mapper.InboundOrderItemMapper;
+import com.glw.backend.mapper.SupplierMapper;
+import com.glw.backend.model.entity.Supplier;
 import com.glw.backend.model.dto.PurchaseOrderPageDTO;
 import com.glw.backend.model.entity.PurchaseOrder;
 import com.glw.backend.model.entity.PurchaseOrderItem;
@@ -31,6 +34,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
 
     private final PurchaseOrderItemService purchaseOrderItemService;
     private final PurchaseOrderConverter purchaseOrderConverter;
+    private final InboundOrderItemMapper inboundOrderItemMapper;
+    private final SupplierMapper supplierMapper;
 
     @Override
     public IPage<PurchaseOrderVO> pagePurchaseOrder(PurchaseOrderPageDTO pageDTO) {
@@ -87,6 +92,21 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (CollectionUtils.isEmpty(records)) return;
 
         List<Long> orderIds = records.stream().map(PurchaseOrderVO::getId).toList();
+        List<Long> supplierIds = records.stream().map(PurchaseOrderVO::getSupplierId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, Supplier> suppliers = supplierIds.isEmpty() ? Map.of() : supplierMapper.selectByIds(supplierIds)
+                .stream().collect(Collectors.toMap(Supplier::getId, supplier -> supplier));
+        records.forEach(order -> {
+            Supplier supplier = order.getSupplierId() == null ? null : suppliers.get(order.getSupplierId());
+            if (supplier != null) {
+                order.setSupplierName(supplier.getName());
+                order.setSupplierShortName(supplier.getShortName());
+            }
+        });
+        Map<Long, Long> received = inboundOrderItemMapper.sumCompletedByPurchaseOrderIds(orderIds)
+                .stream()
+                .collect(Collectors.toMap(InboundOrderItemMapper.ReceivedQuantity::purchaseOrderItemId,
+                        InboundOrderItemMapper.ReceivedQuantity::quantity));
         Map<Long, List<PurchaseOrderItem>> items = purchaseOrderItemService.lambdaQuery()
                 .in(PurchaseOrderItem::getPurchaseOrderId, orderIds)
                 .orderByAsc(PurchaseOrderItem::getId)
@@ -95,7 +115,12 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                 .collect(Collectors.groupingBy(PurchaseOrderItem::getPurchaseOrderId));
         records.forEach(order -> order.setItems(
                 items.getOrDefault(order.getId(), List.of()).stream()
-                        .map(purchaseOrderConverter::toItemVO)
+                        .map(item -> {
+                            var result = purchaseOrderConverter.toItemVO(item);
+                            long pending = (long) item.getQuantity() - received.getOrDefault(item.getId(), 0L);
+                            result.setPendingQuantity((int) Math.max(0L, pending));
+                            return result;
+                        })
                         .toList()));
     }
 }

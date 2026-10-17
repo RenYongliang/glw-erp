@@ -337,7 +337,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
           <table class="inventory-table">
             <thead>
               <tr>
-                <th v-for="column in columns" :key="column[0]">{{ column[1] }}</th>
+                <th v-for="column in columns" :key="column[0]" :class="{ 'inventory-brand': column[0] === 'brand', 'inventory-model': column[0] === 'model' }">{{ column[1] }}</th>
                 <th class="inventory-filler" aria-hidden="true" />
               </tr>
             </thead>
@@ -352,9 +352,12 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
                     :rowspan="span(index, ci)"
                     :class="{
                       numeric: ci >= dimensionCount,
+                      'inventory-brand': column[0] === 'brand',
+                      'inventory-model': column[0] === 'model',
                       low: isLow(row, column[0]!),
                       group: span(index, ci) > 1,
                     }"
+                    :title="String(format(row, column[0]!))"
                   >
                     {{ format(row, column[0]!) }}
                   </td></template

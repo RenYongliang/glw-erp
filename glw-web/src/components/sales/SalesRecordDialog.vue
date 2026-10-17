@@ -623,7 +623,7 @@ function quickFill() {
       </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
-        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:65},{key:'name',label:'型号',width:85},{key:'model',label:'封装',width:85}]" :key="f.key" :label="f.label" :min-width="f.width">
+        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:65},{key:'name',label:'型号',width:85},{key:'model',label:'封装',width:160}]" :key="f.key" :label="f.label" :min-width="f.width" :width="f.key === 'model' ? 160 : undefined" show-overflow-tooltip>
           <template #default="{row}">{{ productValue(row.productId, f.key) }}</template>
         </el-table-column>
         <el-table-column label="单价(含税)" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价(含税)" /></template></el-table-column>
@@ -658,7 +658,8 @@ function quickFill() {
           ]"
           :key="f.key"
           :label="f.label"
-          :width="f.key === 'model' ? 190 : 100"
+          :min-width="f.key === 'brand' ? 65 : f.key === 'model' ? 85 : 100"
+          show-overflow-tooltip
           ><template #default="{ row }">{{
             productValue(productFor(row.lineId)?.id, f.key)
           }}</template></el-table-column
@@ -750,17 +751,17 @@ function quickFill() {
         empty-text="请选择本次发货的产品"
       >
         <el-table-column type="index" :width="dispatchWidths.index" />
-        <el-table-column label="品牌" :min-width="65"
+        <el-table-column label="品牌" :min-width="65" show-overflow-tooltip
           ><template #default="{ row }">{{
             productFor(row.lineId)?.brand
           }}</template></el-table-column
         >
-        <el-table-column label="型号" :min-width="85"
+        <el-table-column label="型号" :min-width="85" show-overflow-tooltip
           ><template #default="{ row }">{{
             productFor(row.lineId)?.name
           }}</template></el-table-column
         >
-        <el-table-column label="封装" :min-width="85"
+        <el-table-column label="封装" :width="160" show-overflow-tooltip
           ><template #default="{ row }">{{
             productFor(row.lineId)?.model
           }}</template></el-table-column
@@ -1323,7 +1324,8 @@ function quickFill() {
       /><el-table-column
         prop="code"
         label="订单编号"
-        min-width="165"
+        min-width="140"
+        show-overflow-tooltip
       /><el-table-column
         prop="warehouse"
         label="出库仓库"
@@ -1351,7 +1353,7 @@ function quickFill() {
         width="100" /><el-table-column
         prop="model"
         label="规格型号"
-        min-width="180" /><el-table-column
+        min-width="85" show-overflow-tooltip /><el-table-column
         prop="price"
         label="含税单价"
         width="100"

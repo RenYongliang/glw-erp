@@ -21,6 +21,7 @@ interface PurchaseOrderItemResponse {
   taxIncluded?: string
   taxRate?: number | null
   quantity: number
+  pendingQuantity: number
   amount: string
 }
 
@@ -30,6 +31,7 @@ interface PurchaseOrderResponse {
   orderTime: string
   supplierId: number
   supplierName: string
+  supplierShortName?: string | null
   deliveryTime?: string | null
   orderStatus: string
   paymentStatus: string
@@ -76,6 +78,7 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
     name: `${order.supplierName}采购订单`,
     supplierId: String(order.supplierId),
     supplierName: order.supplierName,
+    supplierShortName: order.supplierShortName?.trim() || undefined,
     signed: date(order.orderTime),
     delivery,
     owner: '',
@@ -90,6 +93,7 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
       model: item.partNo,
       packaging: item.packageType,
       quantity: item.quantity,
+      pendingQuantity: item.pendingQuantity,
       price: Number(item.unitPrice),
       tax: item.taxRate ?? 0,
       amount: Number(item.amount),

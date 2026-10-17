@@ -11,6 +11,8 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface PurchaseOrderConverter {
     @Mapping(target = "items", ignore = true)
+    @Mapping(target = "supplierShortName", ignore = true)
     PurchaseOrderVO toVO(PurchaseOrder purchaseOrder);
+    @Mapping(target = "pendingQuantity", ignore = true)
     PurchaseOrderItemVO toItemVO(PurchaseOrderItem purchaseOrderItem);
 }

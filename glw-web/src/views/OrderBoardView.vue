@@ -181,11 +181,18 @@ const tags = computed(() =>
     ? ['待入库', '待对账', '待付款', '已付款']
     : ['待出库', '待对账', '待收款', '已收款'],
 )
+const supplierWidth = computed(() => {
+  const context = document.createElement('canvas').getContext('2d')
+  if (context) context.font = '13px "Microsoft YaHei", sans-serif'
+  const measure = (text: string) => context?.measureText(text).width ?? text.length * 13
+  return Math.ceil(Math.max(measure('供应商名称') + 56,
+    ...orders.value.map(order => measure(order.partner) + 32)))
+})
 const executionColumns = computed(() => {
   const cols = [
-    { prop: 'id', label: `${prefix.value}订单编号`, width: 155 },
+    { prop: 'id', label: `${prefix.value}订单编号`, width: 140 },
     { prop: 'name', label: `${prefix.value}订单名称`, width: 180 },
-    { prop: 'partner', label: purchase.value ? '供应商名称' : '客户名称', width: 145 },
+    { prop: 'partner', label: purchase.value ? '供应商名称' : '客户名称', width: purchase.value ? supplierWidth.value : 145 },
     { prop: 'product', label: '产品名称', width: 135 },
     { prop: 'code', label: '产品编号', width: 95 },
     { prop: 'quantity', label: `${prefix.value}数量`, width: 95 },
@@ -538,7 +545,8 @@ function exportCsv() {
             <el-table-column
               prop="partner"
               :label="partnerLabel"
-              width="125"
+              :width="supplierWidth"
+              show-overflow-tooltip
               :fixed="!smallScreen"
               sortable="custom"
             /><el-table-column
@@ -628,7 +636,8 @@ function exportCsv() {
             <el-table-column align="center" class-name="sales-order-centered"
               prop="id"
               label="订单编号"
-              min-width="105"
+              min-width="140"
+              show-overflow-tooltip
               :fixed="!smallScreen"
               sortable="custom"
               ><template #default="{ row }"
@@ -640,9 +649,9 @@ function exportCsv() {
             <el-table-column align="center" class-name="sales-order-centered" prop="signed" label="订单日期" min-width="82" sortable="custom" />
             <el-table-column align="center" class-name="sales-order-centered" prop="partner" label="客户名称" min-width="100" sortable="custom" />
             <el-table-column label="产品明细" align="center">
-              <el-table-column align="left" header-align="left" prop="brand" label="品牌" min-width="58" />
-              <el-table-column align="left" header-align="left" prop="product" label="型号" min-width="82" />
-              <el-table-column align="left" header-align="left" prop="package" label="封装" min-width="112" />
+              <el-table-column align="left" header-align="left" prop="brand" label="品牌" min-width="65" show-overflow-tooltip />
+              <el-table-column align="left" header-align="left" prop="product" label="型号" min-width="85" show-overflow-tooltip />
+              <el-table-column align="left" header-align="left" prop="package" label="封装" width="160" show-overflow-tooltip />
               <el-table-column align="left" header-align="left" prop="price" label="单价" min-width="50"
                 ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
               >
@@ -695,6 +704,7 @@ function exportCsv() {
             v-for="(column, index) in executionColumns"
             :key="column.prop"
             v-bind="column"
+            show-overflow-tooltip
             :fixed="!smallScreen && index < 3"
             :align="index >= 5 ? 'right' : 'left'"
             ><template #default="{ row }">{{
@@ -794,9 +804,9 @@ function exportCsv() {
           </el-descriptions>
           <h3>产品明细</h3>
           <el-table :data="detail.lines" border>
-            <el-table-column prop="brand" label="品牌" min-width="100" />
-            <el-table-column prop="product" label="型号" min-width="170" />
-            <el-table-column prop="package" label="封装" min-width="100" />
+            <el-table-column prop="brand" label="品牌" min-width="65" show-overflow-tooltip />
+            <el-table-column prop="product" label="型号" min-width="85" show-overflow-tooltip />
+            <el-table-column prop="package" label="封装" width="160" show-overflow-tooltip />
             <el-table-column label="单价" min-width="120" align="right"
               ><template #default="{ row }">{{ money(row.price) }}</template></el-table-column
             >

@@ -57,6 +57,12 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 
 使用最新 `src/main/resources/db/glw.sql` 建表。当前基础Service没有库存校验或预占逻辑；本次导入生成历史FIFO及结余，线上发货扣减逻辑尚未接入。
 
+## 采购待交数量
+
+采购订单列表明细返回 `pendingQuantity`（待交数量），计算为采购数量减去关联入库明细的累计已入库数量，最小为0。
+只统计 `inbound_order.status = COMPLETED`，按 `purchase_order_item_id` 区分采购明细，不按产品ID合并。
+汇总覆盖当前页采购订单的全部入库记录，不受前端入库单分页影响；这是查询计算字段，不新增数据库列。
+
 ## 销售取消余量
 
 `sales_order_item.cancelled_quantity` 为 INT NOT NULL DEFAULT 0，对应 `SalesOrderItem.cancelledQuantity`。

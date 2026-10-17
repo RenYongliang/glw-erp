@@ -3,8 +3,12 @@ import assert from 'node:assert/strict'
 import {
   orderTotals,
   receiptTotals,
+  receiptLineQuantity,
+  purchaseLineProductText,
+  products,
   validateReceipt,
   remainingQuantity,
+  pendingDeliveryQuantity,
   returnableQuantity,
   chineseMoney,
   nextPurchaseCode,
@@ -38,6 +42,68 @@ const receipt = () => ({
   keeper: '测试',
   receivedAt: '2026-09-24 10:00',
 })
+test('receipt product information uses backend purchase details instead of demo product IDs', () => {
+  const line = { id: '11', productId: '8', quantity: 100, price: 1, tax: 13,
+    brand: 'TI', model: 'TPS63020DSJR', packaging: 'WLCSP12(0.4 Pitch)' }
+  assert.equal(purchaseLineProductText(line, 'brand'), 'TI')
+  assert.equal(purchaseLineProductText(line, 'model'), 'TPS63020DSJR')
+  assert.equal(purchaseLineProductText(line, 'packaging'), 'WLCSP12(0.4 Pitch)')
+  assert.equal(purchaseLineProductText({ ...line, productId: products[0].id }, 'model'), line.model)
+  assert.equal(purchaseLineProductText({ ...line, productId: products[0].id, model: undefined }, 'model'), products[0].model)
+  assert.equal(purchaseLineProductText(undefined, 'model'), '')
+})
+
+test('pending delivery counts only completed receipts for the exact purchase line', () => {
+  const s = state()
+  s.receipts.push(receipt(), { ...receipt(), id: 'r2', confirmed: false },
+    { ...receipt(), id: 'other-order', orderId: 'other' },
+    { ...receipt(), id: 'r3', lines: [{ lineId: 'l2', arrived: 1, rejected: 0 }] })
+  assert.equal(pendingDeliveryQuantity(order, order.lines[0], s.receipts), 2)
+  assert.equal(pendingDeliveryQuantity(order, order.lines[1], s.receipts), 1)
+  s.receipts.push({ ...receipt(), id: 'r4', lines: [{ lineId: 'l1', arrived: 1, rejected: 0 }] })
+  assert.equal(pendingDeliveryQuantity(order, order.lines[0], s.receipts), 1)
+})
+test('pending delivery uses server totals regardless of loaded receipt pagination and preserves zero', () => {
+  assert.equal(pendingDeliveryQuantity(order, { ...order.lines[0], pendingQuantity: 1 }, []), 1)
+  assert.equal(pendingDeliveryQuantity(order, { ...order.lines[0], pendingQuantity: 0 }, []), 0)
+  assert.equal(pendingDeliveryQuantity(order, order.lines[0], []), 3)
+  assert.equal(pendingDeliveryQuantity(order, order.lines[0], [
+    { ...receipt(), lines: [{ lineId: 'l1', arrived: 10, rejected: 0 }] },
+  ]), 0)
+})
+test('receiving uses server pending totals without counting completed receipts twice', () => {
+  const s = state()
+  s.orders[0].status = '部分收货'
+  s.orders[0].lines[0].pendingQuantity = 2
+  s.receipts.push(receipt())
+  assert.equal(remainingQuantity(s, 'o1', 'l1'), 2)
+  assert.equal(validateReceipt({ ...receipt(), id: 'new' }, s), '')
+  s.receipts.push({ ...receipt(), id: 'pending', confirmed: false })
+  assert.equal(remainingQuantity(s, 'o1', 'l1'), 1)
+  assert.equal(remainingQuantity(s, 'o1', 'l1', 'pending'), 2)
+  s.orders[0].status = '待收货'
+  assert.equal(validateReceipt({ ...receipt(), id: 'pending' }, s), '')
+  s.orders[0].lines[0].pendingQuantity = 0
+  s.receipts = []
+  assert.equal(remainingQuantity(s, 'o1', 'l1'), 0)
+})
+
+test('receipt quantities show each delivery even after the purchase line is fully received', () => {
+  const s = state()
+  s.orders[0].lines[0].pendingQuantity = 0
+  const first = receipt()
+  const second = { ...receipt(), id: 'r2', lines: [
+    { lineId: 'l1', arrived: 2, rejected: 0 },
+    { lineId: 'l2', arrived: 1, rejected: 0 },
+  ] }
+  s.receipts.push(first, second)
+  assert.equal(remainingQuantity(s, 'o1', 'l1'), 0)
+  assert.equal(receiptLineQuantity(first, 'l1'), 1)
+  assert.equal(receiptLineQuantity(second, 'l1'), 2)
+  assert.equal(receiptLineQuantity(second, 'l2'), 1)
+  assert.equal(receiptLineQuantity(first, 'l2'), 0)
+})
+
 test('discount allocation keeps cents balanced and excludes VAT correctly', () => {
   const t = orderTotals(order)
   assert.equal(t.gross, 0.7)
@@ -83,7 +149,7 @@ test('invalid quality, quantities, approval and confirmation cannot be submitted
   assert.match(validateReceipt(r, s), /入库员和入库时间/)
   r.receivedAt = '2026-09-24 10:00'
   s.orders[0].status = '待审批'
-  assert.match(validateReceipt(r, s), /已审批/)
+  assert.match(validateReceipt(r, s), /可入库/)
 })
 test('returns never count unconfirmed receipts or already returned goods', () => {
   const s = state()

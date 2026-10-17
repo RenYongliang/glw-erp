@@ -19,5 +19,6 @@ public class PurchaseOrderItemVO {
     private TaxIncluded taxIncluded;
     private Integer taxRate;
     private Integer quantity;
+    private Integer pendingQuantity;
     private BigDecimal amount;
 }

@@ -17,4 +17,23 @@
     <sql id="Base_Column_List">
         `id`, `inbound_order_id`, `purchase_order_id`, `purchase_order_no`, `purchase_order_item_id`, `inbound_quantity`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
+
+    <resultMap id="ReceivedQuantityMap" type="com.glw.backend.mapper.InboundOrderItemMapper$ReceivedQuantity">
+        <constructor>
+            <arg column="purchase_order_item_id" javaType="java.lang.Long"/>
+            <arg column="quantity" javaType="java.lang.Long"/>
+        </constructor>
+    </resultMap>
+
+    <select id="sumCompletedByPurchaseOrderIds" resultMap="ReceivedQuantityMap">
+        SELECT item.purchase_order_item_id, SUM(item.inbound_quantity) AS quantity
+        FROM inbound_order_item item
+        INNER JOIN inbound_order receipt ON receipt.id = item.inbound_order_id
+        WHERE receipt.status = 'COMPLETED'
+          AND item.purchase_order_id IN
+          <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">
+              #{orderId}
+          </foreach>
+        GROUP BY item.purchase_order_item_id
+    </select>
 </mapper>
