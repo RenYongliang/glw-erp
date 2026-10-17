@@ -34,6 +34,8 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 采购合同约定的 `unit_price`、`tax_included`、`tax_rate` 保留在 `purchase_order_item`，未入库时也能记录合同价格。
 `inbound_order_item` 通过采购明细关联价格，不重复存储价格及税务字段。
 `inventory.unit_cost` 记录批次单位成本，`outbound_order_batch_item.unit_cost` 保留实际出库时的成本快照。
+销售产品选择接口 `POST /api/product/list` 分页返回真实产品及当前正库存批次的成本参考：平均成本为 `SUM(unit_cost * quantity) / SUM(quantity)`，四舍五入保留4位小数；成本范围为这些批次的最低至最高单位成本。零库存或已耗尽批次不参与成本计算，无正库存时成本返回NULL，产品仍可选择下单。此参考不锁定批次，实际出库成本以出库批次快照为准。
+点击成本范围时，通过 `GET /api/product/{productId}/cost-batches` 查询该产品当前正库存的批次号、剩余数量和单位成本，按批次号、库存ID排序。单一成本的范围同样支持查看明细。
 当前初始化数据的采购明细均为含税价，库存单位成本直接沿用对应合同含税单价，不进行税额剥离或运费分摊；税率未明确时保留NULL。
 
 批次号只存储在 `inventory.batch_no`，不在入库明细或出库批次明细中重复存储。
@@ -64,6 +66,15 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 汇总覆盖当前页采购订单的全部入库记录，不受前端入库单分页影响；这是查询计算字段，不新增数据库列。
 
 ## 销售取消余量
+
+销售订单列表 `POST /api/sales-order/list` 返回主表及 `items`，产品品牌、型号、封装、单价、取消数量和金额来自销售明细。
+明细 `pendingQuantity` 为销售数量减取消数量、减累计已出库数量，最低为0；只统计 `outbound_order.status = COMPLETED`，按销售明细ID汇总，不受出库单分页影响。
+保留 `/sales-order/list` 兼容旧调用。产品条件在同一条明细上匹配，无匹配时返回空页。
+销售出库列表 `POST /api/outbound-order/list` 返回主表、`items` 和各明细的 `batches`（库存ID、数量及成本快照），按出库时间、ID倒序分页。
+前端销售订单和销售出库列表遍历分页加载真实数据，刷新时重新查询，不读取本地演示订单；状态、收款状态使用后端字段。
+出库数量取本次出库明细，不使用订单待出库量。出库表没有单号字段，前端沿用入库列表方式以ID格式化为展示编号。
+本次仅接入列表查询；新增、编辑、出库确认等写入流程仍待对接，不修改初始化数据及 `full_data.sql`。
+发货弹窗通过真实批次查询接口选择库存批次，支持逐批数量和FIFO分配，本次发货数量由批次数量合计。提交前重新查询库存并检查批次容量及成本快照；当前保存仍为前端本地逻辑，不执行数据库扣库存。
 
 `sales_order_item.cancelled_quantity` 为 INT NOT NULL DEFAULT 0，对应 `SalesOrderItem.cancelledQuantity`。
 `quantity` 和 `amount` 保留原订数量、原订金额，有效数量为 `quantity - cancelled_quantity`，有效应收为有效数量乘单价。

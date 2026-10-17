@@ -23,6 +23,7 @@ import { useSalesStore } from "../stores/sales";
 import {
   customers,
   orderCustomerName,
+  salesLineProduct,
   products,
   money,
   today,
@@ -30,6 +31,7 @@ import {
   shipmentTotals,
   returnableQuantity,
   remainingQuantity,
+  pendingShipmentQuantity,
   chineseMoney,
   type SalesKind,
   type SalesOrder,
@@ -43,7 +45,7 @@ const props = defineProps<{ kind: SalesKind }>(),
   store = useSalesStore(),
   isOrder = props.kind === "orders";
 const tabs = isOrder
-  ? ["全部订单", "待发货订单", "部分发货订单", "已完成订单"]
+  ? ["全部订单", "待发货订单", "部分发货订单", "已完成订单", "剩余未交取消订单"]
   : ["全部出库", "已出库", "待出库"];
 const tab = ref(tabs[0]!),
   keyword = ref(""),
@@ -70,7 +72,7 @@ const orderTextFilters = [
   {key:'purchaseNumber',label:'客户采购单号'}, {key:'term',label:'账期'},
 ] as const;
 const productTextFilters = [{key:'brands',label:'品牌'}, {key:'productNames',label:'型号'}, {key:'models',label:'封装'}] as const;
-const filterCustomers = computed(() => [...new Set([...customers.map(c => c.name), ...store.state.orders.map(orderCustomerName)].filter(Boolean))]);
+const filterCustomers = computed(() => [...new Set(store.state.orders.map(orderCustomerName).filter(Boolean))]);
 function openFilters() {
   if (!isOrder) { filterOpen.value = !filterOpen.value; return; }
   draftFilters.value = structuredClone(JSON.parse(JSON.stringify(orderFilters.value)));
@@ -113,7 +115,8 @@ const orderColumns = [
   ["productNames", "型号"],
   ["models", "封装"],
   ["prices", "单价"],
-  ["ordered", "数量"],
+  ["ordered", "销售数量"],
+  ["pendingShipment", "待发数量"],
   ["amounts", "金额"],
   ["total", "订单金额"],
   ["term", "账期"],
@@ -129,7 +132,8 @@ const orderWidths: Record<string, number> = {
   productNames: 85,
   models: 160,
   prices: 65,
-  ordered: 65,
+  ordered: 85,
+  pendingShipment: 85,
   amounts: 90,
   total: 100,
   term: 90,
@@ -152,7 +156,7 @@ const shipmentColumns = [
   ["productNames", "型号"],
   ["models", "封装"],
   ["ordered", "销售数量"],
-  ["pending", "待出库数量"],
+  ["pending", "出库数量"],
   ["status", "出库状态"],
 ];
 function productSummary(
@@ -166,19 +170,23 @@ function productSummary(
     : order?.lines || [];
   const values = (key: "name" | "code" | "brand" | "model" | "unit") =>
     lines
-      .map((l) => products.find((p) => p.id === l.productId)?.[key] || "—")
+      .map((l) => {
+        if (key === 'brand' || key === 'name' || key === 'model') return salesLineProduct(l)[key] || '—';
+        return products.find((p) => p.id === l.productId)?.[key] || '—';
+      })
       .join("\n");
   return {
     productNames: values("name"),
     productCodes: values("code"),
     brands: values("brand"),
     models: values("model"),
-    prices: lines.map((l) => money(l.price)).join("\n"),
-    amounts: lines.map((l) => money(l.price * l.quantity)).join("\n"),
+    prices: lines.map((l) => l.price.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })).join("\n"),
+    amounts: lines.map((l) => money(l.amount ?? l.price * l.quantity)).join("\n"),
     units: values("unit"),
     ordered: lines.map((l) => l.quantity).join("\n"),
+    pendingShipment: lines.map(l => order ? pendingShipmentQuantity(order, l, store.state.shipments) : 0).join('\n'),
     pending: lines
-      .map((l) => remainingQuantity(store.state, order!.id, l.id, shipment?.id))
+      .map((l) => shipment ? shipment.lines.filter(s => s.lineId === l.id).reduce((sum, s) => sum + s.arrived, 0) : remainingQuantity(store.state, order!.id, l.id))
       .join("\n"),
   };
 }
@@ -192,7 +200,7 @@ const shownColumns = computed(() =>
   columns.filter((c) => !hidden.value.includes(c.key)),
 );
 const productKeys = isOrder
-  ? ["brands", "productNames", "models", "prices", "ordered", "amounts"]
+  ? ["brands", "productNames", "models", "prices", "ordered", "pendingShipment", "amounts"]
   : ["brands", "productNames", "models", "ordered", "pending"];
 const productColumns = computed(() =>
   shownColumns.value.filter((c) => productKeys.includes(c.key)),
@@ -226,6 +234,7 @@ const records = computed<TableRow[]>(() =>
           values: {
             ...productSummary(o),
             customer: orderCustomerName(o) || "—",
+            customerShortName: o.customerShortName || orderCustomerName(o) || '—',
             term: o.term,
             priceLevel: o.priceLevel || "标准售价",
             signed: o.signed,
@@ -267,7 +276,8 @@ const records = computed<TableRow[]>(() =>
             warehouse: r.warehouse,
             name: o?.name || "—",
             orderCode: o?.code || "—",
-            customer: orderCustomerName(o) || "—",
+            customer: r.customerName || orderCustomerName(o) || "—",
+            customerShortName: r.customerShortName || r.customerName || o?.customerShortName || orderCustomerName(o) || '—',
             customerCode: s?.code || "—",
             contact: s?.contact || "—",
             phone: s?.phone || "—",
@@ -407,14 +417,14 @@ async function remove() {
     if (e instanceof Error) ElMessage.error(e.message);
   }
 }
-function refresh() {
-  store.load();
+async function refresh(showSuccess = true) {
+  await store.load();
   selected.value = [];
   if (store.loadError) ElMessage.warning(store.loadError);
-  else ElMessage.success("数据已刷新");
+  else if (showSuccess) ElMessage.success("数据已刷新");
 }
 onMounted(() => {
-  if (store.loadError) ElMessage.warning(store.loadError);
+  void refresh(false);
 });
 const operation = ref(""),
   activeOrder = ref<SalesOrder>(),
@@ -744,7 +754,8 @@ function confirmImport() {
           :icon="Refresh"
           text
           aria-label="刷新销售数据"
-          @click="refresh"
+          :loading="store.loading"
+          @click="refresh()"
         /><el-button
           :icon="FullScreen"
           text
@@ -938,6 +949,7 @@ function confirmImport() {
                       {{ value || "—" }}
                     </div>
                   </div>
+                  <span v-else-if="c.key === 'customer'">{{ row.values.customerShortName }}</span>
                   <span v-else>{{ display(row, c.key) ?? "—" }}</span>
                 </td>
                 <td v-if="isOrder" class="purchase-fixed-actions">
@@ -953,9 +965,8 @@ function confirmImport() {
                     size="small"
                     plain
                     :disabled="
-                      row.order?.status !== '审批通过' ||
-                      !row.order.lines.some(
-                        (l) => remainingQuantity(store.state, row.id, l.id) > 0,
+                      !row.order?.lines.some(
+                        (l) => pendingShipmentQuantity(row.order!, l, store.state.shipments) > 0,
                       )
                     "
                     @click="ship(row.order!)"
@@ -995,7 +1006,7 @@ function confirmImport() {
         <el-form-item v-for="field in orderTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.text[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item>
         <el-form-item label="客户名称"><el-select v-model="draftFilters.text.customer" filterable clearable placeholder="全部客户" aria-label="筛选客户名称"><el-option v-for="name in filterCustomers" :key="name" :label="name" :value="name" /></el-select></el-form-item>
         <el-form-item label="收款状态"><el-select v-model="draftFilters.paymentStatus" clearable placeholder="不限" aria-label="筛选收款状态"><el-option v-for="status in ['未收款','部分收款','已收款']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
-        <el-form-item label="发货状态"><el-select v-model="draftFilters.status" aria-label="筛选发货状态" placeholder="不限" clearable><el-option v-for="status in ['待发货','部分发货','已完成']" :key="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="发货状态"><el-select v-model="draftFilters.status" aria-label="筛选发货状态" placeholder="不限" clearable><el-option v-for="status in ['待发货','部分发货','已完成','剩余未交取消']" :key="status" :value="status" /></el-select></el-form-item>
         <el-form-item label="订单日期"><el-date-picker v-model="draftFilters.dates.signed" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选订单日期" /></el-form-item>
       </div>
       <h3>产品信息</h3>

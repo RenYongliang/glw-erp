@@ -29,7 +29,8 @@ test('outbound confirmation and receipt confirmation enforce state and date orde
  r.lines[0].location='';assert.equal(validateShipment(r,s),'')
 })
 test('outbound rejects unapproved orders, duplicate lines, wrong warehouses and stock shortages',()=>{
- const s=state(),r=shipment();s.orders[0].status='待审批';assert.match(validateShipment(r,s),/审批通过/)
+ const s=state(),r=shipment();s.orders[0].status='待审批';assert.match(validateShipment(r,s),/可发货/)
+ for (const status of ['待发货','部分发货']) {s.orders[0].status=status;assert.equal(validateShipment(r,s),'')}
  s.orders[0].status='审批通过';r.warehouse='无锡仓';assert.match(validateShipment(r,s),/仓库/);r.warehouse='杭州仓'
  r.lines.push({...r.lines[0]});assert.match(validateShipment(r,s),/重复/);r.lines.pop()
  r.lines[0].arrived=0;assert.match(validateShipment(r,s),/大于 0/)

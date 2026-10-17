@@ -3,10 +3,15 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Delete, FullScreen } from "@element-plus/icons-vue";
 import DeliveryNoteActions from "./DeliveryNoteActions.vue";
+import ShipmentBatchPicker from "./ShipmentBatchPicker.vue";
+import { validateBatchSelection, type ShipmentBatch } from "../../domain/shipmentBatches";
 import { useSalesStore } from "../../stores/sales";
+import { fetchSalesProducts, fetchProductCostBatches } from "../../services/productApi";
+import { formatUnitCost, formatCostRange, type SalesProductOption, type ProductCostBatch } from "../../services/productApiData";
 import {
   customers,
   orderCustomerName,
+  salesLineProduct,
   defaultShippingInfo,
   products,
   warehouses,
@@ -15,8 +20,7 @@ import {
   orderTotals,
   shipmentTotals,
   remainingQuantity,
-  availableStock,
-  levelPrice,
+  pendingShipmentQuantity,
   type SalesKind,
   type SalesOrder,
   type SalesShipment,
@@ -40,6 +44,36 @@ const store = useSalesStore(),
   productSelection = ref<string[]>([]),
   dirty = ref(false);
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+const productCatalog = ref<SalesProductOption[]>([]);
+const productsLoading = ref(false), productsError = ref('');
+const costBatchesOpen = ref(false), costBatchesLoading = ref(false), costBatchesError = ref('');
+const costProduct = ref<SalesProductOption>();
+const costBatches = ref<ProductCostBatch[]>([]);
+let costBatchRequest = 0;
+async function openCostBatches(product: SalesProductOption) {
+  const request = ++costBatchRequest;
+  costProduct.value = product;
+  costBatchesOpen.value = true;
+  costBatches.value = [];
+  costBatchesError.value = '';
+  costBatchesLoading.value = true;
+  try {
+    const batches = await fetchProductCostBatches(product.id);
+    if (request === costBatchRequest) costBatches.value = batches;
+  } catch (error) {
+    if (request === costBatchRequest) costBatchesError.value = error instanceof Error ? error.message : '批次成本加载失败';
+  } finally {
+    if (request === costBatchRequest) costBatchesLoading.value = false;
+  }
+}
+async function loadProducts() {
+  if (productsLoading.value) return;
+  productsLoading.value = true;
+  productsError.value = '';
+  try { productCatalog.value = await fetchSalesProducts(); }
+  catch (error) { productsError.value = error instanceof Error ? error.message : '产品加载失败'; }
+  finally { productsLoading.value = false; }
+}
 const order = ref<SalesOrder>(
   props.order
     ? clone(props.order)
@@ -130,7 +164,7 @@ const locked = computed(
 const availableOrders = computed(() =>
   store.state.orders.filter(
     (o) =>
-      o.status === "审批通过" &&
+      ['审批通过', '待发货', '部分发货'].includes(o.status) &&
       o.lines.some(
         (l) =>
           remainingQuantity(store.state, o.id, l.id, shipment.value.id) > 0,
@@ -139,7 +173,7 @@ const availableOrders = computed(() =>
   ),
 );
 const availableProducts = computed(() =>
-  products.filter(
+  productCatalog.value.filter(
     (p) =>
       (isOrder ||
         linkedOrder.value?.lines.some(
@@ -199,7 +233,8 @@ function chooseOrder(o: SalesOrder) {
     )
     .map((l) => ({
       lineId: l.id,
-      arrived: remainingQuantity(store.state, o.id, l.id, shipment.value.id),
+      arrived: 0,
+      batches: [],
       location: "",
     }));
   picker.value = "";
@@ -213,12 +248,8 @@ function addProducts() {
       if (line && !shipment.value.lines.some((l) => l.lineId === line.id)) {
         shipment.value.lines.push({
           lineId: line.id,
-          arrived: remainingQuantity(
-            store.state,
-            shipment.value.orderId,
-            line.id,
-            shipment.value.id,
-          ),
+          arrived: 0,
+          batches: [],
           location: "",
         });
       }
@@ -230,13 +261,16 @@ function addProducts() {
   }
   for (const id of productSelection.value)
     if (!order.value.lines.some((l) => l.productId === id)) {
-      const p = products.find((p) => p.id === id)!;
+      const p = productCatalog.value.find((p) => p.id === id);
+      if (!p) continue;
       order.value.lines.push({
         id: crypto.randomUUID(),
         productId: id,
         quantity: 1,
-        price: levelPrice(p, order.value.priceLevel),
-        listPrice: levelPrice(p, order.value.priceLevel),
+        brand: p.brand,
+        model: p.name,
+        packaging: p.model,
+        price: 0,
         tax: p.tax,
       });
     }
@@ -245,17 +279,40 @@ function addProducts() {
   dirty.value = true;
 }
 function productValue(id: string | undefined, key: string) {
-  const p = products.find((p) => p.id === id);
+  const p = productCatalog.value.find((p) => p.id === id) ?? (!isOrder ? products.find(p => p.id === id) : undefined);
   return p ? p[key as keyof typeof p] : "";
 }
+function lineProductValue(line: SalesOrder['lines'][number] | undefined, key: string) {
+  if (key === 'brand' || key === 'name' || key === 'model') return salesLineProduct(line)[key];
+  return productValue(line?.productId, key);
+}
 function productFor(lineId: string) {
-  return products.find(
-    (p) =>
-      p.id === linkedOrder.value?.lines.find((l) => l.id === lineId)?.productId,
-  );
+  const line = orderLine(lineId);
+  return line ? { ...salesLineProduct(line), id: line.productId } : undefined;
 }
 function orderLine(lineId: string) {
   return linkedOrder.value?.lines.find((l) => l.id === lineId);
+}
+const batchLineId = ref('');
+const batchLine = computed(() => shipment.value.lines.find(l => l.lineId === batchLineId.value));
+const batchProduct = computed(() => orderLine(batchLineId.value));
+const batchUsedQuantities = computed(() => {
+  const used: Record<string, number> = {};
+  for (const line of shipment.value.lines) {
+    if (line.lineId === batchLineId.value) continue;
+    for (const batch of line.batches ?? []) used[batch.inventoryId] = (used[batch.inventoryId] || 0) + batch.quantity;
+  }
+  return used;
+});
+function selectShipmentBatches(batches: ShipmentBatch[]) {
+  if (!batchLine.value) return;
+  batchLine.value.batches = batches;
+  batchLine.value.arrived = batches.reduce((sum, b) => sum + b.quantity, 0);
+  dirty.value = true;
+  batchLineId.value = '';
+}
+function batchDescription(line: SalesShipment['lines'][number]) {
+  return line.batches?.map(b => `${b.batchNo || b.inventoryId}：${b.quantity}`).join('\n') || '尚未选择批次';
 }
 const dispatchTable = ref<{ $el: HTMLElement }>();
 const dispatchFont = ref('14px Arial'), dispatchHeaderFont = ref('bold 14px Arial');
@@ -268,6 +325,7 @@ function syncDispatchFont() {
   if (header) dispatchHeaderFont.value = getComputedStyle(header).font;
 }
 onMounted(() => {
+  void loadProducts();
   syncDispatchFont();
   void document.fonts.ready.then(syncDispatchFont);
   window.addEventListener('resize', syncDispatchFont);
@@ -292,7 +350,7 @@ const dispatchWidths = computed(() => {
     package: contentWidth('封装', lines.map(l => productFor(l.lineId)?.model)),
     quantity: contentWidth('数量', lines.map(l => orderLine(l.lineId)?.quantity)),
     pending: contentWidth('待出库数量', lines.map(l => remainingQuantity(store.state, shipment.value.orderId, l.lineId, shipment.value.id))),
-    dispatch: contentWidth('本次发货数量', lines.map(l => l.arrived), 128, 56),
+    dispatch: contentWidth('本次发货数量', lines.map(l => l.arrived), 105),
     remark: 180,
   };
 });
@@ -315,11 +373,38 @@ function openPicker(name: string) {
   pickerQuery.value = "";
   productSelection.value = [];
   picker.value = name;
+  if (name === 'product' && (productsError.value || !productCatalog.value.length)) void loadProducts();
 }
-function save() {
+const saving = ref(false);
+async function save() {
+  if (saving.value) return;
+  saving.value = true;
   try {
-    if (isOrder) store.saveOrder(order.value);
+    if (isOrder) store.saveOrder(order.value, productCatalog.value);
     else {
+      if (!props.shipment?.confirmed) {
+        const stockByProduct = new Map<string, ProductCostBatch[]>();
+        const quantities = new Map<string, number>();
+        for (const line of shipment.value.lines) {
+          if (!line.batches?.length) continue;
+          const source = orderLine(line.lineId);
+          if (!source) throw Error('销售产品已变更，请刷新');
+          let stock = stockByProduct.get(source.productId);
+          if (!stock) {
+            stock = await fetchProductCostBatches(source.productId);
+            stockByProduct.set(source.productId, stock);
+          }
+          const message = validateBatchSelection(line.batches, stock, remainingQuantity(store.state, shipment.value.orderId, line.lineId, shipment.value.id));
+          if (message) throw Error(message);
+          for (const batch of line.batches) {
+            const current = stock.find(b => b.inventoryId === batch.inventoryId)!;
+            const quantity = (quantities.get(batch.inventoryId) || 0) + batch.quantity;
+            if (quantity > current.quantity) throw Error('同一批次的发货总数超过剩余库存，请重新选择');
+            if (batch.unitCost !== current.unitCost) throw Error('批次成本已变更，请重新选择批次');
+            quantities.set(batch.inventoryId, quantity);
+          }
+        }
+      }
       if (!props.shipment?.confirmed) shipment.value.shipping = clone({ ...shippingInfo.value, purchaseNumber: linkedOrder.value?.purchaseNumber || "" });
       store.saveShipment(shipment.value);
     }
@@ -334,6 +419,8 @@ function save() {
     emit("saved");
   } catch (e) {
     ElMessage.error((e as Error).message);
+  } finally {
+    saving.value = false;
   }
 }
 async function close(done?: () => void) {
@@ -411,12 +498,13 @@ async function attach(event: Event, images = false) {
 const quick = ref(false),
   quickText = ref("");
 function quickFill() {
+  if (!isOrder) return void ElMessage.warning('请通过选择批次填写出库数量');
   const rows = quickText.value
     .trim()
     .split(/\r?\n/)
     .map((l) => l.split(/[\t,，]/));
   const changes = rows.map((r) => ({
-    p: products.find((p) => p.code === r[0]?.trim()),
+    p: productCatalog.value.find((p) => p.code === r[0]?.trim()),
     q: Number(r[1]),
   }));
   if (
@@ -443,8 +531,10 @@ function quickFill() {
           id: crypto.randomUUID(),
           productId: r.p!.id,
           quantity: r.q,
-          price: levelPrice(r.p!, order.value.priceLevel),
-          listPrice: levelPrice(r.p!, order.value.priceLevel),
+          brand: r.p!.brand,
+          model: r.p!.name,
+          packaging: r.p!.model,
+          price: 0,
           tax: r.p!.tax,
         });
     } else {
@@ -624,13 +714,13 @@ function quickFill() {
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
         <el-table-column v-for="f in [{key:'brand',label:'品牌',width:65},{key:'name',label:'型号',width:85},{key:'model',label:'封装',width:160}]" :key="f.key" :label="f.label" :min-width="f.width" :width="f.key === 'model' ? 160 : undefined" show-overflow-tooltip>
-          <template #default="{row}">{{ productValue(row.productId, f.key) }}</template>
+          <template #default="{row}">{{ lineProductValue(row, f.key) }}</template>
         </el-table-column>
-        <el-table-column label="单价(含税)" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价(含税)" /></template></el-table-column>
+        <el-table-column label="单价(含税)" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="4" controls-position="right" aria-label="单价(含税)" /></template></el-table-column>
         <el-table-column label="数量" width="130"><template #default="{row}"><el-input-number v-model="row.quantity" :step="100" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
         <el-table-column label="金额" width="120"><template #default="{row}">{{ money(row.price * row.quantity) }}</template></el-table-column>
         <el-table-column label="税率" width="100"><template #default="{row}"><el-select v-model="row.tax" :disabled="view" aria-label="税率"><el-option v-for="rate in [13,6,3]" :key="rate" :label="rate + '%'" :value="rate" /></el-select></template></el-table-column>
-        <el-table-column label="可用库存" width="120"><template #default="{row}">{{ availableStock(store.state, row.productId, order.warehouse) }}</template></el-table-column>
+        <el-table-column label="当前库存" width="120"><template #default="{row}">{{ productValue(row.productId, 'stock') }}</template></el-table-column>
         <el-table-column v-if="!view" fixed="right" label="操作" width="90" align="center" class-name="sales-order-product-actions">
           <template #default="{$index}"><el-button text type="danger" :icon="Delete" aria-label="删除产品" @click="order.lines.splice($index,1); dirty=true" /></template>
         </el-table-column>
@@ -661,7 +751,7 @@ function quickFill() {
           :min-width="f.key === 'brand' ? 65 : f.key === 'model' ? 85 : 100"
           show-overflow-tooltip
           ><template #default="{ row }">{{
-            productValue(productFor(row.lineId)?.id, f.key)
+            lineProductValue(orderLine(row.lineId), f.key)
           }}</template></el-table-column
         >
         <el-table-column label="销售数量" width="105"
@@ -681,33 +771,13 @@ function quickFill() {
         >
         <el-table-column label="当前可用库存数量" width="140"
           ><template #default="{ row }">{{
-            availableStock(
-              store.state,
-              productFor(row.lineId)?.id || "",
-              shipment.warehouse,
-              shipment.id,
-            )
+            productValue(orderLine(row.lineId)?.productId, 'stock')
           }}</template></el-table-column
         >
-        <el-table-column label="本次出库数量" width="160"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.arrived"
-              :step="100"
-              :disabled="view || !!props.shipment?.confirmed"
-              :min="0"
-              :max="
-                remainingQuantity(
-                  store.state,
-                  shipment.orderId,
-                  row.lineId,
-                  shipment.id,
-                )
-              "
-              :precision="0"
-              controls-position="right"
-              aria-label="本次出库数量" /></template
-        ></el-table-column>
+        <el-table-column label="本次出库数量" width="110"><template #default="{row}">{{ row.arrived }}</template></el-table-column>
+        <el-table-column label="发货批次" width="140"><template #default="{row}">
+          <el-tooltip :content="batchDescription(row)" placement="top"><el-button link type="primary" :disabled="view || !!props.shipment?.confirmed" @click="batchLineId = row.lineId">{{ row.batches?.length ? `已选 ${row.batches.length} 个批次` : '选择批次' }}</el-button></el-tooltip>
+        </template></el-table-column>
         <el-table-column label="出库仓位" width="145"
           ><template #default="{ row }"
             ><el-input
@@ -766,7 +836,7 @@ function quickFill() {
             productFor(row.lineId)?.model
           }}</template></el-table-column
         >
-        <el-table-column label="数量" :min-width="dispatchWidths.quantity"
+        <el-table-column label="销售数量" :min-width="dispatchWidths.quantity"
           ><template #default="{ row }">{{
             orderLine(row.lineId)?.quantity
           }}</template></el-table-column
@@ -781,25 +851,10 @@ function quickFill() {
             )
           }}</template></el-table-column
         >
-        <el-table-column label="本次发货数量" :min-width="dispatchWidths.dispatch"
-          ><template #default="{ row }"
-            ><el-input-number
-              v-model="row.arrived"
-              :step="100"
-              :disabled="view || !!props.shipment?.confirmed"
-              :min="0"
-              :max="
-                remainingQuantity(
-                  store.state,
-                  shipment.orderId,
-                  row.lineId,
-                  shipment.id,
-                )
-              "
-              :precision="0"
-              controls-position="right"
-              aria-label="本次发货数量" /></template
-        ></el-table-column>
+        <el-table-column label="本次发货数量" :min-width="dispatchWidths.dispatch"><template #default="{row}">{{ row.arrived }}</template></el-table-column>
+        <el-table-column label="发货批次" min-width="130"><template #default="{row}">
+          <el-tooltip :content="batchDescription(row)" placement="top"><el-button link type="primary" :disabled="view || !!props.shipment?.confirmed" @click="batchLineId = row.lineId">{{ row.batches?.length ? `已选 ${row.batches.length} 个批次` : '选择批次' }}</el-button></el-tooltip>
+        </template></el-table-column>
         <el-table-column label="备注" :min-width="dispatchWidths.remark">
           <template #default="{ row }">
             <el-tooltip :content="row.remark || '填写本产品发货备注'" placement="top" :show-after="300" popper-class="shipment-remark-tooltip">
@@ -820,6 +875,7 @@ function quickFill() {
           @click="openPicker('product')"
           >添加</el-button
         ><el-button
+          v-if="isOrder"
           text
           type="primary"
           @click="
@@ -1083,7 +1139,7 @@ function quickFill() {
               }}</template></el-table-column
             ></el-table
           ><el-button
-            v-if="view && order.status === '审批通过'"
+            v-if="view && order.lines.some(l => pendingShipmentQuantity(order, l, store.state.shipments) > 0)"
             type="primary"
             @click="emit('ship', order)"
             >发货</el-button
@@ -1256,7 +1312,7 @@ function quickFill() {
           ><span v-if="isOrder && locked" class="purchase-tip"
             >已有业务记录，订单基础数据已锁定</span
           ></template
-        ><el-button v-else type="primary" @click="save">提交</el-button
+        ><el-button v-else type="primary" :loading="saving" @click="save">提交</el-button
         ><el-button @click="close()">{{ view ? "关闭" : "取消" }}</el-button>
       </div></template
     >
@@ -1270,14 +1326,14 @@ function quickFill() {
           ? '选择产品'
           : '选择销售订单'
     "
-    width="min(880px,94vw)"
+    :width="picker === 'product' ? 'min(1000px,94vw)' : 'min(880px,94vw)'"
     append-to-body
     class="purchase-dialog"
     @close="picker = ''"
   >
     <el-input
       v-model="pickerQuery"
-      :placeholder="picker === 'customer' ? '搜索已有客户，或输入新客户名称' : '搜索名称、编码或规格型号'"
+      :placeholder="picker === 'customer' ? '搜索已有客户，或输入新客户名称' : picker === 'product' ? '搜索品牌、型号、封装或产品ID' : '搜索销售订单'"
       clearable
       class="purchase-picker-search"
     />
@@ -1338,26 +1394,31 @@ function quickFill() {
         ></el-table-column
       ></el-table
     >
+    <el-alert v-if="picker === 'product' && productsError" :title="productsError" type="error" :closable="false">
+      <el-button link type="primary" @click="loadProducts">重试</el-button>
+    </el-alert>
     <el-table
-      v-else
+      v-if="picker === 'product' && !productsError"
       :data="availableProducts"
+      v-loading="productsLoading"
+      row-key="id"
+      max-height="440"
+      :empty-text="productsLoading ? '加载中…' : '暂无匹配产品'"
       border
       @selection-change="
         productSelection = $event.map((p: { id: string }) => p.id)
       "
-      ><el-table-column type="selection" width="45" /><el-table-column
-        prop="name"
-        label="产品名称" /><el-table-column
-        prop="code"
-        label="产品编码"
-        width="100" /><el-table-column
-        prop="model"
-        label="规格型号"
-        min-width="85" show-overflow-tooltip /><el-table-column
-        prop="price"
-        label="含税单价"
-        width="100"
-    /></el-table>
+      ><el-table-column type="selection" width="45" reserve-selection />
+      <el-table-column prop="brand" label="品牌" min-width="65" show-overflow-tooltip />
+      <el-table-column prop="name" label="型号" min-width="105" show-overflow-tooltip />
+      <el-table-column prop="model" label="封装" width="160" show-overflow-tooltip />
+      <el-table-column prop="stock" label="当前库存" min-width="105" align="right" />
+      <el-table-column label="平均成本" min-width="120" align="right"><template #default="{row}">{{ formatUnitCost(row.estimatedCost) }}</template></el-table-column>
+      <el-table-column label="成本范围" min-width="190" align="right"><template #default="{row}">
+        <el-button v-if="row.minCost !== null && row.maxCost !== null" link type="primary" :aria-label="`${row.name}批次成本明细`" @click.stop="openCostBatches(row)">{{ formatCostRange(row) }}</el-button>
+        <span v-else>—</span>
+      </template></el-table-column>
+    </el-table>
     <template #footer
       ><el-button @click="picker = ''">取消</el-button
       ><el-button
@@ -1368,6 +1429,19 @@ function quickFill() {
         >确定添加</el-button
       ></template
     >
+  </el-dialog>
+  <ShipmentBatchPicker v-if="batchLine && batchProduct" :key="batchLineId" :product-id="batchProduct.productId" :product-name="[batchProduct.brand, batchProduct.model, batchProduct.packaging].filter(Boolean).join(' / ')" :pending="remainingQuantity(store.state, shipment.orderId, batchLine.lineId, shipment.id)" :batches="batchLine.batches ?? []" :used-quantities="batchUsedQuantities" @close="batchLineId = ''" @selected="selectShipmentBatches" />
+  <el-dialog v-model="costBatchesOpen" title="批次成本明细" width="min(720px,94vw)" append-to-body class="purchase-dialog sales-cost-batches-dialog">
+    <div class="sales-cost-product">{{ [costProduct?.brand, costProduct?.name, costProduct?.model].filter(Boolean).join(' / ') }}</div>
+    <el-alert v-if="costBatchesError" :title="costBatchesError" type="error" :closable="false">
+      <el-button link type="primary" @click="costProduct && openCostBatches(costProduct)">重试</el-button>
+    </el-alert>
+    <el-table v-else v-loading="costBatchesLoading" :data="costBatches" row-key="inventoryId" border max-height="400" :empty-text="costBatchesLoading ? '加载中…' : '暂无有库存的批次'">
+      <el-table-column prop="batchNo" label="批次号" min-width="240" show-overflow-tooltip />
+      <el-table-column prop="quantity" label="剩余库存" min-width="110" align="right" />
+      <el-table-column label="单位成本" min-width="120" align="right"><template #default="{row}">{{ formatUnitCost(row.unitCost) }}</template></el-table-column>
+    </el-table>
+    <template #footer><el-button @click="costBatchesOpen = false">关闭</el-button></template>
   </el-dialog>
   <el-dialog
     v-model="quick"
@@ -1395,6 +1469,7 @@ function quickFill() {
 </template>
 
 <style>
+.sales-cost-product { margin-bottom: 16px; overflow-wrap: anywhere; }
 .sales-dispatch-dialog .dispatch-order-fields {
   margin: 10px 0 0;
   column-gap: 16px;

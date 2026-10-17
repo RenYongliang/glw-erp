@@ -1,6 +1,7 @@
 import type { Product, SalesOrder, SalesShipment } from './sales'
+import { salesLineProduct } from './sales.ts'
 
-export type FulfillmentStatus = '待发货' | '部分发货' | '已完成'
+export type FulfillmentStatus = '待发货' | '部分发货' | '已完成' | '剩余未交取消'
 export type NumberRange = [number | null, number | null]
 export interface SalesOrderFilters {
   text: Record<'code' | 'customer' | 'purchaseNumber' | 'term' | 'owner' | 'brands' | 'productNames' | 'models', string>
@@ -19,6 +20,8 @@ export function emptySalesOrderFilters(): SalesOrderFilters {
   }
 }
 export function salesFulfillmentStatus(order: SalesOrder, shipments: SalesShipment[]): FulfillmentStatus {
+  if (['待发货', '部分发货', '已完成', '剩余未交取消'].includes(order.status))
+    return order.status as FulfillmentStatus
   const delivered = new Map<string, number>()
   for (const shipment of shipments) {
     if (shipment.orderId !== order.id || !shipment.confirmed || shipment.tag !== '出库') continue
@@ -43,7 +46,7 @@ export function matchesSalesOrderFilters(order: SalesOrder, catalog: Product[], 
   const text = {code: order.code, customer, purchaseNumber: order.purchaseNumber || '', term: order.term, owner: order.owner}
   for (const key of Object.keys(text) as (keyof typeof text)[]) if (!includes(text[key], filters.text[key])) return false
   if (filters.text.customer && customer !== filters.text.customer) return false
-  if (filters.paymentStatus && salesPaymentStatus(total, paid) !== filters.paymentStatus) return false
+  if (filters.paymentStatus && (order.paymentStatus ?? salesPaymentStatus(total, paid)) !== filters.paymentStatus) return false
   if (filters.status && filters.status !== status) return false
   for (const key of ['signed', 'delivery'] as const) {
     const range = filters.dates[key]
@@ -57,7 +60,7 @@ export function matchesSalesOrderFilters(order: SalesOrder, catalog: Product[], 
   if (!hasProductFilter) return true
   // Product conditions must match the same line, not unrelated products in the order.
   return order.lines.some(line => {
-    const product = catalog.find(p => p.id === line.productId)
+    const product = salesLineProduct(line, catalog)
     return includes(product?.brand || '', filters.text.brands)
       && includes(product?.name || '', filters.text.productNames)
       && includes(product?.model || '', filters.text.models)

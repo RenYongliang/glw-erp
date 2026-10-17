@@ -88,6 +88,9 @@ class BusinessMapperTest {
         assertThat(resultMap.getResultMappings())
                 .extracting(r -> r.getColumn())
                 .containsExactlyElementsOf(columns.keySet());
+        for (var mapping : resultMap.getResultMappings()) {
+            assertThat(mapping.getJavaType()).isEqualTo(entityClass.getDeclaredField(mapping.getProperty()).getType());
+        }
         var tableInfo = TableInfoHelper.getTableInfo(entityClass);
         assertThat(tableInfo.getTableName()).isEqualTo(table);
         assertThat(tableInfo.isWithLogicDelete()).isFalse();

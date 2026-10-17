@@ -188,7 +188,8 @@
   color: #e4a000;
   border-color: #e4b14a;
 }
-.purchase-receive:not(.is-disabled) {
+.purchase-receive:not(.is-disabled),
+.purchase-ship:not(.is-disabled) {
   color: #a4aa00;
   border-color: #c4c44b;
 }

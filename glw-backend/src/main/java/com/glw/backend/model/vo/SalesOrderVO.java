@@ -4,6 +4,8 @@ import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
 import lombok.Data;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 public class SalesOrderVO {
@@ -20,6 +22,7 @@ public class SalesOrderVO {
     private Long customerId;
 
     private String customerName;
+    private String customerShortName;
 
     private SettlementType settleType;
 
@@ -32,6 +35,7 @@ public class SalesOrderVO {
     private String remark;
 
     private Integer version;
+    private List<SalesOrderItemVO> items = new ArrayList<>();
 
 
 }

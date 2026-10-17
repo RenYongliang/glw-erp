@@ -17,4 +17,21 @@
     <sql id="Base_Column_List">
         `id`, `outbound_order_id`, `sales_order_id`, `customer_order_no`, `sales_order_item_id`, `outbound_quantity`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
+    <resultMap id="ShippedQuantityMap" type="com.glw.backend.mapper.OutboundOrderItemMapper$ShippedQuantity">
+        <constructor>
+            <arg column="sales_order_item_id" javaType="java.lang.Long"/>
+            <arg column="quantity" javaType="java.lang.Long"/>
+        </constructor>
+    </resultMap>
+    <select id="sumCompletedBySalesOrderIds" resultMap="ShippedQuantityMap">
+        SELECT item.sales_order_item_id, SUM(item.outbound_quantity) AS quantity
+        FROM outbound_order_item item
+        INNER JOIN outbound_order shipment ON shipment.id = item.outbound_order_id
+        WHERE shipment.status = 'COMPLETED'
+          AND item.sales_order_id IN
+          <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">
+              #{orderId}
+          </foreach>
+        GROUP BY item.sales_order_item_id
+    </select>
 </mapper>

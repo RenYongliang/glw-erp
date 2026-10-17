@@ -1,4 +1,5 @@
 import catalog from '../data/products.json' with { type: 'json' }
+import type { ShipmentBatch } from './shipmentBatches'
 export type SalesKind = 'orders' | 'shipments'
 export interface Product {
   id: string
@@ -22,6 +23,12 @@ export interface Customer {
   account: string
 }
 export interface SalesLine {
+  pendingQuantity?: number
+  brand?: string
+  model?: string
+  packaging?: string
+  amount?: number
+  cancelledQuantity?: number
   id: string
   productId: string
   quantity: number
@@ -46,6 +53,9 @@ export interface Attachment {
   url: string
 }
 export interface SalesOrder {
+  customerShortName?: string
+  paymentStatus?: '未收款' | '部分收款' | '已收款'
+  remark?: string
   customerName?: string
   purchaseNumber?: string
   priceLevel?: string
@@ -66,12 +76,13 @@ export interface SalesOrder {
   payments: PaymentPlan[]
   attachments: Attachment[]
   term: string
-  status: '待审批' | '审批通过' | '不通过'
+  status: '待审批' | '审批通过' | '不通过' | '待发货' | '部分发货' | '已完成' | '剩余未交取消'
   reason: string
   approver: string
   approvedAt: string
 }
 export interface ShipmentLine {
+  batches?: ShipmentBatch[]
   remark?: string
   lineId: string
   arrived: number
@@ -97,6 +108,9 @@ export function defaultShippingInfo(order?: SalesOrder): ShippingInfo {
   return { address: order?.address || '', recipient: customer?.contact || '', phone: customer?.phone || '', sender: order?.owner || '', senderPhone: '', method: '快递物流', carrier: '', trackingNumber: '', purchaseNumber: order?.purchaseNumber || '', remark: '' }
 }
 export interface SalesShipment {
+  customerShortName?: string
+  customerName?: string
+  purchaseNumber?: string
   shipping?: ShippingInfo
   id: string
   code: string
@@ -198,6 +212,11 @@ export const products: Product[] = catalog.map((p) => ({
   tax: 13,
   stock: 150000,
 }))
+export function salesLineProduct(line?: SalesLine, catalog: Product[] = products) {
+  const product = catalog.find(product => product.id === line?.productId)
+  return { brand: line?.brand ?? product?.brand ?? '', name: line?.model ?? product?.name ?? '',
+    model: line?.packaging ?? product?.model ?? '' }
+}
 export const priceLevels = ['标准售价', '一级售价', '二级售价']
 export function levelPrice(product: Product, level = '标准售价') {
   return roundMoney(product.price * (level === '一级售价' ? 0.97 : level === '二级售价' ? 0.94 : 1))
@@ -259,7 +278,7 @@ export function nextSalesCode(prefix: string, rows: { code: string }[], date = t
   return start + String(n).padStart(2, '0')
 }
 export function orderTotals(order: Pick<SalesOrder, 'lines' | 'discount'>) {
-  const cents = order.lines.map((l) => Math.round(l.quantity * l.price * 100))
+  const cents = order.lines.map((l) => Math.round((l.amount ?? l.quantity * l.price) * 100))
   const actualCents = cents.reduce((a, b) => a + b, 0)
   const grossCents = order.lines.reduce(
     (sum, l) => sum + Math.round(l.quantity * (l.listPrice ?? l.price) * 100),
@@ -290,18 +309,27 @@ export function orderTotals(order: Pick<SalesOrder, 'lines' | 'discount'>) {
     details,
   }
 }
+export function pendingShipmentQuantity(order: SalesOrder, line: SalesLine, shipments: SalesShipment[]) {
+  if (line.pendingQuantity !== undefined) return Math.max(0, line.pendingQuantity)
+  const shipped = shipments.filter(s => s.orderId === order.id && s.confirmed && s.tag === '出库')
+    .flatMap(s => s.lines).filter(l => l.lineId === line.id)
+    .reduce((sum, l) => sum + l.arrived, 0)
+  return Math.max(0, line.quantity - (line.cancelledQuantity || 0) - shipped)
+}
+
 export function remainingQuantity(
   state: SalesState,
   orderId: string,
   lineId: string,
   excludeShipment = '',
 ) {
-  const ordered =
-    state.orders.find((o) => o.id === orderId)?.lines.find((l) => l.id === lineId)?.quantity || 0
+  const line = state.orders.find((o) => o.id === orderId)?.lines.find((l) => l.id === lineId)
+  const ordered = line?.pendingQuantity ?? Math.max(0, (line?.quantity || 0) - (line?.cancelledQuantity || 0))
   return (
     ordered -
     state.shipments
-      .filter((r) => r.orderId === orderId && r.id !== excludeShipment)
+      .filter((r) => r.orderId === orderId && r.id !== excludeShipment &&
+        (line?.pendingQuantity === undefined || !r.confirmed || r.tag !== '出库'))
       .reduce(
         (sum, r) =>
           sum + r.lines.filter((l) => l.lineId === lineId).reduce((a, l) => a + l.arrived, 0),
@@ -340,7 +368,7 @@ export function shipmentTotals(shipment: SalesShipment, order?: SalesOrder) {
 }
 const dateValid = (value: string) =>
   /^\d{4}-\d{2}-\d{2}/.test(value) && Number.isFinite(Date.parse(value))
-export function validateOrder(order: SalesOrder) {
+export function validateOrder(order: SalesOrder, catalog: Pick<Product, 'id'>[] = products) {
   if (order.customerId && !customers.some((s) => s.id === order.customerId)) return '请选择有效客户'
   if (!orderCustomerName(order)) return '请选择或填写客户名称'
   if (orderCustomerName(order).length > 100) return '客户名称不能超过100字'
@@ -354,7 +382,7 @@ export function validateOrder(order: SalesOrder) {
   if (
     order.lines.some(
       (l) =>
-        !products.some((p) => p.id === l.productId) ||
+        !catalog.some((p) => p.id === l.productId) ||
         !Number.isSafeInteger(l.quantity) ||
         l.quantity <= 0 ||
         l.quantity > 100000000 ||
@@ -391,7 +419,7 @@ export function validateOrder(order: SalesOrder) {
 }
 export function validateShipment(shipment: SalesShipment, state: SalesState) {
   const order = state.orders.find((o) => o.id === shipment.orderId)
-  if (!order || order.status !== '审批通过') return '请选择已审批通过的销售订单'
+  if (!order || !['审批通过', '待发货', '部分发货'].includes(order.status)) return '请选择可发货的销售订单'
   if (shipment.shipping && shipment.confirmed) {
     if (!shipment.shipping.address.trim()) return '请填写收货地址'
     if (!shipment.shipping.recipient.trim()) return '请填写收货人'
@@ -409,7 +437,14 @@ export function validateShipment(shipment: SalesShipment, state: SalesState) {
       return '请填写有效的非负整数出库数量'
     if (line.arrived > remainingQuantity(state, order.id, line.lineId, shipment.id))
       return '本次出库数量不能超过待出库数量'
-    if (line.arrived > availableStock(state, source.productId, shipment.warehouse, shipment.id))
+    if (line.batches !== undefined) {
+      if (new Set(line.batches.map(b => b.inventoryId)).size !== line.batches.length)
+        return '同一批次不能重复选择'
+      if (line.batches.some(b => !b.inventoryId || !Number.isSafeInteger(b.quantity) || b.quantity <= 0 || !Number.isFinite(b.unitCost) || b.unitCost < 0))
+        return '请检查批次、批次数量和成本'
+      if (line.batches.reduce((sum, b) => sum + b.quantity, 0) !== line.arrived)
+        return '本次出库数量必须等于所选批次数量合计'
+    } else if (line.arrived > availableStock(state, source.productId, shipment.warehouse, shipment.id))
       return '本次出库数量不能超过当前可用库存'
   }
   if (shipment.confirmed && shipment.tag !== '出库')

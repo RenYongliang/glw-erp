@@ -30,8 +30,8 @@ public class MockSalesOrderServiceImpl implements SalesOrderService {
         salesOrder.setCustomerId(1L);
         salesOrder.setCustomerName("Mock Customer");
         salesOrder.setDeliveryTime(LocalDateTime.of(2026, 10, 16, 18, 0));
-        salesOrder.setOrderStatus("PENDING_SHIPMENT");
-        salesOrder.setPaymentStatus("UNPAID");
+        salesOrder.setOrderStatus(com.glw.backend.model.enums.SalesOrderStatus.PENDING_SHIPMENT);
+        salesOrder.setPaymentStatus(com.glw.backend.model.enums.SalesPaymentStatus.UNPAID);
         salesOrder.setVersion(0);
 
         Page<SalesOrderVO> page = pageDTO.toPage();

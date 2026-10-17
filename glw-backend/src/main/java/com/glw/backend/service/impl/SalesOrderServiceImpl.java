@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.glw.backend.converter.SalesOrderConverter;
 import com.glw.backend.mapper.SalesOrderMapper;
-import com.glw.backend.model.dto.PageDTO;
+import com.glw.backend.mapper.CustomerMapper;
+import com.glw.backend.mapper.OutboundOrderItemMapper;
+import com.glw.backend.model.entity.Customer;
 import com.glw.backend.model.dto.SalesOrderPageDTO;
 import com.glw.backend.model.entity.SalesOrder;
 import com.glw.backend.model.entity.SalesOrderItem;
@@ -20,6 +22,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /** 销售订单表基础服务实现。 */
 @Service
@@ -29,6 +33,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
 
     private final SalesOrderItemService salesOrderItemService;
     private final SalesOrderConverter salesOrderConverter;
+    private final CustomerMapper customerMapper;
+    private final OutboundOrderItemMapper outboundOrderItemMapper;
 
     @Override
     public IPage<SalesOrderVO> pageSalesOrder(SalesOrderPageDTO pageDTO) {
@@ -38,27 +44,65 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
 
         List<Long> filterOrderIds = null;
         if (filterBrand || filterPartNo || filterPackageType) {
-            Page<SalesOrderItem> orderItemPages = salesOrderItemService.lambdaQuery()
+            filterOrderIds = salesOrderItemService.lambdaQuery()
                 .eq(filterBrand, SalesOrderItem::getBrand, pageDTO.getBrand())
                 .eq(filterPartNo, SalesOrderItem::getPartNo, pageDTO.getPartNo())
                 .eq(filterPackageType, SalesOrderItem::getPackageType, pageDTO.getPackageType())
-                .orderByDesc(SalesOrderItem::getCreatedAt)
-                .page(pageDTO.toPage());
-            filterOrderIds = orderItemPages.getRecords().stream().map(SalesOrderItem::getSalesOrderId).toList();
+                .list().stream().map(SalesOrderItem::getSalesOrderId).distinct().toList();
+            if (filterOrderIds.isEmpty()) {
+                Page<SalesOrderVO> empty = pageDTO.toPage();
+                empty.setRecords(List.of());
+                empty.setTotal(0);
+                return empty;
+            }
         }
 
         Page<SalesOrder> page = lambdaQuery()
-            .in(!CollectionUtils.isEmpty(filterOrderIds), SalesOrder::getId, filterOrderIds)
+            .in(filterOrderIds != null, SalesOrder::getId, filterOrderIds)
+            .eq(pageDTO.getId() != null, SalesOrder::getId, pageDTO.getId())
             .eq(pageDTO.getOrderNo() != null, SalesOrder::getOrderNo, pageDTO.getOrderNo())
             .eq(pageDTO.getCustomerOrderNo() != null, SalesOrder::getCustomerOrderNo, pageDTO.getCustomerOrderNo())
             .eq(pageDTO.getCustomerId() != null, SalesOrder::getCustomerId, pageDTO.getCustomerId())
+            .eq(pageDTO.getSettleType() != null, SalesOrder::getSettleType, pageDTO.getSettleType())
             .eq(StringUtils.hasText(pageDTO.getOrderStatus()), SalesOrder::getOrderStatus, pageDTO.getOrderStatus())
             .eq(StringUtils.hasText(pageDTO.getPaymentStatus()), SalesOrder::getPaymentStatus, pageDTO.getPaymentStatus())
-            .ge(StringUtils.hasText(pageDTO.getOrderTimeStart()), SalesOrder::getOrderTimeStart, pageDTO.getOrderTimeStart())
-            .le(StringUtils.hasText(pageDTO.getOrderTimeEnd()), SalesOrder::getOrderTimeEnd, pageDTO.getOrderTimeEnd())
+            .ge(StringUtils.hasText(pageDTO.getOrderTimeStart()), SalesOrder::getOrderTime, pageDTO.getOrderTimeStart())
+            .le(StringUtils.hasText(pageDTO.getOrderTimeEnd()), SalesOrder::getOrderTime, pageDTO.getOrderTimeEnd())
             .orderByDesc(SalesOrder::getOrderTime)
+            .orderByDesc(SalesOrder::getId)
             .page(pageDTO.toPage());
 
-        return page.convert(salesOrderConverter::toVO);
+        IPage<SalesOrderVO> result = page.convert(salesOrderConverter::toVO);
+        if (!CollectionUtils.isEmpty(result.getRecords())) {
+            var customerIds = result.getRecords().stream().map(SalesOrderVO::getCustomerId)
+                    .filter(java.util.Objects::nonNull).distinct().toList();
+            Map<Long, Customer> customers = customerIds.isEmpty() ? Map.of() : customerMapper.selectByIds(customerIds)
+                    .stream().collect(Collectors.toMap(Customer::getId, customer -> customer));
+            result.getRecords().forEach(order -> {
+                Customer customer = order.getCustomerId() == null ? null : customers.get(order.getCustomerId());
+                if (customer != null) {
+                    order.setCustomerName(customer.getName());
+                    order.setCustomerShortName(customer.getShortName());
+                }
+            });
+            List<Long> orderIds = result.getRecords().stream().map(SalesOrderVO::getId).toList();
+            var shipped = outboundOrderItemMapper.sumCompletedBySalesOrderIds(orderIds).stream()
+                    .collect(Collectors.toMap(OutboundOrderItemMapper.ShippedQuantity::salesOrderItemId,
+                            OutboundOrderItemMapper.ShippedQuantity::quantity));
+            Map<Long, List<SalesOrderItem>> items = salesOrderItemService.lambdaQuery()
+                    .in(SalesOrderItem::getSalesOrderId, orderIds)
+                    .orderByAsc(SalesOrderItem::getId).list().stream()
+                    .collect(Collectors.groupingBy(SalesOrderItem::getSalesOrderId));
+            result.getRecords().forEach(order -> order.setItems(items.getOrDefault(order.getId(), List.of())
+                    .stream().map(item -> {
+                        var vo = salesOrderConverter.toItemVO(item);
+                        long pending = (long) item.getQuantity()
+                                - (item.getCancelledQuantity() == null ? 0 : item.getCancelledQuantity())
+                                - shipped.getOrDefault(item.getId(), 0L);
+                        vo.setPendingQuantity((int) Math.max(0L, pending));
+                        return vo;
+                    }).toList()));
+        }
+        return result;
     }
 }

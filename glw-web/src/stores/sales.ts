@@ -1,9 +1,6 @@
-import boardData from '../data/orderBoards.json'
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
-  customers,
-  products,
   salesStorageKey,
   nextSalesCode,
   orderTotals,
@@ -16,95 +13,29 @@ import {
   type SalesShipment,
   type SalesPayment,
   type SalesReturn,
+  type Product,
 } from '../domain/sales'
+import { fetchSalesOrders, fetchOutboundOrders } from '../services/salesApi'
 
 function initial(): SalesState {
-  const orders: SalesOrder[] = boardData.sales.orders.map((source, i) => ({
-    id: `sales-order-${i + 1}`,
-    code: source.id,
-    name: source.name,
-    customerId: customers.find((c) => c.name === source.partner)?.id || 'c1',
-    signed: source.signed,
-    delivery: source.delivery,
-    owner: source.owner,
-    department: '销售部',
-    warehouse: i % 2 ? '无锡仓' : '杭州仓',
-    address: '',
-    discount: 0,
-    priceLevel: '标准售价',
-    quoteCode: '',
-    term: source.paymentTerm,
-    lines: source.lines.map((l, j) => ({
-      id: `sales-line-${i + 1}-${j + 1}`,
-      productId: products.find((p) => p.name === l.product)?.id || products[0]!.id,
-      quantity: l.quantity,
-      price: l.price,
-      listPrice: l.price,
-      tax: 13,
-    })),
-    arrivals: source.plans,
-    payments: [
-      { name: '整批货款', ratio: 100, method: '银行转账', date: source.delivery, note: '' },
-    ],
-    attachments: [],
-    status: i >= 17 ? '不通过' : i >= 15 ? '待审批' : '审批通过',
-    reason: i >= 17 ? '请核对实际售价与订单毛利率' : '',
-    approver: i < 15 ? '张睿' : '',
-    approvedAt: i < 15 ? source.signed + ' 09:00' : '',
-  }))
-  const shipments: SalesShipment[] = orders.slice(0, 15).map((o, i) => ({
-    id: `sales-shipment-${i + 1}`,
-    code: `XSCK260924-${String(i + 1).padStart(2, '0')}`,
-    orderId: o.id,
-    warehouse: o.warehouse,
-    lines: o.lines.map((l, j) => ({
-      lineId: l.id,
-      arrived: i % 3 === 0 ? l.quantity : Math.floor(l.quantity / 2),
-      location: `A0${j + 1}`,
-    })),
-    tag: i % 5 === 3 ? '库存冻结' : i % 5 === 4 ? '计划出库' : '出库',
-    confirmed: i % 5 < 3,
-    shippedAt: i % 5 < 3 ? '2026-09-24 10:00' : '',
-    keeper: '陈晨',
-    department: '仓储部',
-    photos: [],
-    customerConfirmed: i % 5 === 0,
-    customerReceivedAt: i % 5 === 0 ? '2026-09-24 14:00' : '',
-  }))
-  return { orders, shipments, payments: [], returns: [], logs: [] }
+  return { orders: [], shipments: [], payments: [], returns: [], logs: [] }
 }
 export const useSalesStore = defineStore('sales', () => {
   const state = ref<SalesState>(initial()),
-    loadError = ref('')
-  function load() {
+    loadError = ref(''),
+    loading = ref(false)
+  async function load() {
+    loading.value = true
     try {
-      const text = localStorage.getItem(salesStorageKey)
-      if (!text) return
-      const saved = JSON.parse(text)
-      if (
-        !['orders', 'shipments', 'payments', 'returns', 'logs'].every((k) =>
-          Array.isArray(saved[k]),
-        ) ||
-        !saved.orders.every(
-          (o: SalesOrder) =>
-            typeof o.id === 'string' &&
-            Array.isArray(o.lines) &&
-            Array.isArray(o.arrivals) &&
-            Array.isArray(o.payments) &&
-            Array.isArray(o.attachments),
-        ) ||
-        !saved.shipments.every(
-          (r: SalesShipment) => Array.isArray(r.lines) && Array.isArray(r.photos),
-        )
-      )
-        throw Error()
-      state.value = saved
+      const [orders, shipments] = await Promise.all([fetchSalesOrders(), fetchOutboundOrders()])
+      state.value = { orders, shipments, payments: [], returns: [], logs: [] }
       loadError.value = ''
-    } catch {
-      loadError.value = '本地销售数据无法读取，显示初始演示数据。'
+    } catch (error) {
+      loadError.value = error instanceof Error ? error.message : '销售数据加载失败'
+    } finally {
+      loading.value = false
     }
   }
-  load()
   const snapshot = (): SalesState => JSON.parse(JSON.stringify(state.value))
   function commit(next: SalesState, action: string, name: string) {
     next.logs.unshift({
@@ -121,10 +52,10 @@ export const useSalesStore = defineStore('sales', () => {
     }
     state.value = next
   }
-  function saveOrder(input: SalesOrder) {
+  function saveOrder(input: SalesOrder, catalog?: Pick<Product, 'id'>[]) {
     const order: SalesOrder = JSON.parse(JSON.stringify(input)),
       next = snapshot(),
-      error = validateOrder(order)
+      error = validateOrder(order, catalog)
     if (error) throw Error(error)
     const index = next.orders.findIndex((o) => o.id === order.id)
     if (
@@ -272,6 +203,7 @@ export const useSalesStore = defineStore('sales', () => {
   return {
     state,
     loadError,
+    loading,
     load,
     saveOrder,
     saveAttachments,
