@@ -1,7 +1,7 @@
 -- full_data.sql: cumulative confirmed business data.
 -- Confirmed sheets: 采购订单合同 / 销售订单 / 出库登记.
 -- Confirmed workbook SHA256: cb0e641271f8972e25d1ef5a50f518c3f8db6f689f699d89ce2e583983e19401
--- Includes all referenced supplier/product rows. No prior data import is needed.
+-- Includes all referenced supplier/product rows and local login users. No prior data import is needed.
 -- Run on an empty business schema created with glw.sql. See full_data_notes.md.
 SET NAMES utf8mb4;
 SET @fd_old_sql_mode = @@SESSION.sql_mode;
@@ -19,6 +19,9 @@ BEGIN
     RESIGNAL;
   END;
   START TRANSACTION;
+  IF EXISTS (SELECT 1 FROM `sys_user` LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User table must be empty: sys_user';
+  END IF;
   IF EXISTS (SELECT 1 FROM `customer` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: customer';
   END IF;
@@ -67,6 +70,10 @@ BEGIN
   IF EXISTS (SELECT 1 FROM `supplier` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: supplier';
   END IF;
+  -- sys_user: 2 local development rows
+  INSERT INTO `sys_user` (`id`, `username`, `password_hash`, `name`, `role`, `department`, `enabled`, `deleted`, `version`) VALUES
+    (1, 'admin', '$2a$10$LJ9S7JCkTQf0eRubB3Fx/uSe1aZvsleTDSZE9SeMyWFv/plG7d7Nq', '管理员', 'ADMIN', '运营管理部', 1, 0, 0),
+    (2, 'demo', '$2a$10$FsQjImExBVt8PJ5OYqmUs.G69uMw0w4gbygedpjtvOmISNb1ONmGC', '体验用户', 'USER', '业务体验组', 1, 0, 0);
   -- supplier: 2 confirmed rows
   INSERT INTO `supplier` (`id`, `name`, `brand`) VALUES
     (1, '深圳中盛昌', '力芯微'),
@@ -414,3 +421,4 @@ SELECT 'sales_order_item' AS table_name, COUNT(*) AS actual_rows, 21 AS expected
 SELECT 'sales_order_batch_item' AS table_name, COUNT(*) AS actual_rows, 0 AS expected_rows FROM `sales_order_batch_item`;
 SELECT 'sample_apply' AS table_name, COUNT(*) AS actual_rows, 0 AS expected_rows FROM `sample_apply`;
 SELECT 'supplier' AS table_name, COUNT(*) AS actual_rows, 2 AS expected_rows FROM `supplier`;
+SELECT 'sys_user' AS table_name, COUNT(*) AS actual_rows, 2 AS expected_rows FROM `sys_user`;
