@@ -1,9 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
-  suppliers,
-  products,
-  legacyPurchaseProductIds,
   purchaseStorageKey,
   nextPurchaseCode,
   orderTotals,
@@ -16,118 +13,29 @@ import {
   type PurchasePayment,
   type PurchaseReturn,
 } from '../domain/purchase'
+import { fetchInboundOrders, fetchPurchaseOrders } from '../services/purchaseApi'
 
-function initial(): PurchaseState {
-  const orders: PurchaseOrder[] = Array.from({ length: 26 }, (_, i) => {
-    const supplier = suppliers[i % 3]!,
-      product = products[i % products.length]!,
-      second = products[(i + 1) % products.length]!
-    return {
-      id: `order-${i + 1}`,
-      code: `CGDD2609${String(1 + (i % 20)).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`,
-      name: `${supplier.name}-第${Math.floor(i / 3) + 1}份采购订单`,
-      supplierId: supplier.id,
-      signed: `2026-09-${String(1 + (i % 20)).padStart(2, '0')}`,
-      delivery: '2026-09-30',
-      owner: i % 3 ? '张睿' : '林晓',
-      department: i % 2 ? '采购部' : '业务部',
-      warehouse: i % 2 ? '无锡仓' : '杭州仓',
-      address: i % 2 ? '江苏省无锡市锡山区安镇街道 188号' : '浙江省杭州市余杭区贝达梦工厂E座',
-      discount: i % 4 === 0 ? 0 : 50,
-      lines: [
-        {
-          id: `line-${i + 1}-1`,
-          productId: product.id,
-          quantity: 1000,
-          price: product.price,
-          tax: 13,
-        },
-        {
-          id: `line-${i + 1}-2`,
-          productId: second.id,
-          quantity: 500,
-          price: second.price,
-          tax: 13,
-        },
-      ],
-      arrivals: [{ batch: '整批', date: '2026-09-30', note: '' }],
-      payments: [
-        { name: '整批货款', ratio: 100, method: '银行转账', date: '2026-10-15', note: '' },
-      ],
-      attachments: [],
-      term: '月结30天',
-      status: i >= 24 ? '不通过' : i >= 22 ? '待审批' : '审批通过',
-      reason: i >= 24 ? '请核对供应商报价后重新提交' : '',
-      approver: i < 22 ? '张睿' : '',
-      approvedAt: i < 22 ? '2026-09-22 09:00' : '',
-    }
-  })
-  const receipts: PurchaseReceipt[] = Array.from({ length: 23 }, (_, i) => {
-    const order = orders[i < 21 ? i : i - 21]!,
-      partial = i < 2 || i >= 21,
-      rejected = i === 3 ? 10 : 0
-    return {
-      id: `receipt-${i + 1}`,
-      code: `CGRK260923-${String(i + 1).padStart(2, '0')}`,
-      orderId: order.id,
-      warehouse: order.warehouse,
-      lines: order.lines.map((l, k) => ({
-        lineId: l.id,
-        arrived: partial ? Math.floor(l.quantity / 2) : l.quantity,
-        rejected: k === 0 ? rejected : 0,
-        location: `${order.warehouse === '杭州仓' ? 'HZ' : 'WX'}-A0${k + 1}`,
-      })),
-      quality: rejected ? '存在不合格品' : '合格',
-      qualityNote: rejected ? '外观检测异常，已隔离待退换' : '',
-      inspector: '李敏',
-      inspectionDepartment: '质量部',
-      inspectedAt: '2026-09-23 09:00',
-      confirmed: i !== 20,
-      receivedAt: i !== 20 ? '2026-09-23 10:00' : '',
-      keeper: '陈晨',
-      department: '仓储部',
-      photos: [],
-    }
-  })
-  return { orders, receipts, payments: [], returns: [], logs: [] }
+function emptyState(): PurchaseState {
+  return { orders: [], receipts: [], payments: [], returns: [], logs: [] }
 }
+
 export const usePurchaseStore = defineStore('purchase', () => {
-  const state = ref<PurchaseState>(initial()),
-    loadError = ref('')
-  function load() {
+  const state = ref<PurchaseState>(emptyState()),
+    loadError = ref(''),
+    loading = ref(false)
+
+  async function load() {
+    loading.value = true
     try {
-      const text = localStorage.getItem(purchaseStorageKey)
-      if (!text) return
-      const saved = JSON.parse(text)
-      if (
-        !['orders', 'receipts', 'payments', 'returns', 'logs'].every((k) =>
-          Array.isArray(saved[k]),
-        ) ||
-        !saved.orders.every(
-          (o: PurchaseOrder) =>
-            typeof o.id === 'string' &&
-            Array.isArray(o.lines) &&
-            Array.isArray(o.arrivals) &&
-            Array.isArray(o.payments) &&
-            Array.isArray(o.attachments),
-        ) ||
-        !saved.receipts.every(
-          (r: PurchaseReceipt) => Array.isArray(r.lines) && Array.isArray(r.photos),
-        )
-      )
-        throw Error()
-      for (const order of saved.orders as PurchaseOrder[]) {
-        for (const line of order.lines) {
-          line.productId = legacyPurchaseProductIds[line.productId] || line.productId
-        }
-      }
-      state.value = saved
+      const [orders, receipts] = await Promise.all([fetchPurchaseOrders(), fetchInboundOrders()])
+      state.value = { orders, receipts, payments: [], returns: [], logs: [] }
       loadError.value = ''
-    } catch {
-      loadError.value = '本地采购数据无法读取，显示初始演示数据。'
+    } catch (error) {
+      loadError.value = error instanceof Error ? error.message : '采购数据加载失败'
+    } finally {
+      loading.value = false
     }
   }
-  load()
   const snapshot = (): PurchaseState => JSON.parse(JSON.stringify(state.value))
   function commit(next: PurchaseState, action: string, name: string) {
     next.logs.unshift({
@@ -280,6 +188,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
   return {
     state,
     loadError,
+    loading,
     load,
     saveOrder,
     approve,

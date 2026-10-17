@@ -81,4 +81,10 @@ public class PurchaseOrder {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
+
+    @TableField(exist = false)
+    private String orderTimeStart;
+
+    @TableField(exist = false)
+    private String orderTimeEnd;
 }

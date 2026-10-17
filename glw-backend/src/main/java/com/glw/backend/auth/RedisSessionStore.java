@@ -21,7 +21,9 @@ local current = cjson.decode(value)
 local replacement = cjson.decode(ARGV[3])
 if tostring(current.userId) ~= ARGV[1] or current.refreshId ~= ARGV[2]
   or replacement.userId ~= current.userId or replacement.expiresAt ~= current.expiresAt then return 0 end
-redis.call('SET', KEYS[1], ARGV[3], 'KEEPTTL')
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl <= 0 then return 0 end
+redis.call('PSETEX', KEYS[1], ttl, ARGV[3])
 return 1
 """,
                     Long.class);

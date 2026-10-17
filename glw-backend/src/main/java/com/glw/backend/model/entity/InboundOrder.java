@@ -77,4 +77,10 @@ public class InboundOrder {
     /** 更新人。 */
     @TableField("updated_by")
     private Long updatedBy;
+
+    @TableField(exist = false)
+    private String inboundTimeStart;
+
+    @TableField(exist = false)
+    private String inboundTimeEnd;
 }

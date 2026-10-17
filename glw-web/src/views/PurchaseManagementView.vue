@@ -45,7 +45,7 @@ const props = defineProps<{ kind: PurchaseKind }>(),
   store = usePurchaseStore(),
   isOrder = props.kind === 'orders'
 const tabs = isOrder
-  ? ['全部订单', '待审批订单', '已审批订单', '不通过订单']
+  ? ['全部订单']
   : ['全部入库', '已入库', '待入库']
 const tab = ref(tabs[0]!),
   keyword = ref(''),
@@ -66,7 +66,7 @@ const orderFilterOpen = ref(false)
 const orderFilters = ref(emptyPurchaseOrderFilters())
 const draftFilters = ref(emptyPurchaseOrderFilters())
 const activeFilterCount = computed(() => purchaseFilterCount(orderFilters.value))
-const filterSuppliers = computed(() => [...new Set([...suppliers.map(s => s.name), ...store.state.orders.map(purchaseSupplierName)].filter(Boolean))])
+const filterSuppliers = computed(() => [...new Set(store.state.orders.map(purchaseSupplierName).filter(Boolean))])
 const productTextFilters = [{key:'brand',label:'品牌'}, {key:'model',label:'型号'}, {key:'packaging',label:'封装'}] as const
 function openFilters() {
   if (!isOrder) { filterOpen.value = !filterOpen.value; return }
@@ -115,8 +115,7 @@ function productCells(order: PurchaseOrder, key: string, receipt?: PurchaseRecei
   const totals = orderTotals(order)
   return order.lines.flatMap((l, i) => {
     if (receipt && !receipt.lines.some(line => line.lineId === l.id)) return []
-    const product = products.find(p => p.id === l.productId)
-    const cells: Record<string, string> = { brands: product?.brand || '', productNames: product?.model || '', models: product?.packaging || '', quantities: String(l.quantity), pending: String(remainingQuantity(store.state, order.id, l.id, receipt?.id)), taxes: `${l.tax}%`, prices: money(l.price), amounts: money(totals.details[i]?.total || 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
+    const cells: Record<string, string> = { brands: l.brand || '', productNames: l.model || '', models: l.packaging || '', quantities: String(l.quantity), pending: String(remainingQuantity(store.state, order.id, l.id, receipt?.id)), taxes: `${l.tax}%`, prices: money(l.price), amounts: money(l.amount ?? totals.details[i]?.total ?? 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
     return cells[key] || '—'
   })
 }
@@ -168,7 +167,6 @@ const records = computed<TableRow[]>(() =>
       })
     : store.state.receipts.map((r) => {
         const o = store.state.orders.find((o) => o.id === r.orderId),
-          s = suppliers.find((s) => s.id === o?.supplierId),
           t = receiptTotals(r, o)
         return {
           id: r.id,
@@ -180,7 +178,7 @@ const records = computed<TableRow[]>(() =>
             name: o?.name || '—',
             orderCode: o?.code || '—',
             supplier: purchaseSupplierName(o) || '—',
-            supplierCode: s?.code || '—',
+            supplierCode: o?.code || '—',
             contact: purchaseContact(o) || '—',
             phone: purchasePhone(o) || '—',
             owner: o?.owner || '—',
@@ -198,18 +196,6 @@ const records = computed<TableRow[]>(() =>
 )
 const filtered = computed(() => {
   const rows = records.value.filter((r) => {
-    if (
-      isOrder &&
-      tab.value !== tabs[0] &&
-      r.values.status !==
-        (
-          { 待审批订单: '待审批', 已审批订单: '审批通过', 不通过订单: '不通过' } as Record<
-            string,
-            string
-          >
-        )[tab.value]
-    )
-      return false
     if (!isOrder && tab.value === '待入库' && r.receipt?.confirmed) return false
     if (!isOrder && tab.value === '已入库' && !r.receipt?.confirmed) return false
     if (
@@ -323,14 +309,14 @@ async function remove() {
     if (e instanceof Error) ElMessage.error(e.message)
   }
 }
-function refresh() {
-  store.load()
+async function refresh(showSuccess = false) {
+  await store.load()
   selected.value = []
   if (store.loadError) ElMessage.warning(store.loadError)
-  else ElMessage.success('数据已刷新')
+  else if (showSuccess) ElMessage.success('数据已刷新')
 }
 onMounted(() => {
-  if (store.loadError) ElMessage.warning(store.loadError)
+  void refresh()
 })
 const operation = ref(''),
   activeOrder = ref<PurchaseOrder>(),

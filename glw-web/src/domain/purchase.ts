@@ -24,6 +24,10 @@ export interface Supplier {
 export interface PurchaseLine {
   delivery?: string
   remark?: string
+  brand?: string
+  model?: string
+  packaging?: string
+  amount?: number
   id: string
   productId: string
   quantity: number
@@ -66,7 +70,7 @@ export interface PurchaseOrder {
   payments: PaymentPlan[]
   attachments: Attachment[]
   term: string
-  status: '待审批' | '审批通过' | '不通过'
+  status: '待审批' | '审批通过' | '不通过' | '待收货' | '部分收货' | '已完成'
   reason: string
   approver: string
   approvedAt: string
