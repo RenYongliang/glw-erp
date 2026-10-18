@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
@@ -23,6 +23,8 @@ import {
   type PurchaseKind,
   type PurchaseOrder,
   type PurchaseReceipt,
+  type ReceiptBatch,
+  type ReceiptLine,
   type Attachment,
 } from '../../domain/purchase'
 const props = defineProps<{
@@ -41,7 +43,9 @@ const store = usePurchaseStore(),
   picker = ref(''),
   pickerQuery = ref(''),
   productSelection = ref<string[]>([]),
-  dirty = ref(false)
+  dirty = ref(false),
+  expandedReceiptLines = ref<string[]>([]),
+  receiptLinesTable = ref<{ toggleRowExpansion: (row: ReceiptLine, expanded?: boolean) => void } | null>(null)
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 const order = ref<PurchaseOrder>(
   props.order
@@ -95,6 +99,11 @@ const receipt = ref<PurchaseReceipt>(
 )
 const isOrder = props.kind === 'orders',
   title = isOrder ? '采购订单' : '采购入库'
+for (const line of receipt.value.lines) {
+  line.batches ??= []
+  line.arrived = line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
+}
+expandedReceiptLines.value = receipt.value.lines.map(line => line.lineId)
 const linkedOrder = computed(() =>
   isOrder ? order.value : store.state.orders.find((o) => o.id === receipt.value.orderId),
 )
@@ -167,12 +176,17 @@ function chooseOrder(o: PurchaseOrder) {
   receipt.value.warehouse = o.warehouse
   receipt.value.lines = o.lines
     .filter((l) => remainingQuantity(store.state, o.id, l.id, receipt.value.id) > 0)
-    .map((l) => ({
-      lineId: l.id,
-      arrived: remainingQuantity(store.state, o.id, l.id, receipt.value.id),
-      rejected: 0,
-      location: '',
-    }))
+    .map((l) => {
+      const remaining = remainingQuantity(store.state, o.id, l.id, receipt.value.id)
+      return {
+        lineId: l.id,
+        arrived: remaining,
+        rejected: 0,
+        location: '',
+        batches: [newBatch(remaining)],
+      }
+    })
+  expandedReceiptLines.value = receipt.value.lines.map(line => line.lineId)
   picker.value = ''
   dirty.value = true
 }
@@ -202,12 +216,38 @@ function productValue(id: string | undefined, key: string) {
 function orderLine(lineId: string) {
   return linkedOrder.value?.lines.find((l) => l.id === lineId)
 }
+function newBatch(quantity = 0): ReceiptBatch {
+  return {
+    id: crypto.randomUUID(),
+    dateCode: '',
+    lotCode: '',
+    quantity,
+  }
+}
+function syncLine(line: ReceiptLine) {
+  line.arrived = line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
+}
+function batchTotal(line: ReceiptLine) {
+  return line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
+}
+async function addBatch(line: ReceiptLine) {
+  line.batches.push(newBatch())
+  expandedReceiptLines.value = Array.from(new Set([...expandedReceiptLines.value, line.lineId]))
+  await nextTick()
+  receiptLinesTable.value?.toggleRowExpansion(line, true)
+  dirty.value = true
+}
+function removeBatch(line: ReceiptLine, index: number) {
+  line.batches.splice(index, 1)
+  syncLine(line)
+  dirty.value = true
+}
 function openPicker(name: string) {
   pickerQuery.value = name === 'supplier' && !order.value.supplierId ? purchaseSupplierName(order.value) : ''
   productSelection.value = []
   picker.value = name
 }
-function save() {
+async function save() {
   try {
     if (isOrder) store.saveOrder(order.value)
     else {
@@ -215,7 +255,7 @@ function save() {
       receipt.value.receivedAt ||= new Date().toLocaleString('sv-SE').slice(0, 16)
       receipt.value.keeper = auth.user?.name || receipt.value.keeper
       receipt.value.department = auth.user?.department || receipt.value.department
-      store.saveReceipt(receipt.value)
+      await store.saveReceipt(receipt.value)
     }
     dirty.value = false
     ElMessage.success(
@@ -323,7 +363,8 @@ function quickFill() {
       const l = linkedOrder.value?.lines.find((l) => l.productId === r.p!.id),
         row = receipt.value.lines.find((x) => x.lineId === l?.id)
       if (!row) return ElMessage.error('产品不在本次入库订单中')
-      row.arrived = r.q
+      row.batches = [newBatch(r.q)]
+      syncLine(row)
     }
   }
   dirty.value = true
@@ -455,8 +496,73 @@ function quickFill() {
         :data="receipt.lines"
         border
         class="purchase-lines"
+        ref="receiptLinesTable"
+        row-key="lineId"
+        :expand-row-keys="expandedReceiptLines"
         empty-text="请先选择采购订单"
       >
+        <el-table-column type="expand" width="45">
+          <template #default="{ row }">
+            <div class="purchase-batch-panel">
+              <div class="purchase-batch-list">
+                <div
+                  v-for="(batch, index) in row.batches"
+                  :key="batch.id"
+                  class="purchase-batch-item"
+                >
+                  <span class="purchase-batch-index">{{ String(index + 1).padStart(2, '0') }}</span>
+                  <el-input
+                    v-model="batch.dateCode"
+                    class="purchase-batch-date"
+                    size="small"
+                    :disabled="view || !!props.receipt?.confirmed"
+                    maxlength="32"
+                    aria-label="原厂日期码"
+                  >
+                    <template #prepend>DC</template>
+                  </el-input>
+                  <el-input
+                    v-model="batch.lotCode"
+                    class="purchase-batch-lot"
+                    size="small"
+                    :disabled="view || !!props.receipt?.confirmed"
+                    maxlength="64"
+                    aria-label="原厂批次号"
+                  >
+                    <template #prepend>LOT</template>
+                  </el-input>
+                  <div class="purchase-batch-quantity">
+                    <span>{{ productValue(orderLine(row.lineId)?.productId, 'unit') || 'QTY' }}</span>
+                    <el-input-number
+                      v-model="batch.quantity"
+                      size="small"
+                      :disabled="view || !!props.receipt?.confirmed"
+                      :min="0"
+                      :max="remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id)"
+                      :step="100"
+                      :precision="0"
+                      controls-position="right"
+                      aria-label="批次本次入库数量"
+                      @update:model-value="() => { syncLine(row); dirty = true }"
+                    />
+                  </div>
+                  <el-button
+                    v-if="!view && !props.receipt?.confirmed"
+                    class="purchase-batch-remove"
+                    text
+                    type="danger"
+                    :icon="Delete"
+                    aria-label="删除批次"
+                    @click="removeBatch(row, index)"
+                  />
+                </div>
+              </div>
+              <div v-if="!row.batches.length" class="purchase-batch-empty">
+                暂无批次，请点击右侧 + 添加
+              </div>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column type="index" width="45" />
         <el-table-column
           v-for="f in [
@@ -485,12 +591,31 @@ function quickFill() {
         >
 
 
-        <el-table-column label="本次入库数量" min-width="140">
+        <el-table-column label="本次入库数量" min-width="120">
           <template #default="{ row }">
-            <el-input-number :model-value="row.arrived - row.rejected" :disabled="view || !!props.receipt?.confirmed" :min="0" :max="Math.max(0, remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id) - row.rejected)" :step="100" :precision="0" controls-position="right" aria-label="本次入库数量" @update:model-value="(value: number | undefined) => { row.arrived = (value || 0) + row.rejected; dirty = true }" />
+            {{ batchTotal(row) }}
           </template>
         </el-table-column>
-
+        <el-table-column
+          v-if="!view && !props.receipt?.confirmed"
+          label="操作"
+          width="68"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tooltip content="添加批次" placement="top">
+              <el-button
+                class="purchase-add-batch"
+                type="primary"
+                plain
+                size="small"
+                :icon="Plus"
+                aria-label="添加批次"
+                @click="addBatch(row)"
+              />
+            </el-tooltip>
+          </template>
+        </el-table-column>
       </el-table>
       <div v-if="!view" class="purchase-line-actions">
         <el-button v-if="isOrder" text type="primary" :icon="Plus" @click="openPicker('product')"
@@ -918,4 +1043,20 @@ function quickFill() {
 
 <style>
 .purchase-order-lines .purchase-order-product-actions .el-button { padding: 8px; margin: 0; }
+.purchase-batch-panel { padding: 6px 10px 8px 50px; background: linear-gradient(90deg, rgba(64, 158, 255, 0.04), transparent 42%); }
+.purchase-batch-list { display: flex; flex-direction: column; gap: 6px; }
+.purchase-batch-item { display: grid; grid-template-columns: 26px 108px minmax(180px, 1fr) 150px 30px; gap: 7px; align-items: center; padding: 5px 7px; background: #fff; border: 1px solid #e5eaf3; border-radius: 6px; box-shadow: 0 1px 2px rgba(31, 45, 61, 0.04); }
+.purchase-batch-index { width: 22px; height: 22px; border-radius: 50%; background: #eef3f9; color: #5a6a83; font-size: 11px; font-weight: 600; line-height: 22px; text-align: center; }
+.purchase-batch-date,
+.purchase-batch-lot,
+.purchase-batch-quantity { min-width: 0; }
+.purchase-batch-panel .el-input,
+.purchase-batch-panel .el-input-number { width: 100%; }
+.purchase-batch-panel .el-input-group__prepend { padding: 0 7px; color: #606266; background: #f5f7fa; font-size: 11px; letter-spacing: 0.3px; }
+.purchase-batch-quantity { display: flex; align-items: center; }
+.purchase-batch-quantity > span { flex: none; height: 24px; padding: 0 7px; border: 1px solid #dcdfe6; border-right: 0; border-radius: 4px 0 0 4px; background: #f5f7fa; color: #606266; font-size: 11px; line-height: 22px; }
+.purchase-batch-quantity .el-input__wrapper { border-radius: 0 4px 4px 0; }
+.purchase-batch-remove { padding: 4px; margin: 0; }
+.purchase-add-batch { width: 26px; height: 26px; padding: 0; }
+.purchase-batch-empty { color: #98a3b3; font-size: 12px; line-height: 26px; }
 </style>

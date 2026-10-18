@@ -77,11 +77,18 @@ export interface PurchaseOrder {
   approver: string
   approvedAt: string
 }
+export interface ReceiptBatch {
+  id: string
+  dateCode: string
+  lotCode: string
+  quantity: number
+}
 export interface ReceiptLine {
   lineId: string
   arrived: number
   rejected: number
   location: string
+  batches: ReceiptBatch[]
 }
 export interface PurchaseReceipt {
   id: string
@@ -359,13 +366,15 @@ export function validateOrder(order: PurchaseOrder) {
 }
 export function validateReceipt(receipt: PurchaseReceipt, state: PurchaseState) {
   const order = state.orders.find((o) => o.id === receipt.orderId)
-  if (!order || !['审批通过', '待收货', '部分收货'].includes(order.status))
+  if (!order || !['待收货', '部分收货'].includes(order.status))
     return '请选择可入库的采购订单'
   if (receipt.warehouse !== order.warehouse) return '入库仓库必须与采购订单一致'
   if (!receipt.lines.length) return '本次入库数量须大于 0'
   if (new Set(receipt.lines.map((l) => l.lineId)).size !== receipt.lines.length)
     return '产品明细不可重复'
   for (const l of receipt.lines) {
+    const batches = l.batches ?? []
+    l.arrived = batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
     if (
       !order.lines.some((p) => p.id === l.lineId) ||
       !Number.isSafeInteger(l.arrived) ||
@@ -377,6 +386,19 @@ export function validateReceipt(receipt: PurchaseReceipt, state: PurchaseState) 
       return '不合格数量不能超过本次到货数量，数量须为非负整数'
     if (l.arrived > remainingQuantity(state, order.id, l.lineId, receipt.id))
       return '本次到货数量不能超过待入库数量'
+    const activeBatches = batches.filter((batch) => batch.quantity > 0)
+    const batchKeys = new Set<string>()
+    for (const batch of activeBatches) {
+      if (!batch.dateCode.trim() || batch.dateCode.trim().length > 32)
+        return '请填写 32 字以内的原厂日期码'
+      if (!batch.lotCode.trim() || batch.lotCode.trim().length > 64)
+        return '请填写 64 字以内的原厂批次号'
+      if (!Number.isSafeInteger(batch.quantity) || batch.quantity <= 0)
+        return '批次入库数量必须是正整数'
+      const key = `${batch.dateCode.trim()}|${batch.lotCode.trim()}`
+      if (batchKeys.has(key)) return '同一产品下批次明细不可重复'
+      batchKeys.add(key)
+    }
   }
   if (!receipt.lines.some((l) => l.arrived - l.rejected > 0)) return '本次入库数量须大于 0'
   if (receipt.lines.some((l) => l.rejected > 0) && receipt.quality !== '存在不合格品')
