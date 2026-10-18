@@ -138,10 +138,10 @@ DROP TABLE IF EXISTS `inventory`;
 CREATE TABLE `inventory`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `product_id` bigint NOT NULL COMMENT '产品ID',
-    `batch_no` varchar(64) NOT NULL COMMENT '库存批次号：BAT+实际入库日期yyMMdd+五位产品ID+同产品当天三位流水号',
-    `inbound_order_item_id` bigint DEFAULT NULL COMMENT '来源入库明细ID',
     `date_code` varchar(32) NOT NULL DEFAULT '' COMMENT '原厂日期码，如2519',
     `lot_code` varchar(64) NOT NULL DEFAULT '' COMMENT '原厂批次号',
+    `batch_no` varchar(64) NOT NULL COMMENT '库存批次号：BAT+实际入库日期yyMMdd+五位产品ID+同产品当天三位流水号',
+    `inbound_order_item_id` bigint DEFAULT NULL COMMENT '来源入库明细ID',
     `inbound_order_batch_item_id` bigint DEFAULT NULL COMMENT '来源入库批次明细ID',
     `unit_cost` decimal(12, 4) NOT NULL COMMENT '批次单位成本',
     `initial_quantity` int NOT NULL COMMENT '初始入库数量',

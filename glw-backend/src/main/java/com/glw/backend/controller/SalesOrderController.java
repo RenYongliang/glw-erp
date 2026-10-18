@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/sales-order", "/sales-order"})
+@RequestMapping("/api/sales-order")
 @AllArgsConstructor
 public class SalesOrderController {
 
