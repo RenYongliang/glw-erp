@@ -517,16 +517,19 @@ function quickFill() {
         <el-table-column type="expand" width="45">
           <template #default="{ row }">
             <div class="purchase-batch-panel">
-              <div v-if="row.batches.length" class="purchase-batch-columns" aria-hidden="true">
-                <span>#</span><span><span class="purchase-batch-required">*</span>Date Code <small>日期码</small></span><span><span class="purchase-batch-required">*</span>Lot Code <small>原厂批次号</small></span><span class="purchase-batch-number-heading">入库数量</span><span></span>
-              </div>
-              <div class="purchase-batch-list">
-                <div
+              <table v-if="row.batches.length" class="purchase-batch-table" aria-label="入库批次明细">
+                <colgroup><col class="purchase-batch-index-col" /><col class="purchase-batch-date-col" /><col /><col class="purchase-batch-quantity-col" /><col class="purchase-batch-action-col" /></colgroup>
+                <thead><tr class="purchase-batch-columns">
+                  <th scope="col">#</th><th scope="col"><span class="purchase-batch-required">*</span>Date Code <small>日期码</small></th><th scope="col"><span class="purchase-batch-required">*</span>Lot Code <small>原厂批次号</small></th><th scope="col" class="purchase-batch-number-heading">入库数量</th><th scope="col">操作</th>
+                </tr></thead>
+                <tbody class="purchase-batch-list">
+                <tr
                   v-for="(batch, index) in row.batches"
                   :key="batch.id"
                   class="purchase-batch-item"
                 >
-                  <span class="purchase-batch-index">{{ index + 1 }}</span>
+                  <td class="purchase-batch-index">{{ index + 1 }}</td>
+                  <td>
                   <el-input
                     v-model="batch.dateCode"
                     class="purchase-batch-date"
@@ -535,8 +538,9 @@ function quickFill() {
                     required
                     aria-required="true"
                     aria-label="原厂日期码"
-                    placeholder="必填，如 2618"
+                    placeholder="如 2618"
                   />
+                  </td><td>
                   <el-input
                     v-model="batch.lotCode"
                     class="purchase-batch-lot"
@@ -545,8 +549,9 @@ function quickFill() {
                     required
                     aria-required="true"
                     aria-label="原厂批次号"
-                    placeholder="必填，填写原厂批次号"
+                    placeholder="填写原厂批次号"
                   />
+                  </td><td>
                     <el-input-number
                       v-model="batch.quantity"
                       class="purchase-batch-quantity"
@@ -559,6 +564,7 @@ function quickFill() {
                       aria-label="批次本次入库数量"
                       @update:model-value="() => { syncLine(row); dirty = true }"
                     />
+                  </td><td class="purchase-batch-actions">
                   <el-tooltip v-if="!view && !props.receipt?.confirmed" content="删除批次" placement="top"><el-button
                     class="purchase-batch-remove"
                     text
@@ -567,9 +573,11 @@ function quickFill() {
                     aria-label="删除批次"
                     @click="removeBatch(row, index)"
                   /></el-tooltip>
-                  <span v-else></span>
-                </div>
-              </div>
+                  <span v-else>—</span>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
               <div v-if="!row.batches.length" class="purchase-batch-empty">
                 暂无入库批次
               </div>
@@ -1045,27 +1053,40 @@ function quickFill() {
 .purchase-order-lines .purchase-order-product-actions .el-button { padding: 8px; margin: 0; }
 .purchase-form-grid.purchase-receipt-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .purchase-receipt-lines .el-table__expanded-cell { padding: 0 !important; }
-.purchase-batch-panel { padding: 12px 20px 12px 46px; background: #f7f9fb; border-bottom: 1px solid #e4e9ef; }
-.purchase-batch-columns, .purchase-batch-item { display: grid; grid-template-columns: 26px minmax(120px, 0.8fr) minmax(180px, 1.4fr) 150px 30px; gap: 12px; align-items: center; }
-.purchase-batch-columns { margin-bottom: 8px; font-size: 12px; color: #526173; }
-.purchase-batch-columns small { margin-left: 5px; font-size: 12px; color: #8893a1; }
+.purchase-batch-panel { padding: 8px 16px 6px 45px; background: #fafbfc; }
+.purchase-batch-panel .purchase-batch-table { width: 100%; table-layout: fixed; border-collapse: collapse; background: #fff; font-size: 12px; }
+.purchase-batch-index-col { width: 34px; }
+.purchase-batch-date-col { width: 30%; }
+.purchase-batch-quantity-col { width: 140px; }
+.purchase-batch-action-col { width: 48px; }
+.purchase-batch-panel .purchase-batch-table th, .purchase-batch-panel .purchase-batch-table td { height: 34px; padding: 0; border: 1px solid #e4e8ed; vertical-align: middle; }
+.purchase-batch-panel .purchase-batch-table th { height: 30px; padding: 0 9px; background: #f1f4f7; font-size: 12px; font-weight: 400; text-align: left; white-space: nowrap; color: #526173; }
+.purchase-batch-panel .purchase-batch-table th:first-child, .purchase-batch-panel .purchase-batch-table th:last-child { padding: 0; text-align: center; }
+.purchase-batch-panel .purchase-batch-columns small { display: inline; margin-left: 5px; font-size: 11px; color: #98a1ad; }
 .purchase-batch-required { margin-right: 4px; color: #e05252; }
-.purchase-batch-number-heading { text-align: right; padding-right: 12px; }
-.purchase-batch-list { display: flex; flex-direction: column; gap: 8px; }
+.purchase-batch-panel .purchase-batch-table .purchase-batch-number-heading { text-align: right; padding-right: 30px; }
+.purchase-batch-actions { text-align: center; }
 .purchase-batch-index { color: #8a95a3; font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
 .purchase-batch-date, .purchase-batch-lot, .purchase-batch-quantity { min-width: 0; }
-.purchase-batch-panel .el-input, .purchase-batch-panel .el-input-number { width: 100%; }
-.purchase-batch-panel .el-input__wrapper { background: #fff; }
-.purchase-batch-remove { width: 30px; height: 30px; padding: 0; margin: 0; color: #8a95a3; }
+.purchase-batch-panel .el-input, .purchase-batch-panel .el-input-number { width: 100%; height: 34px; }
+.purchase-batch-panel .el-input__wrapper { padding-left: 9px; border-radius: 0; background: #fff; box-shadow: none; }
+.purchase-batch-panel .el-input__wrapper:hover { box-shadow: none; background: #fafcfd; }
+.purchase-batch-panel .el-input__wrapper.is-focus { box-shadow: inset 0 0 0 1px var(--el-color-primary); }
+.purchase-batch-panel .el-input__inner { height: 32px; font-size: 12px; }
+.purchase-batch-panel .el-input__inner::placeholder { color: #a8b0bc; }
+.purchase-dialog .purchase-batch-panel .el-input-number .el-input__inner { text-align: right; font-variant-numeric: tabular-nums; }
+.purchase-batch-panel .el-input-number__increase, .purchase-batch-panel .el-input-number__decrease { width: 24px; }
+.purchase-batch-panel .el-input-number .el-input__wrapper { padding-right: 30px; }
+.purchase-batch-remove { width: 26px; height: 26px; padding: 0; margin: 0; color: #98a1ad; }
 .purchase-batch-remove:hover { color: #e05252; background: #fff0f0; }
 .purchase-batch-empty { color: #8a95a3; font-size: 12px; padding: 8px 0; }
-.purchase-batch-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 8px; padding-left: 38px; font-size: 12px; }
-.purchase-batch-footer .el-button { padding: 6px 0; height: 30px; font-size: 12px; }
+.purchase-batch-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 4px; min-height: 24px; font-size: 12px; }
+.purchase-batch-footer .el-button { padding: 0; height: 24px; font-size: 12px; }
 .purchase-batch-balance { margin-left: auto; color: #8a95a3; }
 .purchase-batch-balance.is-over-limit { color: #d94040; }
 .purchase-batch-subtotal { margin-left: auto; color: #596778; font-variant-numeric: tabular-nums; }
 .purchase-batch-balance + .purchase-batch-subtotal { margin-left: 0; }
-.purchase-batch-subtotal strong { margin-left: 8px; font-size: 14px; font-weight: 600; color: #009d85; }
+.purchase-batch-subtotal strong { margin-left: 6px; font-size: 13px; font-weight: 600; color: #009d85; }
 .purchase-receipt-total { color: #009d85; font-weight: 600; font-variant-numeric: tabular-nums; }
 .purchase-receipt-batch-count { color: #8a95a3; font-size: 12px; }
 @media (max-width: 640px) {
