@@ -19,7 +19,16 @@
 .\mvnw.cmd spring-boot:run
 ```
 
-默认端口8080、profile为mock，不依赖MySQL/Redis。测试账号 `admin / Admin123!`、`demo / Demo123!`。生产使用 `SPRING_PROFILES_ACTIVE=prod`，并替换 application.yml 中 DB、REDIS、JWT_SECRET 环境变量。数据库表定义位于 `src/main/resources/db/schema.sql`，不自动建表。生产用户密码须为 BCrypt 哈希。
+默认端口8080、profile为mock，不依赖MySQL/Redis。测试账号 `admin / Admin123!`、`demo / Demo123!`。生产使用 `SPRING_PROFILES_ACTIVE=prod`，并替换 application.yml 中 DB、REDIS、JWT_SECRET 环境变量。全部数据库表定义位于 `src/main/resources/db/glw.sql`，不自动建表。用户密码使用 BCrypt 哈希。
+
+## 数据库初始化
+
+开发阶段仅维护以下两个 SQL 文件，在同一个目标数据库中依次全量执行：
+
+1. `src/main/resources/db/glw.sql`：删除并重建全部表，包括业务表、单据每日流水表和 `sys_user`。
+2. `src/main/resources/db/full_data.sql`：导入已确认的基础业务数据、本地 MySQL 用户记录及单据流水初始值。用户记录保留 BCrypt 密码哈希。
+
+需要重置时，再依次执行上述两个文件即可，不需要增量迁移脚本。`full_data.sql` 要求目标表为空，不能直接重复追加导入。应用不会自动执行这些脚本。
 
 ## 认证接口
 
@@ -71,4 +80,4 @@ challenge 有效期 120 秒、仅能使用一次。后端进程启动时生成 R
 
 ## 业务表实体与持久层
 
-最新业务表定义位于 `src/main/resources/db/glw.sql`，登录表仍使用 `src/main/resources/db/schema.sql`。已提供 14 张业务表的 Entity、Mapper/XML、Service/Impl，使用说明见 [持久层说明](docs/persistence-layer.md)。
+业务表、登录表和单据每日流水表统一定义在 `src/main/resources/db/glw.sql`，基础数据统一维护在 `src/main/resources/db/full_data.sql`。持久层使用说明见 [持久层说明](docs/persistence-layer.md)。

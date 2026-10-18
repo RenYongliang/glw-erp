@@ -85,10 +85,10 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 
 ## 乐观锁版本号
 
-customer、supplier、product、customer_visit、sample_apply、sales_order、purchase_order、inbound_order、outbound_order、inventory，以及 schema.sql 中的 sys_user，均新增 version INT NOT NULL DEFAULT 0。实体用 Integer version 和 @Version，业务表 XML 同步结果映射及字段清单；SysUser 沿用注解映射。MybatisPlusConfig 启用 OptimisticLockerInnerInterceptor。
+customer、supplier、product、customer_visit、sample_apply、sales_order、purchase_order、inbound_order、outbound_order、inventory，以及 sys_user，均在 glw.sql 中定义 version INT NOT NULL DEFAULT 0。实体用 Integer version 和 @Version，业务表 XML 同步结果映射及字段清单；SysUser 沿用注解映射。MybatisPlusConfig 启用 OptimisticLockerInnerInterceptor。
 
 实体 version 不初始化，新增时由数据库默认 0；更新时必须携带查询所得版本。支持的 MyBatis-Plus 实体更新会比较旧版本并递增新版本。没有传入 version、仅使用 Wrapper 更新、自定义 SQL 或删除操作不能假定自动受此插件保护。
 
 这是表结构和持久层的准备，完整业务接口仍需校验请求版本非空、检查更新影响行数，并在冲突时返回 409。整单保存必须在同一事务中先更新主表版本，再处理明细与库存，失败则回滚；仅修改明细也必须更新主表版本。四张订单明细表暂不加 version。库存条件更新及出入库状态切换需要显式协调版本号，不能只靠 @Version 保证业务并发安全。
 
-数据库尚未初始化，本次仅修改 glw.sql 和 schema.sql 建表语句，没有增量 SQL，也未执行真实数据库操作。
+开发阶段统一通过 glw.sql 重建全部表，再执行 full_data.sql 导入基础数据；不维护增量 SQL。

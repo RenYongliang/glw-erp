@@ -3,12 +3,13 @@
 -- Confirmed workbook SHA256: cb0e641271f8972e25d1ef5a50f518c3f8db6f689f699d89ce2e583983e19401
 -- Includes all referenced supplier/product rows and local login users. No prior data import is needed.
 -- Document numbers: SO / GL / IN / OUT + yyyyMMdd + 3-digit daily sequence.
--- Run on an empty business schema created with glw.sql. See full_data_notes.md.
+-- Initialization order: glw.sql, then full_data.sql. No other SQL scripts are required.
 SET NAMES utf8mb4;
 SET @fd_old_sql_mode = @@SESSION.sql_mode;
 SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_BACKSLASH_ESCAPES,NO_ENGINE_SUBSTITUTION';
 SET @fd_old_time_zone = @@SESSION.time_zone;
 SET SESSION time_zone = '+08:00';
+DROP PROCEDURE IF EXISTS `glw_import_full_data`;
 DELIMITER $$
 CREATE PROCEDURE `glw_import_full_data`()
 BEGIN
@@ -20,6 +21,9 @@ BEGIN
     RESIGNAL;
   END;
   START TRANSACTION;
+  IF EXISTS (SELECT 1 FROM `document_number_sequence` LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Daily number counters must be empty: document_number_sequence';
+  END IF;
   IF EXISTS (SELECT 1 FROM `sys_user` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User table must be empty: sys_user';
   END IF;
@@ -34,6 +38,9 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM `inbound_order_item` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inbound_order_item';
+  END IF;
+  IF EXISTS (SELECT 1 FROM `inbound_order_batch_item` LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inbound_order_batch_item';
   END IF;
   IF EXISTS (SELECT 1 FROM `inbound_order_purchase_order` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inbound_order_purchase_order';
@@ -74,10 +81,10 @@ BEGIN
   IF EXISTS (SELECT 1 FROM `supplier` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: supplier';
   END IF;
-  -- sys_user: 2 local development rows
-  INSERT INTO `sys_user` (`id`, `username`, `password_hash`, `name`, `role`, `department`, `enabled`, `deleted`, `version`) VALUES
-    (1, 'admin', '$2a$10$LJ9S7JCkTQf0eRubB3Fx/uSe1aZvsleTDSZE9SeMyWFv/plG7d7Nq', '管理员', 'ADMIN', '运营管理部', 1, 0, 0),
-    (2, 'demo', '$2a$10$FsQjImExBVt8PJ5OYqmUs.G69uMw0w4gbygedpjtvOmISNb1ONmGC', '体验用户', 'USER', '业务体验组', 1, 0, 0);
+  -- sys_user: 2 rows from local MySQL (BCrypt hashes preserved)
+  INSERT INTO `sys_user` (`id`, `username`, `password_hash`, `name`, `role`, `department`, `enabled`, `deleted`, `version`, `created_at`, `updated_at`) VALUES
+    (1, 'admin', '$2a$10$LJ9S7JCkTQf0eRubB3Fx/uSe1aZvsleTDSZE9SeMyWFv/plG7d7Nq', '管理员', 'ADMIN', '运营管理部', 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07'),
+    (2, 'demo', '$2a$10$FsQjImExBVt8PJ5OYqmUs.G69uMw0w4gbygedpjtvOmISNb1ONmGC', '体验用户', 'USER', '业务体验组', 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07');
   -- supplier: 2 confirmed rows
   INSERT INTO `supplier` (`id`, `name`, `brand`) VALUES
     (1, '深圳中盛昌', '力芯微'),
