@@ -151,10 +151,10 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
 
                 Inventory inventory = new Inventory();
                 inventory.setProductId(orderItem.getProductId());
-                inventory.setBatchNo(nextBatchNo(orderItem.getProductId(), inboundTime));
-                inventory.setInboundOrderItemId(inboundOrderItem.getId());
                 inventory.setDateCode(batchItem.getDateCode());
                 inventory.setLotCode(batchItem.getLotCode());
+                inventory.setBatchNo(nextBatchNo(orderItem.getProductId(), inboundTime));
+                inventory.setInboundOrderItemId(inboundOrderItem.getId());
                 inventory.setInboundOrderBatchItemId(batchItem.getId());
                 inventory.setUnitCost(orderItem.getUnitPrice());
                 inventory.setInitialQuantity(batchItem.getInboundQuantity());

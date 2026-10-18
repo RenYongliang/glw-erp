@@ -24,14 +24,6 @@ public class Inventory {
     @TableField("product_id")
     private Long productId;
 
-    /** 库存批次号：BAT + 实际入库日期yyMMdd + 五位产品ID + 同产品当天三位流水号。 */
-    @TableField("batch_no")
-    private String batchNo;
-
-    /** 来源入库明细id。 */
-    @TableField("inbound_order_item_id")
-    private Long inboundOrderItemId;
-
     /** 原厂日期码。 */
     @TableField("date_code")
     private String dateCode;
@@ -39,6 +31,14 @@ public class Inventory {
     /** 原厂批次号。 */
     @TableField("lot_code")
     private String lotCode;
+
+    /** 库存批次号：BAT + 实际入库日期yyMMdd + 五位产品ID + 同产品当天三位流水号。 */
+    @TableField("batch_no")
+    private String batchNo;
+
+    /** 来源入库明细id。 */
+    @TableField("inbound_order_item_id")
+    private Long inboundOrderItemId;
 
     /** 来源入库批次明细id。 */
     @TableField("inbound_order_batch_item_id")
