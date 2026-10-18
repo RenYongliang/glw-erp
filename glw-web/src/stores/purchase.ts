@@ -13,7 +13,11 @@ import {
   type PurchasePayment,
   type PurchaseReturn,
 } from '../domain/purchase'
-import { fetchInboundOrders, fetchPurchaseOrders } from '../services/purchaseApi'
+import {
+  createInboundOrder,
+  fetchInboundOrders,
+  fetchPurchaseOrders,
+} from '../services/purchaseApi'
 
 function emptyState(): PurchaseState {
   return { orders: [], receipts: [], payments: [], returns: [], logs: [] }
@@ -91,22 +95,13 @@ export const usePurchaseStore = defineStore('purchase', () => {
     order.approvedAt = new Date().toLocaleString('sv-SE')
     commit(next, passed ? '审批通过' : '审批不通过', order.code)
   }
-  function saveReceipt(input: PurchaseReceipt) {
-    const next = snapshot(),
-      receipt: PurchaseReceipt = JSON.parse(JSON.stringify(input)),
-      error = validateReceipt(receipt, next)
+  async function saveReceipt(input: PurchaseReceipt) {
+    const receipt: PurchaseReceipt = JSON.parse(JSON.stringify(input)),
+      error = validateReceipt(receipt, state.value)
     if (error) throw Error(error)
-    const index = next.receipts.findIndex((r) => r.id === receipt.id)
-    if (index >= 0 && next.receipts[index]!.orderId !== receipt.orderId)
-      throw Error('已保存的入库单不能更换采购订单')
-    if (index >= 0 && next.returns.some((r) => r.orderId === receipt.orderId))
-      throw Error('该订单已有退货记录，不能再修改入库记录')
-    if (index < 0) {
-      receipt.code = nextPurchaseCode('CGRK', next.receipts)
-      next.receipts.unshift(receipt)
-    } else next.receipts[index] = receipt
-    commit(next, index < 0 ? '新增采购入库' : '修改采购入库', receipt.code)
-    return receipt
+    if (receipt.code) throw Error('已保存的入库单不能修改')
+    await createInboundOrder(receipt)
+    await load()
   }
   function remove(kind: 'orders' | 'receipts', ids: string[]) {
     const next = snapshot()

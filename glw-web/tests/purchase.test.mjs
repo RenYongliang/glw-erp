@@ -15,7 +15,7 @@ import {
 } from '../src/domain/purchase.ts'
 const order = {
   id: 'o1',
-  status: '审批通过',
+  status: '待收货',
   warehouse: '杭州仓',
   discount: 0.01,
   lines: [
@@ -34,7 +34,8 @@ const receipt = () => ({
   id: 'r1',
   orderId: 'o1',
   warehouse: '杭州仓',
-  lines: [{ lineId: 'l1', arrived: 2, rejected: 1, location: 'HZ-A01' }],
+  lines: [{ lineId: 'l1', arrived: 2, rejected: 1, location: 'HZ-A01',
+    batches: [{id: 'b1', dateCode: '2618', lotCode: 'LOT-A', quantity: 2}] }],
   quality: '存在不合格品',
   inspector: '测试',
   inspectedAt: '2026-09-24 09:00',
@@ -125,7 +126,8 @@ test('receipts exclude rejected quantities, reserve pending goods, prevent over-
   const another = {
     ...r,
     id: 'r2',
-    lines: [{ lineId: 'l1', arrived: 3, rejected: 0, location: 'A' }],
+    lines: [{ lineId: 'l1', arrived: 3, rejected: 0, location: 'A',
+      batches: [{id: 'b2', dateCode: '2618', lotCode: 'LOT-B', quantity: 3}] }],
   }
   assert.match(validateReceipt(another, s), /不能超过待入库/)
   s.receipts[0].confirmed = false
@@ -151,6 +153,28 @@ test('invalid quality, quantities, approval and confirmation cannot be submitted
   s.orders[0].status = '待审批'
   assert.match(validateReceipt(r, s), /可入库/)
 })
+test('receipt quantities are summed per date and lot, with missing codes and duplicate combinations rejected', () => {
+  const s = state(), r = receipt()
+  s.orders[0].lines[0].quantity = 1000
+  r.lines[0].rejected = 0
+  r.lines[0].batches = [
+    {id: 'b1', dateCode: '2618', lotCode: 'LOT-A', quantity: 300},
+    {id: 'b2', dateCode: '2619', lotCode: 'LOT-A', quantity: 200},
+  ]
+  assert.equal(validateReceipt(r, s), '')
+  assert.equal(r.lines[0].arrived, 500)
+  r.lines[0].batches[1].dateCode = '2618'
+  assert.match(validateReceipt(r, s), /不可重复/)
+  r.lines[0].batches[1].dateCode = ''
+  assert.match(validateReceipt(r, s), /日期码/)
+  r.lines[0].batches[1].dateCode = '2619'
+  r.lines[0].batches[1].lotCode = ''
+  assert.match(validateReceipt(r, s), /批次号/)
+  r.lines[0].batches[1].lotCode = 'LOT-A'
+  s.orders[0].lines[0].quantity = 400
+  assert.match(validateReceipt(r, s), /待入库/)
+})
+
 test('returns never count unconfirmed receipts or already returned goods', () => {
   const s = state()
   s.receipts.push(receipt())

@@ -39,6 +39,15 @@ interface PurchaseOrderResponse {
   items: PurchaseOrderItemResponse[]
 }
 
+interface InboundOrderBatchItemResponse {
+  id: number
+  inboundOrderItemId: number
+  productId: number
+  dateCode: string
+  lotCode: string
+  inboundQuantity: number
+}
+
 interface InboundOrderItemResponse {
   id: number
   inboundOrderId: number
@@ -46,6 +55,7 @@ interface InboundOrderItemResponse {
   purchaseOrderNo: string
   purchaseOrderItemId: number
   inboundQuantity: number
+  batches: InboundOrderBatchItemResponse[]
 }
 
 interface InboundOrderResponse {
@@ -58,6 +68,19 @@ interface InboundOrderResponse {
   status: string
   inboundTime?: string | null
   items: InboundOrderItemResponse[]
+}
+
+interface InboundOrderCreateRequest {
+  purchaseOrderId: number
+  inboundTime?: string
+  items: {
+    purchaseOrderItemId: number
+    batches: {
+      dateCode: string
+      lotCode: string
+      inboundQuantity: number
+    }[]
+  }[]
 }
 
 const pageRequest = { pageNo: 1, pageSize: 1000 }
@@ -111,17 +134,27 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
 }
 
 function toPurchaseReceipt(receipt: InboundOrderResponse): PurchaseReceipt {
+  const lines = receipt.items.map(item => {
+    const batches = item.batches?.map(batch => ({
+      id: String(batch.id),
+      dateCode: batch.dateCode || '',
+      lotCode: batch.lotCode || '',
+      quantity: batch.inboundQuantity,
+    })) ?? [{ id: `legacy-${item.id}`, dateCode: '', lotCode: '', quantity: item.inboundQuantity }]
+    return {
+      lineId: String(item.purchaseOrderItemId),
+      arrived: batches.reduce((sum, batch) => sum + batch.quantity, 0),
+      rejected: 0,
+      location: '',
+      batches,
+    }
+  })
   return {
     id: String(receipt.id),
     code: `CGRK-${String(receipt.id).padStart(6, '0')}`,
     orderId: String(receipt.purchaseOrderId),
     warehouse: '',
-    lines: receipt.items.map(item => ({
-      lineId: String(item.purchaseOrderItemId),
-      arrived: item.inboundQuantity,
-      rejected: 0,
-      location: '',
-    })),
+    lines,
     quality: '合格',
     qualityNote: '',
     inspector: '',
@@ -149,4 +182,29 @@ export async function fetchInboundOrders() {
     { method: 'POST', body: JSON.stringify(pageRequest) },
   )
   return page.records.map(toPurchaseReceipt)
+}
+
+export async function createInboundOrder(receipt: PurchaseReceipt) {
+  const items = receipt.lines
+    .map(line => ({
+      purchaseOrderItemId: Number(line.lineId),
+      batches: line.batches
+        .filter(batch => batch.quantity > 0)
+        .map(batch => ({
+          dateCode: batch.dateCode.trim(),
+          lotCode: batch.lotCode.trim(),
+          inboundQuantity: batch.quantity,
+        })),
+    }))
+    .filter(item => item.batches.length > 0)
+  if (!items.length) throw Error('请填写至少一个入库批次')
+  const request: InboundOrderCreateRequest = {
+    purchaseOrderId: Number(receipt.orderId),
+    inboundTime: receipt.receivedAt ? receipt.receivedAt.replace(' ', 'T') : undefined,
+    items,
+  }
+  await apiRequest<unknown>('/inbound-order', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
 }

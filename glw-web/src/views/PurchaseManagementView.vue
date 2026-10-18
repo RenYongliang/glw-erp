@@ -403,6 +403,8 @@ const importHeaders = isOrder
       '采购订单编号',
       '入库仓库',
       '产品编码',
+      '原厂日期码',
+      '原厂批次号',
       '到货数量',
       '不合格数量',
       '入库仓位',
@@ -422,6 +424,8 @@ function downloadTemplate() {
           )?.code || '请填写订单编号',
           '杭州仓',
           'CP001',
+          '2519',
+          'L2519A001',
           1,
           0,
           'HZ-A01',
@@ -538,9 +542,17 @@ function confirmImport() {
           throw Error('同一入库单的仓库及质检信息必须一致')
         receipt.lines.push({
           lineId: line.id,
-          arrived: Number(r['到货数量']),
+          arrived: Math.max(0, Number(r['到货数量']) - Number(r['不合格数量'])),
           rejected: Number(r['不合格数量']),
           location: r['入库仓位']!,
+          batches: [
+            {
+              id: crypto.randomUUID(),
+              dateCode: r['原厂日期码']!,
+              lotCode: r['原厂批次号']!,
+              quantity: Math.max(0, Number(r['到货数量']) - Number(r['不合格数量'])),
+            },
+          ],
         })
         if (Number(r['不合格数量']) > 0) receipt.quality = '存在不合格品'
       }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
@@ -23,6 +23,8 @@ import {
   type PurchaseKind,
   type PurchaseOrder,
   type PurchaseReceipt,
+  type ReceiptBatch,
+  type ReceiptLine,
   type Attachment,
 } from '../../domain/purchase'
 const props = defineProps<{
@@ -41,7 +43,10 @@ const store = usePurchaseStore(),
   picker = ref(''),
   pickerQuery = ref(''),
   productSelection = ref<string[]>([]),
-  dirty = ref(false)
+  dirty = ref(false),
+  saving = ref(false),
+  expandedReceiptLines = ref<string[]>([]),
+  receiptLinesTable = ref<{ toggleRowExpansion: (row: ReceiptLine, expanded?: boolean) => void } | null>(null)
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 const order = ref<PurchaseOrder>(
   props.order
@@ -95,6 +100,11 @@ const receipt = ref<PurchaseReceipt>(
 )
 const isOrder = props.kind === 'orders',
   title = isOrder ? '采购订单' : '采购入库'
+for (const line of receipt.value.lines) {
+  line.batches ??= []
+  line.arrived = line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
+}
+expandedReceiptLines.value = receipt.value.lines.map(line => line.lineId)
 const linkedOrder = computed(() =>
   isOrder ? order.value : store.state.orders.find((o) => o.id === receipt.value.orderId),
 )
@@ -167,14 +177,25 @@ function chooseOrder(o: PurchaseOrder) {
   receipt.value.warehouse = o.warehouse
   receipt.value.lines = o.lines
     .filter((l) => remainingQuantity(store.state, o.id, l.id, receipt.value.id) > 0)
-    .map((l) => ({
-      lineId: l.id,
-      arrived: remainingQuantity(store.state, o.id, l.id, receipt.value.id),
-      rejected: 0,
-      location: '',
-    }))
+    .map((l) => {
+      const remaining = remainingQuantity(store.state, o.id, l.id, receipt.value.id)
+      return {
+        lineId: l.id,
+        arrived: remaining,
+        rejected: 0,
+        location: '',
+        batches: [newBatch(remaining)],
+      }
+    })
+  void expandReceiptLines()
   picker.value = ''
   dirty.value = true
+}
+async function expandReceiptLines() {
+  if (isOrder) return
+  expandedReceiptLines.value = receipt.value.lines.map(line => line.lineId)
+  await nextTick()
+  for (const line of receipt.value.lines) receiptLinesTable.value?.toggleRowExpansion(line, true)
 }
 if (props.relatedOrder && !props.receipt) chooseOrder(props.relatedOrder)
 function addProducts() {
@@ -202,12 +223,43 @@ function productValue(id: string | undefined, key: string) {
 function orderLine(lineId: string) {
   return linkedOrder.value?.lines.find((l) => l.id === lineId)
 }
+function newBatch(quantity = 0): ReceiptBatch {
+  return {
+    id: crypto.randomUUID(),
+    dateCode: '',
+    lotCode: '',
+    quantity,
+  }
+}
+function syncLine(line: ReceiptLine) {
+  line.arrived = line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
+}
+function batchTotal(line: ReceiptLine) {
+  return line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
+}
+function unallocatedQuantity(line: ReceiptLine) {
+  return remainingQuantity(store.state, receipt.value.orderId, line.lineId, receipt.value.id) - batchTotal(line)
+}
+async function addBatch(line: ReceiptLine) {
+  line.batches.push(newBatch())
+  expandedReceiptLines.value = Array.from(new Set([...expandedReceiptLines.value, line.lineId]))
+  await nextTick()
+  receiptLinesTable.value?.toggleRowExpansion(line, true)
+  dirty.value = true
+}
+function removeBatch(line: ReceiptLine, index: number) {
+  line.batches.splice(index, 1)
+  syncLine(line)
+  dirty.value = true
+}
 function openPicker(name: string) {
   pickerQuery.value = name === 'supplier' && !order.value.supplierId ? purchaseSupplierName(order.value) : ''
   productSelection.value = []
   picker.value = name
 }
-function save() {
+async function save() {
+  if (saving.value) return
+  saving.value = true
   try {
     if (isOrder) store.saveOrder(order.value)
     else {
@@ -215,7 +267,7 @@ function save() {
       receipt.value.receivedAt ||= new Date().toLocaleString('sv-SE').slice(0, 16)
       receipt.value.keeper = auth.user?.name || receipt.value.keeper
       receipt.value.department = auth.user?.department || receipt.value.department
-      store.saveReceipt(receipt.value)
+      await store.saveReceipt(receipt.value)
     }
     dirty.value = false
     ElMessage.success(
@@ -224,6 +276,8 @@ function save() {
     emit('saved')
   } catch (e) {
     ElMessage.error((e as Error).message)
+  } finally {
+    saving.value = false
   }
 }
 async function close(done?: () => void) {
@@ -323,7 +377,8 @@ function quickFill() {
       const l = linkedOrder.value?.lines.find((l) => l.productId === r.p!.id),
         row = receipt.value.lines.find((x) => x.lineId === l?.id)
       if (!row) return ElMessage.error('产品不在本次入库订单中')
-      row.arrived = r.q
+      row.batches = [newBatch(r.q)]
+      syncLine(row)
     }
   }
   dirty.value = true
@@ -335,13 +390,14 @@ function quickFill() {
   <el-dialog
     :model-value="true"
     :title="title"
-    width="820px"
+    :width="isOrder ? '820px' : '1000px'"
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog"
     :class="{ 'purchase-order-editor': isOrder }"
     :close-on-click-modal="false"
     :before-close="close"
+    @opened="expandReceiptLines"
     destroy-on-close
   >
     <template #header
@@ -378,7 +434,7 @@ function quickFill() {
         <el-form-item label="采购日期" required><el-date-picker v-model="order.signed" value-format="YYYY-MM-DD" aria-label="采购日期" /></el-form-item>
         <el-form-item label="采购单号"><div class="purchase-read">{{ order.code || '保存后自动生成' }}</div></el-form-item>
       </el-form>
-      <el-form v-else label-position="top" class="purchase-form-grid" :disabled="view">
+      <el-form v-else label-position="top" class="purchase-form-grid purchase-receipt-meta" :disabled="view">
         <el-form-item v-if="!props.relatedOrder && !props.receipt" label="选择采购订单" required
           ><el-button
             class="purchase-picker-button"
@@ -394,7 +450,7 @@ function quickFill() {
             ><div class="purchase-read">{{ linkedOrder?.code || '暂无内容' }}</div></el-form-item
           ></template
         >
-        <el-form-item v-for="[label, value] in baseFields" :key="label" :label="label"
+        <el-form-item v-for="[label, value] in baseFields.filter(([label, value]) => label === '供应商名称' || !!value)" :key="label" :label="label"
           ><div class="purchase-read">{{ value || '暂无内容' }}</div></el-form-item
         >
         <template v-if="isOrder">
@@ -414,12 +470,12 @@ function quickFill() {
               aria-label="订单交付日期"
           /></el-form-item>
         </template>
-        <el-form-item :label="isOrder ? '采购订单编号' : '采购入库单编号'"
+        <el-form-item v-if="isOrder || receipt.code" :label="isOrder ? '采购订单编号' : '采购入库单编号'"
           ><div class="purchase-read">
             {{ (isOrder ? order.code : receipt.code) || '自动生成无需填写' }}
           </div></el-form-item
         >
-        <el-form-item label="采购负责人"
+        <el-form-item v-if="isOrder || linkedOrder?.owner" label="采购负责人"
           ><el-select v-if="isOrder" v-model="order.owner" filterable allow-create
             ><el-option v-for="n in ['张睿', '林晓', '陈晨']" :key="n" :value="n"
           /></el-select>
@@ -431,9 +487,6 @@ function quickFill() {
       </el-form>
       <h3 class="purchase-section">{{ isOrder ? '采购产品信息' : '入库产品明细' }}</h3>
 
-      <div v-if="!isOrder" class="purchase-field-label">
-        <span>*</span> {{ isOrder ? '采购产品信息' : '入库产品明细' }}
-      </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines purchase-order-lines" empty-text="点击“添加”选择采购产品">
         <el-table-column type="index" label="序号" width="60" />
         <el-table-column label="规格" min-width="85" show-overflow-tooltip><template #default="{row}">{{ purchaseLineProductText(row, 'model') }}</template></el-table-column>
@@ -454,9 +507,81 @@ function quickFill() {
         v-else
         :data="receipt.lines"
         border
-        class="purchase-lines"
+        class="purchase-lines purchase-receipt-lines"
+        ref="receiptLinesTable"
+        row-key="lineId"
+        default-expand-all
+        :expand-row-keys="expandedReceiptLines"
         empty-text="请先选择采购订单"
       >
+        <el-table-column type="expand" width="45">
+          <template #default="{ row }">
+            <div class="purchase-batch-panel">
+              <div v-if="row.batches.length" class="purchase-batch-columns" aria-hidden="true">
+                <span>#</span><span><span class="purchase-batch-required">*</span>Date Code <small>日期码</small></span><span><span class="purchase-batch-required">*</span>Lot Code <small>原厂批次号</small></span><span class="purchase-batch-number-heading">入库数量</span><span></span>
+              </div>
+              <div class="purchase-batch-list">
+                <div
+                  v-for="(batch, index) in row.batches"
+                  :key="batch.id"
+                  class="purchase-batch-item"
+                >
+                  <span class="purchase-batch-index">{{ index + 1 }}</span>
+                  <el-input
+                    v-model="batch.dateCode"
+                    class="purchase-batch-date"
+                    :disabled="view || !!props.receipt?.confirmed || saving"
+                    maxlength="32"
+                    required
+                    aria-required="true"
+                    aria-label="原厂日期码"
+                    placeholder="必填，如 2618"
+                  />
+                  <el-input
+                    v-model="batch.lotCode"
+                    class="purchase-batch-lot"
+                    :disabled="view || !!props.receipt?.confirmed || saving"
+                    maxlength="64"
+                    required
+                    aria-required="true"
+                    aria-label="原厂批次号"
+                    placeholder="必填，填写原厂批次号"
+                  />
+                    <el-input-number
+                      v-model="batch.quantity"
+                      class="purchase-batch-quantity"
+                      :disabled="view || !!props.receipt?.confirmed || saving"
+                      :min="0"
+                      :max="remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id)"
+                      :step="100"
+                      :precision="0"
+                      controls-position="right"
+                      aria-label="批次本次入库数量"
+                      @update:model-value="() => { syncLine(row); dirty = true }"
+                    />
+                  <el-tooltip v-if="!view && !props.receipt?.confirmed" content="删除批次" placement="top"><el-button
+                    class="purchase-batch-remove"
+                    text
+                    :disabled="saving"
+                    :icon="Delete"
+                    aria-label="删除批次"
+                    @click="removeBatch(row, index)"
+                  /></el-tooltip>
+                  <span v-else></span>
+                </div>
+              </div>
+              <div v-if="!row.batches.length" class="purchase-batch-empty">
+                暂无入库批次
+              </div>
+              <div class="purchase-batch-footer">
+                <el-button v-if="!view && !props.receipt?.confirmed" text type="primary" :icon="Plus" :disabled="saving" @click="addBatch(row)">添加批次</el-button>
+                <span v-else>{{ row.batches.length }} 个批次</span>
+                <span v-if="!view && !props.receipt?.confirmed" class="purchase-batch-balance" :class="{ 'is-over-limit': unallocatedQuantity(row) < 0 }">{{ unallocatedQuantity(row) < 0 ? `超出待入库 ${-unallocatedQuantity(row)}` : `剩余待入库 ${unallocatedQuantity(row)}` }}</span>
+                <span class="purchase-batch-subtotal">本次入库 <strong>{{ batchTotal(row) }}</strong></span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column type="index" width="45" />
         <el-table-column
           v-for="f in [
@@ -485,14 +610,14 @@ function quickFill() {
         >
 
 
-        <el-table-column label="本次入库数量" min-width="140">
+        <el-table-column label="本次入库数量" min-width="125" align="right">
           <template #default="{ row }">
-            <el-input-number :model-value="row.arrived - row.rejected" :disabled="view || !!props.receipt?.confirmed" :min="0" :max="Math.max(0, remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id) - row.rejected)" :step="100" :precision="0" controls-position="right" aria-label="本次入库数量" @update:model-value="(value: number | undefined) => { row.arrived = (value || 0) + row.rejected; dirty = true }" />
+            <div class="purchase-receipt-total">{{ batchTotal(row) }}</div>
+            <span class="purchase-receipt-batch-count">{{ row.batches.length }} 个批次</span>
           </template>
         </el-table-column>
-
       </el-table>
-      <div v-if="!view" class="purchase-line-actions">
+      <div v-if="isOrder && !view" class="purchase-line-actions">
         <el-button v-if="isOrder" text type="primary" :icon="Plus" @click="openPicker('product')"
           >添加</el-button
         ><el-button
@@ -803,7 +928,7 @@ function quickFill() {
           ><span v-if="isOrder && locked" class="purchase-tip"
             >已有业务记录，订单基础数据已锁定</span
           ></template
-        ><el-button v-else type="primary" @click="save">提交</el-button
+        ><el-button v-else type="primary" :loading="saving" @click="save">{{ isOrder ? '提交' : '确认入库' }}</el-button
         ><el-button @click="close()">{{ view ? '关闭' : '取消' }}</el-button>
       </div></template
     >
@@ -918,4 +1043,32 @@ function quickFill() {
 
 <style>
 .purchase-order-lines .purchase-order-product-actions .el-button { padding: 8px; margin: 0; }
+.purchase-form-grid.purchase-receipt-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.purchase-receipt-lines .el-table__expanded-cell { padding: 0 !important; }
+.purchase-batch-panel { padding: 12px 20px 12px 46px; background: #f7f9fb; border-bottom: 1px solid #e4e9ef; }
+.purchase-batch-columns, .purchase-batch-item { display: grid; grid-template-columns: 26px minmax(120px, 0.8fr) minmax(180px, 1.4fr) 150px 30px; gap: 12px; align-items: center; }
+.purchase-batch-columns { margin-bottom: 8px; font-size: 12px; color: #526173; }
+.purchase-batch-columns small { margin-left: 5px; font-size: 12px; color: #8893a1; }
+.purchase-batch-required { margin-right: 4px; color: #e05252; }
+.purchase-batch-number-heading { text-align: right; padding-right: 12px; }
+.purchase-batch-list { display: flex; flex-direction: column; gap: 8px; }
+.purchase-batch-index { color: #8a95a3; font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.purchase-batch-date, .purchase-batch-lot, .purchase-batch-quantity { min-width: 0; }
+.purchase-batch-panel .el-input, .purchase-batch-panel .el-input-number { width: 100%; }
+.purchase-batch-panel .el-input__wrapper { background: #fff; }
+.purchase-batch-remove { width: 30px; height: 30px; padding: 0; margin: 0; color: #8a95a3; }
+.purchase-batch-remove:hover { color: #e05252; background: #fff0f0; }
+.purchase-batch-empty { color: #8a95a3; font-size: 12px; padding: 8px 0; }
+.purchase-batch-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 8px; padding-left: 38px; font-size: 12px; }
+.purchase-batch-footer .el-button { padding: 6px 0; height: 30px; font-size: 12px; }
+.purchase-batch-balance { margin-left: auto; color: #8a95a3; }
+.purchase-batch-balance.is-over-limit { color: #d94040; }
+.purchase-batch-subtotal { margin-left: auto; color: #596778; font-variant-numeric: tabular-nums; }
+.purchase-batch-balance + .purchase-batch-subtotal { margin-left: 0; }
+.purchase-batch-subtotal strong { margin-left: 8px; font-size: 14px; font-weight: 600; color: #009d85; }
+.purchase-receipt-total { color: #009d85; font-weight: 600; font-variant-numeric: tabular-nums; }
+.purchase-receipt-batch-count { color: #8a95a3; font-size: 12px; }
+@media (max-width: 640px) {
+  .purchase-form-grid.purchase-receipt-meta { grid-template-columns: minmax(0, 1fr); }
+}
 </style>
