@@ -29,6 +29,7 @@ import com.glw.backend.model.vo.InboundOrderBatchItemVO;
 import com.glw.backend.model.vo.InboundOrderVO;
 import com.glw.backend.model.vo.InboundPurchaseOrderVO;
 import com.glw.backend.service.InboundOrderBatchItemService;
+import com.glw.backend.service.DocumentNumberService;
 import com.glw.backend.service.InboundOrderItemService;
 import com.glw.backend.service.InboundOrderService;
 import com.glw.backend.service.InboundOrderPurchaseOrderService;
@@ -69,6 +70,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     private final InboundOrderConverter inboundOrderConverter;
     private final InboundOrderPurchaseOrderService relationService;
     private final ProductMapper productMapper;
+    private final DocumentNumberService documentNumberService;
 
     @Override
     public InboundOrderVO detail(Long id, Long purchaseOrderId) {
@@ -160,10 +162,8 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         inboundOrder.setStatus(InboundStatus.COMPLETED);
         inboundOrder.setInboundTime(inboundTime);
         inboundOrder.setVersion(0);
+        inboundOrder.setInboundOrderNo(documentNumberService.next(DocumentNumberService.Kind.INBOUND, inboundTime));
         save(inboundOrder);
-        inboundOrder.setInboundOrderNo("CGRK-" + String.format("%06d", inboundOrder.getId()));
-        if (!updateById(inboundOrder))
-            throw new BusinessException(ErrorCode.CONFLICT, "入库单保存失败，请重试");
         for (PurchaseOrder order : purchaseOrders) {
             var relation = new InboundOrderPurchaseOrder();
             relation.setInboundOrderId(inboundOrder.getId());

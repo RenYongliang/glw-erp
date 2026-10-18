@@ -21,7 +21,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='inbound_order' AND column_name='inbound_order_no') THEN
     ALTER TABLE inbound_order ADD COLUMN inbound_order_no varchar(64) NULL DEFAULT NULL COMMENT '入库单编号' AFTER id;
   END IF;
-  UPDATE inbound_order SET inbound_order_no=CONCAT('CGRK-', CASE WHEN id < 1000000 THEN LPAD(id,6,'0') ELSE CAST(id AS CHAR) END) WHERE inbound_order_no IS NULL;
+  -- Backfill numbers with migrate_document_numbers.sql after historical package merges.
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='inbound_order' AND column_name='purchase_order_id') THEN
     INSERT INTO inbound_order_purchase_order (inbound_order_id,purchase_order_id,purchase_order_no)
     SELECT r.id,r.purchase_order_id,COALESCE(r.purchase_order_no,p.purchase_order_no)

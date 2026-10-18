@@ -24,7 +24,7 @@ public class MockSalesOrderServiceImpl implements SalesOrderService {
     public IPage<SalesOrderVO> pageSalesOrder(SalesOrderPageDTO pageDTO) {
         SalesOrder salesOrder = new SalesOrder();
         salesOrder.setId(1L);
-        salesOrder.setOrderNo("SO-20261014-001");
+        salesOrder.setOrderNo("SO20261014001");
         salesOrder.setCustomerOrderNo("CO-20261014-001");
         salesOrder.setOrderTime(LocalDateTime.of(2026, 10, 14, 10, 30));
         salesOrder.setCustomerId(1L);

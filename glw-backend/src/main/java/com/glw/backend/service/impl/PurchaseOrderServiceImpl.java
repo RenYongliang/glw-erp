@@ -14,14 +14,17 @@ import com.glw.backend.model.entity.PurchaseOrderItem;
 import com.glw.backend.model.vo.PurchaseOrderVO;
 import com.glw.backend.service.PurchaseOrderItemService;
 import com.glw.backend.service.PurchaseOrderService;
+import com.glw.backend.service.DocumentNumberService;
 
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -36,6 +39,18 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     private final PurchaseOrderConverter purchaseOrderConverter;
     private final InboundOrderItemMapper inboundOrderItemMapper;
     private final SupplierMapper supplierMapper;
+    private final DocumentNumberService documentNumberService;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean save(PurchaseOrder order) {
+        if (order.getId() == null) {
+            if (order.getOrderTime() == null) order.setOrderTime(LocalDateTime.now());
+            order.setPurchaseOrderNo(documentNumberService.next(
+                    DocumentNumberService.Kind.PURCHASE, order.getOrderTime()));
+        }
+        return super.save(order);
+    }
 
     @Override
     public IPage<PurchaseOrderVO> pagePurchaseOrder(PurchaseOrderPageDTO pageDTO) {

@@ -21,6 +21,7 @@ import {
 } from '@element-plus/icons-vue'
 import PurchaseRecordDialog from '../components/purchase/PurchaseRecordDialog.vue'
 import InboundReceiptDialog from '../components/purchase/InboundReceiptDialog.vue'
+import MultiOrderInboundDialog from '../components/purchase/MultiOrderInboundDialog.vue'
 import { usePurchaseStore } from '../stores/purchase'
 import {
   suppliers,
@@ -604,7 +605,7 @@ function confirmImport() {
     <div class="purchase-toolbar">
       <div class="purchase-toolbar-actions">
         <el-button type="primary" :icon="Plus" @click="open()">添加</el-button
-        ><el-button v-if="isOrder" class="purchase-multi-receive" type="success" plain :icon="Box" @click="receiveMultiple">多单入库</el-button><el-button
+        ><el-button v-if="isOrder" class="purchase-multi-receive" type="primary" :icon="Box" @click="receiveMultiple">入库</el-button><el-button
           text
           :icon="Upload"
           @click="
@@ -859,7 +860,8 @@ function confirmImport() {
     @saved="saved"
     @receive="receive"
   />
-  <InboundReceiptDialog v-if="editor && editorKind === 'receipts' && !singleReceipt" :key="editorVersion" :receipt="editingReceipt" :scope-order="scopeOrder" @close="editor = false" @saved="saved" />
+  <InboundReceiptDialog v-if="editor && editorKind === 'receipts' && editingReceipt" :key="editorVersion" :receipt="editingReceipt" :scope-order="scopeOrder" @close="editor = false" @saved="saved" />
+  <MultiOrderInboundDialog v-if="editor && editorKind === 'receipts' && !singleReceipt && !editingReceipt" :key="editorVersion" @close="editor = false" @saved="saved" />
   <el-drawer v-model="logsOpen" title="操作记录" size="min(600px,95vw)" class="purchase-dialog"
     ><el-empty v-if="!store.state.logs.length" description="暂无操作记录" /><el-timeline v-else
       ><el-timeline-item v-for="log in store.state.logs" :key="log.id" :timestamp="log.time"

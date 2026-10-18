@@ -37,6 +37,7 @@ export interface SalesOrderResponse {
 }
 export interface OutboundOrderResponse {
   id: number
+  outboundOrderNo?: string | null
   salesOrderId: number
   customerOrderNo?: string | null
   customerId: number
@@ -86,7 +87,7 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
 
 export function toSalesShipment(order: OutboundOrderResponse): SalesShipment {
   return {
-    id: String(order.id), code: `XSCK-${String(order.id).padStart(6, '0')}`,
+    id: String(order.id), code: order.outboundOrderNo || String(order.id),
     orderId: String(order.salesOrderId), customerName: order.customerName,
     customerShortName: order.customerShortName?.trim() || undefined,
     purchaseNumber: order.customerOrderNo || '', warehouse: '',

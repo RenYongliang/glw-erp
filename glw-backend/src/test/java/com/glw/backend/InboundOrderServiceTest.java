@@ -44,8 +44,9 @@ class InboundOrderServiceTest {
         final InventoryService inventory = mock(InventoryService.class);
         final InboundOrderPurchaseOrderService relations = mock(InboundOrderPurchaseOrderService.class);
         final InboundOrderItemMapper totals = mock(InboundOrderItemMapper.class);
+        final DocumentNumberService numbers = mock(DocumentNumberService.class);
         final InboundOrderServiceImpl service = spy(new InboundOrderServiceImpl(items, totals, batches,
-                orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), relations, mock(ProductMapper.class)));
+                orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), relations, mock(ProductMapper.class), numbers));
         final List<InboundOrderItem> savedItems = new ArrayList<>();
         final List<InboundOrderBatchItem> savedBatches = new ArrayList<>();
         final List<InboundOrderPurchaseOrder> savedRelations = new ArrayList<>();
@@ -54,6 +55,7 @@ class InboundOrderServiceTest {
         final PurchaseOrder second = order(2L);
 
         Fixture() {
+            when(numbers.next(eq(DocumentNumberService.Kind.INBOUND), any())).thenReturn("IN20261018001");
             LambdaQueryChainWrapper<PurchaseOrder> poQuery = query();
             when(orders.lambdaQuery()).thenReturn(poQuery);
             when(poQuery.list()).thenReturn(List.of(first, second));
@@ -88,7 +90,8 @@ class InboundOrderServiceTest {
     void oneReceiptKeepsAllocationsCostsAndCompletionSeparateForEachPurchaseOrder() {
         var f = new Fixture();
         var result = f.service.createInboundOrder(request(50, 20));
-        assertThat(result.getInboundOrderNo()).isEqualTo("CGRK-000100");
+        assertThat(result.getInboundOrderNo()).isEqualTo("IN20261018001");
+        verify(f.numbers).next(DocumentNumberService.Kind.INBOUND, java.time.LocalDateTime.of(2026, 10, 18, 9, 0));
         assertThat(result.getPurchaseOrders()).extracting(vo -> vo.getPurchaseOrderId()).containsExactly(1L, 2L);
         assertThat(result.getItems()).extracting(vo -> vo.getInboundQuantity()).containsExactly(50, 20);
         assertThat(result.getItems()).extracting(vo -> vo.getProductId()).containsOnly(6L);
@@ -125,7 +128,7 @@ class InboundOrderServiceTest {
     }
 
     private static InboundOrder receipt() {
-        var row = new InboundOrder(); row.setId(100L); row.setInboundOrderNo("CGRK-000100"); return row;
+        var row = new InboundOrder(); row.setId(100L); row.setInboundOrderNo("IN20261018001"); return row;
     }
     private static PurchaseOrder order(Long id) {
         var row = new PurchaseOrder(); row.setId(id); row.setPurchaseOrderNo("PO-" + id);

@@ -1,4 +1,5 @@
 import catalog from '../data/products.json' with { type: 'json' }
+import { nextDocumentNumber } from './documentNumbers.ts'
 import type { ShipmentBatch } from './shipmentBatches'
 export type SalesKind = 'orders' | 'shipments'
 export interface Product {
@@ -267,15 +268,7 @@ export const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 export function nextSalesCode(prefix: string, rows: { code: string }[], date = today()) {
-  const start = prefix + date.replaceAll('-', '').slice(2) + '-'
-  const n =
-    Math.max(
-      0,
-      ...rows
-        .filter((r) => r.code.startsWith(start))
-        .map((r) => Number(r.code.slice(start.length)) || 0),
-    ) + 1
-  return start + String(n).padStart(2, '0')
+  return nextDocumentNumber(prefix, rows, date)
 }
 export function orderTotals(order: Pick<SalesOrder, 'lines' | 'discount'>) {
   const cents = order.lines.map((l) => Math.round((l.amount ?? l.quantity * l.price) * 100))

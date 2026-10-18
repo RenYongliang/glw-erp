@@ -25,6 +25,7 @@ import {
   type CrmField,
 } from "../domain/crm";
 import orderData from "../data/orderBoards.json";
+import { nextDocumentNumber } from "../domain/documentNumbers";
 import "../assets/crm.css";
 const props = defineProps<{ kind: CrmKind }>();
 const store = useCrmStore();
@@ -312,7 +313,7 @@ function saveSale() {
     return ElMessage.error("请填写订单名称、日期和有效数量、单价");
   try {
     store.addSale({
-      id: `XSDD-${crypto.randomUUID().slice(0, 8)}`,
+      id: nextDocumentNumber("SO", store.state.sales.map(row => ({ code: row.id })), sale.value.date),
       customerId: saleCustomer.value!.id,
       ...sale.value,
     });

@@ -36,7 +36,7 @@ export function createDeliveryNote(
   const customer = customers.find((c) => c.id === order.customerId)
   const date = shipment.shippedAt.slice(0, 10) || today()
   const suffix = shipment.code
-    ? shipment.code.replace(/^XSCK/, '')
+    ? shipment.code.replace(/^(?:OUT|XSCK)/, '')
     : shipment.id.replace(/-/g, '').slice(0, 8).toUpperCase()
   if (
     shipment.orderId !== order.id ||

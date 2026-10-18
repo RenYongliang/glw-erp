@@ -79,7 +79,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     order.approver = ''
     order.approvedAt = ''
     if (index < 0) {
-      order.code = nextPurchaseCode('CGDD', next.orders)
+      order.code = nextPurchaseCode('GL', next.orders, order.signed)
       next.orders.unshift(order)
     } else next.orders[index] = order
     commit(next, index < 0 ? '新增采购订单' : '修改并重新提交审批', order.code)
@@ -165,7 +165,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     for (const row of rows) {
       const error = validateOrder(row)
       if (error) throw Error(error)
-      row.code = nextPurchaseCode('CGDD', next.orders)
+      row.code = nextPurchaseCode('GL', next.orders, row.signed)
       row.status = '待审批'
       next.orders.unshift(row)
     }
@@ -176,7 +176,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     for (const row of rows) {
       const error = validateReceipt(row, next)
       if (error) throw Error(error)
-      row.code = nextPurchaseCode('CGRK', next.receipts)
+      row.code = nextPurchaseCode('IN', next.receipts, row.receivedAt)
       next.receipts.unshift(row)
     }
     commit(next, '导入采购入库', `${rows.length} 条`)

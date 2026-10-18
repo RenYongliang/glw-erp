@@ -17,6 +17,15 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS document_number_sequence;
+CREATE TABLE IF NOT EXISTS document_number_sequence (
+  document_type varchar(8) NOT NULL,
+  business_date date NOT NULL,
+  last_sequence int NOT NULL DEFAULT 0,
+  PRIMARY KEY (document_type, business_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
 -- ----------------------------
 -- Table structure for customer
 -- ----------------------------
@@ -178,6 +187,7 @@ CREATE TABLE `inventory`  (
 DROP TABLE IF EXISTS `outbound_order`;
 CREATE TABLE `outbound_order`  (
   `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `outbound_order_no` varchar(64) NOT NULL COMMENT '出库单编号',
   `sales_order_id` bigint(0) NOT NULL COMMENT '销售订单id',
   `customer_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '客户采购单编号',
   `customer_id` bigint(0) NOT NULL COMMENT '客户id',
@@ -191,6 +201,7 @@ CREATE TABLE `outbound_order`  (
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_outbound_order_no`(`outbound_order_no`) USING BTREE,
   INDEX `idx_sales_order_id`(`sales_order_id`) USING BTREE,
   INDEX `idx_customer_order_no`(`customer_order_no`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '出库表' ROW_FORMAT = Dynamic;
@@ -273,7 +284,7 @@ CREATE TABLE `purchase_order`  (
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_purchase_order_no`(`purchase_order_no`) USING BTREE
+  UNIQUE INDEX `uk_purchase_order_no`(`purchase_order_no`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '采购订单表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------

@@ -14,14 +14,17 @@ import com.glw.backend.model.entity.SalesOrderItem;
 import com.glw.backend.model.vo.SalesOrderVO;
 import com.glw.backend.service.SalesOrderItemService;
 import com.glw.backend.service.SalesOrderService;
+import com.glw.backend.service.DocumentNumberService;
 
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,18 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     private final SalesOrderConverter salesOrderConverter;
     private final CustomerMapper customerMapper;
     private final OutboundOrderItemMapper outboundOrderItemMapper;
+    private final DocumentNumberService documentNumberService;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean save(SalesOrder order) {
+        if (order.getId() == null) {
+            if (order.getOrderTime() == null) order.setOrderTime(LocalDateTime.now());
+            order.setOrderNo(documentNumberService.next(
+                    DocumentNumberService.Kind.SALES, order.getOrderTime()));
+        }
+        return super.save(order);
+    }
 
     @Override
     public IPage<SalesOrderVO> pageSalesOrder(SalesOrderPageDTO pageDTO) {

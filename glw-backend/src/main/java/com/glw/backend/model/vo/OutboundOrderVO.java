@@ -9,6 +9,7 @@ import java.util.List;
 @Data
 public class OutboundOrderVO {
     private Long id;
+    private String outboundOrderNo;
     private Long salesOrderId;
     private String customerOrderNo;
     private Long customerId;

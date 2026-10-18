@@ -23,6 +23,10 @@ public class OutboundOrder {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
+    /** 出库单编号。 */
+    @TableField("outbound_order_no")
+    private String outboundOrderNo;
+
     /** 销售订单id。 */
     @TableField("sales_order_id")
     private Long salesOrderId;

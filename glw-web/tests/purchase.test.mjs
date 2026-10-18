@@ -223,8 +223,8 @@ test('returns never count unconfirmed receipts or already returned goods', () =>
 })
 test('document numbers skip existing sequences and amount uppercase handles group boundaries', () => {
   assert.equal(
-    nextPurchaseCode('CGDD', [{ code: 'CGDD260924-03' }, { code: 'CGDD260923-99' }], '2026-09-24'),
-    'CGDD260924-04',
+    nextPurchaseCode('GL', [{ code: 'GL20260924003' }, { code: 'GL20260923099' }], '2026-09-24'),
+    'GL20260924004',
   )
   for (const [n, s] of [
     [0, '零元整'],

@@ -71,7 +71,7 @@ export const useSalesStore = defineStore('sales', () => {
     order.approver = ''
     order.approvedAt = ''
     if (index < 0) {
-      order.code = nextSalesCode('XSDD', next.orders)
+      order.code = nextSalesCode('SO', next.orders, order.signed)
       next.orders.unshift(order)
     } else next.orders[index] = order
     commit(next, index < 0 ? '新增销售订单' : '修改并重新提交审批', order.code)
@@ -115,7 +115,7 @@ export const useSalesStore = defineStore('sales', () => {
     if (index >= 0 && next.returns.some((r) => r.orderId === shipment.orderId))
       throw Error('该订单已有退货记录，不能再修改出库记录')
     if (index < 0) {
-      shipment.code = nextSalesCode('XSCK', next.shipments)
+      shipment.code = nextSalesCode('OUT', next.shipments, shipment.shippedAt || undefined)
       next.shipments.unshift(shipment)
     } else next.shipments[index] = shipment
     commit(next, index < 0 ? '新增销售出库' : '修改销售出库', shipment.code)
@@ -184,7 +184,7 @@ export const useSalesStore = defineStore('sales', () => {
     for (const row of rows) {
       const error = validateOrder(row)
       if (error) throw Error(error)
-      row.code = nextSalesCode('XSDD', next.orders)
+      row.code = nextSalesCode('SO', next.orders, row.signed)
       row.status = '待审批'
       next.orders.unshift(row)
     }
@@ -195,7 +195,7 @@ export const useSalesStore = defineStore('sales', () => {
     for (const row of rows) {
       const error = validateShipment(row, next)
       if (error) throw Error(error)
-      row.code = nextSalesCode('XSCK', next.shipments)
+      row.code = nextSalesCode('OUT', next.shipments, row.shippedAt || undefined)
       next.shipments.unshift(row)
     }
     commit(next, '导入销售出库', `${rows.length} 条`)

@@ -6,6 +6,7 @@ import com.glw.backend.mapper.CustomerMapper;
 import com.glw.backend.model.entity.Customer;
 import com.glw.backend.model.entity.OutboundOrder;
 import com.glw.backend.service.OutboundOrderService;
+import com.glw.backend.service.DocumentNumberService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.glw.backend.model.dto.OutboundOrderPageDTO;
@@ -18,11 +19,13 @@ import com.glw.backend.converter.OutboundOrderConverter;
 import lombok.AllArgsConstructor;
 import org.springframework.util.StringUtils;
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** 出库表基础服务实现。 */
 @Service
@@ -34,6 +37,18 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
     private final OutboundOrderBatchItemService batchService;
     private final OutboundOrderConverter converter;
     private final CustomerMapper customerMapper;
+    private final DocumentNumberService documentNumberService;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean save(OutboundOrder order) {
+        if (order.getId() == null) {
+            if (order.getOutboundTime() == null) order.setOutboundTime(LocalDateTime.now());
+            order.setOutboundOrderNo(documentNumberService.next(
+                    DocumentNumberService.Kind.OUTBOUND, order.getOutboundTime()));
+        }
+        return super.save(order);
+    }
 
     @Override
     public IPage<OutboundOrderVO> pageOutboundOrder(OutboundOrderPageDTO dto) {

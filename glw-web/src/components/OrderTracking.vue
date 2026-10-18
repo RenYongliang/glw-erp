@@ -34,7 +34,7 @@ const orders = ref<Order[]>(
       i % 6
     ]!
     return {
-      id: `XSDD260923-${String(12 - i).padStart(2, '0')}`,
+      id: `SO202609${String(23 - i).padStart(2, '0')}001`,
       name: `示例：${customer}-第${12 - i}份销售订单`,
       customer: `示例：${customer}`,
       warehouse: i % 2 ? '无锡仓' : '杭州仓',
