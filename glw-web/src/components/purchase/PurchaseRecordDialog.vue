@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
@@ -44,9 +44,7 @@ const store = usePurchaseStore(),
   pickerQuery = ref(''),
   productSelection = ref<string[]>([]),
   dirty = ref(false),
-  saving = ref(false),
-  expandedReceiptLines = ref<string[]>([]),
-  receiptLinesTable = ref<{ toggleRowExpansion: (row: ReceiptLine, expanded?: boolean) => void } | null>(null)
+  saving = ref(false)
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 const order = ref<PurchaseOrder>(
   props.order
@@ -104,7 +102,6 @@ for (const line of receipt.value.lines) {
   line.batches ??= []
   line.arrived = line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
 }
-expandedReceiptLines.value = receipt.value.lines.map(line => line.lineId)
 const linkedOrder = computed(() =>
   isOrder ? order.value : store.state.orders.find((o) => o.id === receipt.value.orderId),
 )
@@ -187,15 +184,8 @@ function chooseOrder(o: PurchaseOrder) {
         batches: [newBatch(remaining)],
       }
     })
-  void expandReceiptLines()
   picker.value = ''
   dirty.value = true
-}
-async function expandReceiptLines() {
-  if (isOrder) return
-  expandedReceiptLines.value = receipt.value.lines.map(line => line.lineId)
-  await nextTick()
-  for (const line of receipt.value.lines) receiptLinesTable.value?.toggleRowExpansion(line, true)
 }
 if (props.relatedOrder && !props.receipt) chooseOrder(props.relatedOrder)
 function addProducts() {
@@ -223,7 +213,7 @@ function productValue(id: string | undefined, key: string) {
 function orderLine(lineId: string) {
   return linkedOrder.value?.lines.find((l) => l.id === lineId)
 }
-function newBatch(quantity = 0): ReceiptBatch {
+function newBatch(quantity = 1): ReceiptBatch {
   return {
     id: crypto.randomUUID(),
     dateCode: '',
@@ -240,14 +230,13 @@ function batchTotal(line: ReceiptLine) {
 function unallocatedQuantity(line: ReceiptLine) {
   return remainingQuantity(store.state, receipt.value.orderId, line.lineId, receipt.value.id) - batchTotal(line)
 }
-async function addBatch(line: ReceiptLine) {
+function addBatch(line: ReceiptLine) {
   line.batches.push(newBatch())
-  expandedReceiptLines.value = Array.from(new Set([...expandedReceiptLines.value, line.lineId]))
-  await nextTick()
-  receiptLinesTable.value?.toggleRowExpansion(line, true)
+  syncLine(line)
   dirty.value = true
 }
 function removeBatch(line: ReceiptLine, index: number) {
+  if (line.batches.length <= 1) return
   line.batches.splice(index, 1)
   syncLine(line)
   dirty.value = true
@@ -397,7 +386,6 @@ function quickFill() {
     :class="{ 'purchase-order-editor': isOrder }"
     :close-on-click-modal="false"
     :before-close="close"
-    @opened="expandReceiptLines"
     destroy-on-close
   >
     <template #header
@@ -503,24 +491,32 @@ function quickFill() {
           </template>
         </el-table-column>
       </el-table>
-      <el-table
-        v-else
-        :data="receipt.lines"
-        border
-        class="purchase-lines purchase-receipt-lines"
-        ref="receiptLinesTable"
-        row-key="lineId"
-        default-expand-all
-        :expand-row-keys="expandedReceiptLines"
-        empty-text="请先选择采购订单"
-      >
-        <el-table-column type="expand" width="45">
-          <template #default="{ row }">
+      <div v-else class="purchase-receipt-products">
+        <article v-for="(row, productIndex) in receipt.lines" :key="row.lineId" class="purchase-receipt-product">
+          <header class="purchase-receipt-product-heading">
+            <div class="purchase-receipt-product-identity">
+              <span class="purchase-receipt-product-index">{{ String(productIndex + 1).padStart(2, '0') }}</span>
+              <div class="purchase-receipt-product-description">
+                <strong class="purchase-receipt-product-model">{{ purchaseLineProductText(orderLine(row.lineId), 'model') || '—' }}</strong>
+                <div class="purchase-receipt-product-specs">
+                  <span>{{ purchaseLineProductText(orderLine(row.lineId), 'brand') || '—' }}</span>
+                  <span>{{ purchaseLineProductText(orderLine(row.lineId), 'packaging') || '—' }}</span>
+                </div>
+              </div>
+            </div>
+            <dl class="purchase-receipt-product-quantities">
+              <div><dt>采购数量</dt><dd>{{ orderLine(row.lineId)?.quantity }}</dd></div>
+              <div><dt>待入库</dt><dd>{{ remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id) }}</dd></div>
+              <div><dt>本次入库</dt><dd class="purchase-receipt-total">{{ batchTotal(row) }}</dd></div>
+            </dl>
+            <el-button v-if="!view && !props.receipt?.confirmed" class="purchase-product-add-batch" text type="primary" :icon="Plus" :disabled="saving" @click="addBatch(row)">添加批次</el-button>
+          </header>
             <div class="purchase-batch-panel">
+              <div class="purchase-batch-scroll">
               <table v-if="row.batches.length" class="purchase-batch-table" aria-label="入库批次明细">
                 <colgroup><col class="purchase-batch-index-col" /><col class="purchase-batch-date-col" /><col /><col class="purchase-batch-quantity-col" /><col class="purchase-batch-action-col" /></colgroup>
                 <thead><tr class="purchase-batch-columns">
-                  <th scope="col">#</th><th scope="col"><span class="purchase-batch-required">*</span>Date Code <small>日期码</small></th><th scope="col"><span class="purchase-batch-required">*</span>Lot Code <small>原厂批次号</small></th><th scope="col" class="purchase-batch-number-heading">入库数量</th><th scope="col">操作</th>
+                  <th scope="col">#</th><th scope="col"><span class="purchase-batch-required">*</span>Date Code <small>日期码</small></th><th scope="col"><span class="purchase-batch-required">*</span>Lot Code <small>原厂批次号</small></th><th scope="col" class="purchase-batch-number-heading"><span class="purchase-batch-required">*</span>入库数量</th><th scope="col">操作</th>
                 </tr></thead>
                 <tbody class="purchase-batch-list">
                 <tr
@@ -556,75 +552,43 @@ function quickFill() {
                       v-model="batch.quantity"
                       class="purchase-batch-quantity"
                       :disabled="view || !!props.receipt?.confirmed || saving"
-                      :min="0"
+                      :min="1"
                       :max="remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id)"
                       :step="100"
                       :precision="0"
                       controls-position="right"
+                      required
+                      aria-required="true"
                       aria-label="批次本次入库数量"
                       @update:model-value="() => { syncLine(row); dirty = true }"
                     />
                   </td><td class="purchase-batch-actions">
-                  <el-tooltip v-if="!view && !props.receipt?.confirmed" content="删除批次" placement="top"><el-button
+                  <el-tooltip v-if="!view && !props.receipt?.confirmed" :content="row.batches.length <= 1 ? '至少保留一个批次' : '删除批次'" placement="top"><span class="purchase-batch-remove-trigger"><el-button
                     class="purchase-batch-remove"
                     text
-                    :disabled="saving"
+                    :disabled="saving || row.batches.length <= 1"
                     :icon="Delete"
                     aria-label="删除批次"
                     @click="removeBatch(row, index)"
-                  /></el-tooltip>
+                  /></span></el-tooltip>
                   <span v-else>—</span>
                   </td>
                 </tr>
                 </tbody>
               </table>
+              </div>
               <div v-if="!row.batches.length" class="purchase-batch-empty">
                 暂无入库批次
               </div>
               <div class="purchase-batch-footer">
-                <el-button v-if="!view && !props.receipt?.confirmed" text type="primary" :icon="Plus" :disabled="saving" @click="addBatch(row)">添加批次</el-button>
-                <span v-else>{{ row.batches.length }} 个批次</span>
+                <span>{{ row.batches.length }} 个批次</span>
                 <span v-if="!view && !props.receipt?.confirmed" class="purchase-batch-balance" :class="{ 'is-over-limit': unallocatedQuantity(row) < 0 }">{{ unallocatedQuantity(row) < 0 ? `超出待入库 ${-unallocatedQuantity(row)}` : `剩余待入库 ${unallocatedQuantity(row)}` }}</span>
                 <span class="purchase-batch-subtotal">本次入库 <strong>{{ batchTotal(row) }}</strong></span>
               </div>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column type="index" width="45" />
-        <el-table-column
-          v-for="f in [
-            { key: 'brand', label: '品牌', width: 65 },
-            { key: 'model', label: '型号', width: 105 },
-            { key: 'packaging', label: '封装', width: 160 },
-          ]"
-          :key="f.key"
-          :label="f.label"
-          :min-width="f.width"
-          :width="f.key === 'packaging' ? f.width : undefined"
-          show-overflow-tooltip
-          ><template #default="{ row }">{{
-            purchaseLineProductText(orderLine(row.lineId), f.key) || '—'
-          }}</template></el-table-column
-        >
-        <el-table-column label="采购数量" width="105"
-          ><template #default="{ row }">{{
-            orderLine(row.lineId)?.quantity
-          }}</template></el-table-column
-        >
-        <el-table-column label="待入库数量" width="110"
-          ><template #default="{ row }">{{
-            remainingQuantity(store.state, receipt.orderId, row.lineId, receipt.id)
-          }}</template></el-table-column
-        >
-
-
-        <el-table-column label="本次入库数量" min-width="125" align="right">
-          <template #default="{ row }">
-            <div class="purchase-receipt-total">{{ batchTotal(row) }}</div>
-            <span class="purchase-receipt-batch-count">{{ row.batches.length }} 个批次</span>
-          </template>
-        </el-table-column>
-      </el-table>
+        </article>
+        <el-empty v-if="!receipt.lines.length" description="暂无待入库产品" :image-size="60" />
+      </div>
       <div v-if="isOrder && !view" class="purchase-line-actions">
         <el-button v-if="isOrder" text type="primary" :icon="Plus" @click="openPicker('product')"
           >添加</el-button
@@ -1052,8 +1016,23 @@ function quickFill() {
 <style>
 .purchase-order-lines .purchase-order-product-actions .el-button { padding: 8px; margin: 0; }
 .purchase-form-grid.purchase-receipt-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.purchase-receipt-lines .el-table__expanded-cell { padding: 0 !important; }
-.purchase-batch-panel { padding: 8px 16px 6px 45px; background: #fafbfc; }
+.purchase-receipt-products { display: flex; flex-direction: column; gap: 0; }
+.purchase-receipt-product { min-width: 0; }
+.purchase-receipt-product-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: start; gap: 6px 16px; padding: 8px 10px; border: 1px solid #e4e8ed; border-bottom: 0; background: #f8fafb; }
+.purchase-receipt-product:first-child .purchase-receipt-product-heading { border-radius: 4px 4px 0 0; }
+.purchase-product-add-batch.el-button { height: 20px; padding: 0; margin: 0; font-size: 12px; }
+.purchase-receipt-product-identity { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+.purchase-receipt-product-index { flex-shrink: 0; color: #98a2ae; font-size: 12px; font-variant-numeric: tabular-nums; }
+.purchase-receipt-product-description { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 12px; min-width: 0; }
+.purchase-receipt-product-model { display: block; overflow-wrap: anywhere; font-size: 13px; font-weight: 600; line-height: 20px; color: #263648; }
+.purchase-receipt-product-specs { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; line-height: 18px; color: #7e8997; overflow-wrap: anywhere; }
+.purchase-receipt-product-specs > span + span { padding-left: 10px; border-left: 1px solid #e1e6ec; }
+.purchase-receipt-product-quantities { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: 6px 16px; margin: 0; }
+.purchase-receipt-product-quantities > div { display: flex; align-items: baseline; gap: 6px; }
+.purchase-receipt-product-quantities dt { font-size: 11px; line-height: 18px; color: #84909e; }
+.purchase-receipt-product-quantities dd { margin: 0; font-size: 12px; line-height: 20px; font-variant-numeric: tabular-nums; }
+.purchase-batch-panel { margin-top: 0; }
+.purchase-batch-scroll { overflow-x: auto; }
 .purchase-batch-panel .purchase-batch-table { width: 100%; table-layout: fixed; border-collapse: collapse; background: #fff; font-size: 12px; }
 .purchase-batch-index-col { width: 34px; }
 .purchase-batch-date-col { width: 30%; }
@@ -1078,9 +1057,11 @@ function quickFill() {
 .purchase-batch-panel .el-input-number__increase, .purchase-batch-panel .el-input-number__decrease { width: 24px; }
 .purchase-batch-panel .el-input-number .el-input__wrapper { padding-right: 30px; }
 .purchase-batch-remove { width: 26px; height: 26px; padding: 0; margin: 0; color: #98a1ad; }
+.purchase-batch-remove-trigger { display: inline-flex; vertical-align: middle; }
 .purchase-batch-remove:hover { color: #e05252; background: #fff0f0; }
 .purchase-batch-empty { color: #8a95a3; font-size: 12px; padding: 8px 0; }
-.purchase-batch-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 4px; min-height: 24px; font-size: 12px; }
+.purchase-batch-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 3px 10px; min-height: 26px; border-left: 1px solid #e4e8ed; border-right: 1px solid #e4e8ed; font-size: 12px; color: #8a95a3; }
+.purchase-receipt-product:last-of-type .purchase-batch-footer { border-bottom: 1px solid #e4e8ed; }
 .purchase-batch-footer .el-button { padding: 0; height: 24px; font-size: 12px; }
 .purchase-batch-balance { margin-left: auto; color: #8a95a3; }
 .purchase-batch-balance.is-over-limit { color: #d94040; }
@@ -1088,8 +1069,15 @@ function quickFill() {
 .purchase-batch-balance + .purchase-batch-subtotal { margin-left: 0; }
 .purchase-batch-subtotal strong { margin-left: 6px; font-size: 13px; font-weight: 600; color: #009d85; }
 .purchase-receipt-total { color: #009d85; font-weight: 600; font-variant-numeric: tabular-nums; }
-.purchase-receipt-batch-count { color: #8a95a3; font-size: 12px; }
 @media (max-width: 640px) {
   .purchase-form-grid.purchase-receipt-meta { grid-template-columns: minmax(0, 1fr); }
+  .purchase-receipt-product-heading { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; padding: 8px; }
+  .purchase-product-add-batch { grid-column: 2; grid-row: 1; }
+  .purchase-receipt-product-quantities { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; gap: 4px 8px; }
+  .purchase-receipt-product-quantities > div { gap: 4px; }
+  .purchase-batch-panel .purchase-batch-table { min-width: 560px; }
+  .purchase-batch-footer { gap: 4px 10px; }
+  .purchase-batch-balance { font-size: 11px; }
+  .purchase-batch-subtotal { display: none; }
 }
 </style>

@@ -175,6 +175,17 @@ test('receipt quantities are summed per date and lot, with missing codes and dup
   assert.match(validateReceipt(r, s), /待入库/)
 })
 
+test('every receipt batch requires a positive integer quantity', () => {
+  for (const quantity of [undefined, null, NaN, 0, -1, 1.5]) {
+    const r = receipt()
+    r.lines[0].batches[0].quantity = quantity
+    assert.match(validateReceipt(r, state()), /批次入库数量/)
+  }
+  const r = receipt()
+  r.lines[0].batches = []
+  assert.match(validateReceipt(r, state()), /批次入库数量/)
+})
+
 test('returns never count unconfirmed receipts or already returned goods', () => {
   const s = state()
   s.receipts.push(receipt())

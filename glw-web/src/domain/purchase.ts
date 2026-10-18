@@ -374,6 +374,8 @@ export function validateReceipt(receipt: PurchaseReceipt, state: PurchaseState) 
     return '产品明细不可重复'
   for (const l of receipt.lines) {
     const batches = l.batches ?? []
+    if (!batches.length || batches.some((batch) => !Number.isSafeInteger(batch.quantity) || batch.quantity <= 0))
+      return '请填写批次入库数量，数量必须是正整数'
     l.arrived = batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
     if (
       !order.lines.some((p) => p.id === l.lineId) ||
