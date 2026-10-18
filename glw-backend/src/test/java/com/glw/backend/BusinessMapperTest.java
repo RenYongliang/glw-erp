@@ -12,6 +12,8 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.Test;
+import com.glw.backend.model.dto.InventoryPageDTO;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
@@ -68,6 +70,26 @@ class BusinessMapperTest {
         }
         assertThat(tests).hasSize(17);
         return tests.stream();
+    }
+
+    @Test
+    void inventoryQueriesKeepAvailabilityFiltersAndProductPagingSeparate() {
+        var configuration = factory.getConfiguration();
+        var query = new InventoryPageDTO();
+        query.setKeyword("quoted'_%");
+        String namespace = "com.glw.backend.mapper.InventoryMapper.";
+        var statement = configuration.getMappedStatement(namespace + "selectProductStock");
+        String stockSql = statement.getBoundSql(Map.of("query", query)).getSql().replaceAll("\\s+", " ");
+        assertThat(stockSql).contains("GREATEST(i.quantity - COALESCE(i.reserved_quantity, 0), 0) > 0")
+                .contains("s.available_quantity > 0").contains("LOCATE(?, p.part_no)")
+                .doesNotContain("quoted'_%");
+        query.setInStockOnly(false);
+        String allSql = statement.getBoundSql(Map.of("query", query)).getSql();
+        assertThat(allSql).doesNotContain("s.available_quantity > 0");
+        String batchSql = configuration.getMappedStatement(namespace + "selectAvailableBatches")
+                .getBoundSql(Map.of("productIds", List.of(4L, 7L))).getSql().replaceAll("\\s+", " ");
+        assertThat(batchSql).contains("i.product_id IN").contains("GREATEST(i.quantity - COALESCE(i.reserved_quantity, 0), 0) > 0")
+                .contains("ORDER BY i.product_id");
     }
 
     private void verifyTable(String table, String body) throws Exception {

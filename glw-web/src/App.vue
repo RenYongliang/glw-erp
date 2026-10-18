@@ -76,6 +76,7 @@ const purchaseMenus = [
 ]
 const basicExpanded = ref(route.path.startsWith('/products/'))
 const purchaseExpanded = ref(route.path.startsWith('/purchase/'))
+const inventoryExpanded = ref(route.path.startsWith('/inventory/'))
 const customerExpanded = ref(['/customers', '/followups'].includes(route.path))
 const boardExpanded = ref(route.path.startsWith('/boards/'))
 // FIFO: revisiting an existing page updates its URL without changing opening order.
@@ -125,6 +126,7 @@ watch(
     }
     if (route.path.startsWith('/sales/')) salesExpanded.value = true
     if (route.path.startsWith('/purchase/')) purchaseExpanded.value = true
+    if (route.path.startsWith('/inventory/')) inventoryExpanded.value = true
     if (route.path.startsWith('/boards/')) boardExpanded.value = true
     if (['/customers', '/followups'].includes(route.path)) customerExpanded.value = true
     workspace.value?.querySelector('.page-scroll')?.scrollTo({ top: 0 })
@@ -148,6 +150,7 @@ const filteredMenus = computed(() =>
   menus.filter(
     (item) =>
       item.includes(query.value.trim()) ||
+      (item === '库存管理' && '库存列表'.includes(query.value.trim())) ||
       (item === '销售管理' && salesMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '基础数据' && '产品信息查询'.includes(query.value.trim())) ||
       (item === '经营看板' && boardMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
@@ -176,6 +179,9 @@ function navigate(name: string) {
   } else if (name === '客户管理') {
     if (collapsed.value) collapsed.value = false
     customerExpanded.value = !customerExpanded.value
+  } else if (name === '库存管理') {
+    if (collapsed.value) collapsed.value = false
+    inventoryExpanded.value = !inventoryExpanded.value
   } else ElMessage.info(`${name}将在后续阶段建设。`)
 }
 async function fullscreen() {
@@ -233,7 +239,9 @@ async function fullscreen() {
                           ? customerExpanded
                           : name === '采购管理'
                             ? purchaseExpanded
-                            : undefined
+                            : name === '库存管理'
+                              ? inventoryExpanded
+                              : undefined
                 "
                 @click="navigate(name)"
               >
@@ -246,7 +254,7 @@ async function fullscreen() {
                 >
                 <el-icon
                   v-if="
-                    ['经营看板', '客户管理', '采购管理', '基础数据', '销售管理'].includes(name) &&
+                    ['经营看板', '客户管理', '采购管理', '基础数据', '销售管理', '库存管理'].includes(name) &&
                     !collapsed
                   "
                   class="board-menu-arrow"
@@ -260,7 +268,9 @@ async function fullscreen() {
                             ? boardExpanded
                             : name === '客户管理'
                               ? customerExpanded
-                              : purchaseExpanded,
+                              : name === '库存管理'
+                                ? inventoryExpanded
+                                : purchaseExpanded,
                   }"
                   ><ArrowDown
                 /></el-icon>
@@ -275,6 +285,12 @@ async function fullscreen() {
                   :aria-current="route.path === '/products/query' ? 'page' : undefined"
                 >
                   <el-icon><DataAnalysis /></el-icon><span>产品信息查询</span>
+                </RouterLink>
+              </div>
+              <div v-if="name === '库存管理' && (inventoryExpanded || query)" class="board-submenu">
+                <RouterLink to="/inventory/list" class="nav-item" :class="{ active: route.path === '/inventory/list' }"
+                  title="库存列表" aria-label="库存列表" :aria-current="route.path === '/inventory/list' ? 'page' : undefined">
+                  <el-icon><Document /></el-icon><span>库存列表</span>
                 </RouterLink>
               </div>
               <div v-if="name === '经营看板' && (boardExpanded || query)" class="board-submenu">

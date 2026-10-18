@@ -56,6 +56,7 @@ export function safeRedirect(value: unknown): string {
         '/boards/sales',
         '/boards/purchase',
         '/boards/inventory',
+        '/inventory/list',
         '/customers',
         '/followups',
         '/purchase/orders',

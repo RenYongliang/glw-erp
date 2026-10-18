@@ -23,4 +23,48 @@
     <sql id="Base_Column_List">
         `id`, `product_id`, `date_code`, `lot_code`, `batch_no`, `inbound_order_item_id`, `inbound_order_batch_item_id`, `unit_cost`, `initial_quantity`, `quantity`, `reserved_quantity`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
+    <sql id="AvailableQuantity">GREATEST(i.quantity - COALESCE(i.reserved_quantity, 0), 0)</sql>
+
+    <select id="selectProductStock" resultType="com.glw.backend.model.vo.InventoryProductVO">
+        SELECT p.id AS product_id, p.brand, p.part_no, p.package_type,
+               COALESCE(s.available_quantity, 0) AS available_quantity,
+               COALESCE(s.batch_count, 0) AS batch_count,
+               s.average_cost, s.min_cost, s.max_cost, COALESCE(s.stock_value, 0) AS stock_value
+        FROM product p
+        LEFT JOIN (
+            SELECT i.product_id, SUM(<include refid="AvailableQuantity"/>) AS available_quantity,
+                   COUNT(*) AS batch_count,
+                   ROUND(SUM(i.unit_cost * <include refid="AvailableQuantity"/>) /
+                         NULLIF(SUM(<include refid="AvailableQuantity"/>), 0), 4) AS average_cost,
+                   MIN(i.unit_cost) AS min_cost, MAX(i.unit_cost) AS max_cost,
+                   SUM(i.unit_cost * <include refid="AvailableQuantity"/>) AS stock_value
+            FROM inventory i
+            WHERE <include refid="AvailableQuantity"/> > 0
+            GROUP BY i.product_id
+        ) s ON s.product_id = p.id
+        <where>
+            <if test="query.inStockOnly">s.available_quantity > 0</if>
+            <if test="query.keyword != null and query.keyword != ''">
+                AND (LOCATE(#{query.keyword}, p.brand) > 0 OR LOCATE(#{query.keyword}, p.part_no) > 0
+                     OR LOCATE(#{query.keyword}, p.package_type) > 0 OR CAST(p.id AS CHAR) = #{query.keyword})
+            </if>
+            <if test="query.brand != null and query.brand != ''">AND LOCATE(#{query.brand}, p.brand) > 0</if>
+            <if test="query.partNo != null and query.partNo != ''">AND LOCATE(#{query.partNo}, p.part_no) > 0</if>
+            <if test="query.packageType != null and query.packageType != ''">AND LOCATE(#{query.packageType}, p.package_type) > 0</if>
+        </where>
+        ORDER BY p.id
+    </select>
+
+    <select id="selectAvailableBatches" resultType="com.glw.backend.model.vo.InventoryBatchVO">
+        SELECT i.id AS inventory_id, i.product_id, i.date_code, i.lot_code, i.batch_no,
+               i.quantity, <include refid="AvailableQuantity"/> AS available_quantity,
+               i.unit_cost, i.unit_cost * <include refid="AvailableQuantity"/> AS stock_value,
+               COALESCE(r.inbound_time, i.created_at) AS inbound_time
+        FROM inventory i
+        LEFT JOIN inbound_order_item d ON d.id = i.inbound_order_item_id
+        LEFT JOIN inbound_order r ON r.id = d.inbound_order_id
+        WHERE <include refid="AvailableQuantity"/> > 0 AND i.product_id IN
+        <foreach collection="productIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY i.product_id, COALESCE(r.inbound_time, i.created_at), i.batch_no, i.id
+    </select>
 </mapper>
