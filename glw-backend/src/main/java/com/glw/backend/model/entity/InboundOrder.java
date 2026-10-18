@@ -23,13 +23,9 @@ public class InboundOrder {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    /** 采购单id。 */
-    @TableField("purchase_order_id")
-    private Long purchaseOrderId;
-
-    /** 采购单编号。 */
-    @TableField("purchase_order_no")
-    private String purchaseOrderNo;
+    /** 一次实际收货的入库单号。 */
+    @TableField("inbound_order_no")
+    private String inboundOrderNo;
 
     /** 供应商id。 */
     @TableField("supplier_id")

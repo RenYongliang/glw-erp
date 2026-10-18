@@ -18,6 +18,7 @@ import {
   chineseMoney,
   orderTotals,
   receiptTotals,
+  receiptMatchesOrder,
   remainingQuantity,
   pendingDeliveryQuantity,
   type PurchaseKind,
@@ -114,7 +115,7 @@ const baseFields = computed(() => [
   ['供应商联系人手机', purchasePhone(linkedOrder.value)],
 ])
 const linkedReceipts = computed(() =>
-  store.state.receipts.filter((r) => r.orderId === order.value.id),
+  store.state.receipts.filter((r) => receiptMatchesOrder(r, order.value.id)),
 )
 const linkedPayments = computed(() =>
   store.state.payments.filter((r) => r.orderId === order.value.id),
@@ -826,7 +827,7 @@ function quickFill() {
           ><el-table-column label="已确认入库"
             ><template #default="{ row }">{{
               store.state.receipts
-                .filter((r) => r.orderId === order.id && r.confirmed)
+                .filter((r) => receiptMatchesOrder(r, order.id) && r.confirmed)
                 .reduce(
                   (s, r) =>
                     s +

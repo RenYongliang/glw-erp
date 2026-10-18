@@ -10,6 +10,7 @@ test('receipt status counts only confirmed accepted quantities for every ordered
  assert.equal(purchaseReceiptStatus(order,[receipt(true,10,1)]),'部分收货')
  assert.equal(purchaseReceiptStatus(order,[receipt(true)]),'已收货')
  assert.equal(purchaseReceiptStatus(order,[{...receipt(true),orderId:'other'}]),'待收货')
+ assert.equal(purchaseReceiptStatus(order,[{...receipt(true),orderId:'other',orderIds:['other','o']}]),'已收货')
 })
 test('supplier, payment, receipt, order code and inclusive dates combine',()=>{
  const f=emptyPurchaseOrderFilters();Object.assign(f,{code:'po-1',supplier:'供应商甲',paymentStatus:'部分付款',receiptStatus:'已收货',dates:['2026-10-08','2026-10-08']})

@@ -1,5 +1,5 @@
 import { apiRequest } from './api'
-import type { PurchaseOrder, PurchaseReceipt } from '../domain/purchase'
+import { receiptOrderIds, type PurchaseOrder, type PurchaseReceipt } from '../domain/purchase'
 
 interface PageResponse<T> {
   records: T[]
@@ -49,6 +49,11 @@ interface InboundOrderBatchItemResponse {
 }
 
 interface InboundOrderItemResponse {
+  productId: number
+  brand?: string
+  partNo?: string
+  packageType?: string
+  unitPrice?: string
   id: number
   inboundOrderId: number
   purchaseOrderId: number
@@ -60,8 +65,8 @@ interface InboundOrderItemResponse {
 
 interface InboundOrderResponse {
   id: number
-  purchaseOrderId: number
-  purchaseOrderNo?: string | null
+  inboundOrderNo: string
+  purchaseOrders: { purchaseOrderId: number; purchaseOrderNo: string }[]
   supplierId: number
   supplierName: string
   inboundType: string
@@ -71,7 +76,7 @@ interface InboundOrderResponse {
 }
 
 interface InboundOrderCreateRequest {
-  purchaseOrderId: number
+  purchaseOrderIds: number[]
   inboundTime?: string
   items: {
     purchaseOrderItemId: number
@@ -83,7 +88,14 @@ interface InboundOrderCreateRequest {
   }[]
 }
 
-const pageRequest = { pageNo: 1, pageSize: 1000 }
+async function allRecords<T>(path: string): Promise<T[]> {
+  const records: T[] = []
+  for (let pageNo = 1; ; pageNo++) {
+    const page = await apiRequest<PageResponse<T>>(path, { method: 'POST', body: JSON.stringify({ pageNo, pageSize: 200 }) })
+    records.push(...page.records)
+    if (pageNo >= page.pages || !page.records.length) return records
+  }
+}
 const date = (value?: string | null) => (value ? value.slice(0, 10) : '')
 
 function orderStatus(status: string): PurchaseOrder['status'] {
@@ -142,6 +154,12 @@ function toPurchaseReceipt(receipt: InboundOrderResponse): PurchaseReceipt {
       quantity: batch.inboundQuantity,
     })) ?? [{ id: `legacy-${item.id}`, dateCode: '', lotCode: '', quantity: item.inboundQuantity }]
     return {
+      orderId: String(item.purchaseOrderId),
+      productId: String(item.productId),
+      brand: item.brand,
+      model: item.partNo,
+      packaging: item.packageType,
+      unitPrice: Number(item.unitPrice ?? 0),
       lineId: String(item.purchaseOrderItemId),
       arrived: batches.reduce((sum, batch) => sum + batch.quantity, 0),
       rejected: 0,
@@ -151,8 +169,10 @@ function toPurchaseReceipt(receipt: InboundOrderResponse): PurchaseReceipt {
   })
   return {
     id: String(receipt.id),
-    code: `CGRK-${String(receipt.id).padStart(6, '0')}`,
-    orderId: String(receipt.purchaseOrderId),
+    code: receipt.inboundOrderNo,
+    orderId: String(receipt.purchaseOrders[0]?.purchaseOrderId ?? ''),
+    orderIds: receipt.purchaseOrders.map(order => String(order.purchaseOrderId)),
+    supplierName: receipt.supplierName,
     warehouse: '',
     lines,
     quality: '合格',
@@ -169,19 +189,15 @@ function toPurchaseReceipt(receipt: InboundOrderResponse): PurchaseReceipt {
 }
 
 export async function fetchPurchaseOrders() {
-  const page = await apiRequest<PageResponse<PurchaseOrderResponse>>(
-    '/purchase-order/list',
-    { method: 'POST', body: JSON.stringify(pageRequest) },
-  )
-  return page.records.map(toPurchaseOrder)
+  return (await allRecords<PurchaseOrderResponse>('/purchase-order/list')).map(toPurchaseOrder)
 }
 
 export async function fetchInboundOrders() {
-  const page = await apiRequest<PageResponse<InboundOrderResponse>>(
-    '/inbound-order/list',
-    { method: 'POST', body: JSON.stringify(pageRequest) },
-  )
-  return page.records.map(toPurchaseReceipt)
+  return (await allRecords<InboundOrderResponse>('/inbound-order/list')).map(toPurchaseReceipt)
+}
+
+export async function fetchInboundDetail(id: string, orderId?: string) {
+  return toPurchaseReceipt(await apiRequest<InboundOrderResponse>(`/inbound-order/${id}${orderId ? `/purchase-orders/${orderId}` : ''}`))
 }
 
 export async function createInboundOrder(receipt: PurchaseReceipt) {
@@ -199,8 +215,8 @@ export async function createInboundOrder(receipt: PurchaseReceipt) {
     .filter(item => item.batches.length > 0)
   if (!items.length) throw Error('请填写至少一个入库批次')
   const request: InboundOrderCreateRequest = {
-    purchaseOrderId: Number(receipt.orderId),
-    inboundTime: receipt.receivedAt ? receipt.receivedAt.replace(' ', 'T') : undefined,
+    purchaseOrderIds: receiptOrderIds(receipt).map(Number),
+    inboundTime: receipt.receivedAt ? (receipt.receivedAt.length === 10 ? `${receipt.receivedAt}T00:00:00` : receipt.receivedAt.replace(' ', 'T')) : undefined,
     items,
   }
   await apiRequest<unknown>('/inbound-order', {

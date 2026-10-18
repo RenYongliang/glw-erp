@@ -34,6 +34,9 @@ BEGIN
   IF EXISTS (SELECT 1 FROM `inbound_order_item` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inbound_order_item';
   END IF;
+  IF EXISTS (SELECT 1 FROM `inbound_order_purchase_order` LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inbound_order_purchase_order';
+  END IF;
   IF EXISTS (SELECT 1 FROM `inventory` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inventory';
   END IF;
@@ -135,37 +138,36 @@ BEGIN
     (24, 17, 'gl20261008001', 3, '力芯微', 'ET5A033YB', 'DFN1*1', 0.3000, 1, NULL, 12000, 3600.0000),
     (25, 17, 'gl20261008001', 7, '力芯微', 'ET2104', 'WLCSP12(0.5 Pitch)/ QFN12/TSSOP14', 0.7000, 1, NULL, 3000, 2100.0000),
     (26, 17, 'gl20261008001', 6, '力芯微', 'ET5907', 'WLCSP20(0.35 Pitch)', 0.8500, 1, NULL, 12000, 10200.0000);
-  -- inbound_order: 29 confirmed rows
-  INSERT INTO `inbound_order` (`id`, `purchase_order_id`, `purchase_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `status`, `inbound_time`) VALUES
-    (1, 1, 'gl20260407001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-05-26 00:00:00'),
-    (2, 1, 'gl20260407001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-06-15 00:00:00'),
-    (3, 1, 'gl20260407001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-19 00:00:00'),
-    (4, 2, 'gl20260515001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-06-24 00:00:00'),
-    (5, 2, 'gl20260515001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-07-04 00:00:00'),
-    (6, 3, 'gl20260720001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-07-23 00:00:00'),
-    (7, 4, 'gl2026717001', 2, '深圳联思微', 'PURCHASE', 'COMPLETED', '2026-07-20 00:00:00'),
-    (8, 5, 'gl20260722001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-07-27 00:00:00'),
-    (9, 6, 'gl20260721001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-03 00:00:00'),
-    (10, 6, 'gl20260721001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-20 00:00:00'),
-    (11, 6, 'gl20260721001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-22 00:00:00'),
-    (12, 6, 'gl20260721001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-07 00:00:00'),
-    (13, 6, 'gl20260721001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-12 00:00:00'),
-    (14, 6, 'gl20260721001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
-    (15, 7, 'gl20260731001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-03 00:00:00'),
-    (16, 8, 'gl20260804001', 2, '深圳联思微', 'PURCHASE', 'COMPLETED', '2026-08-07 00:00:00'),
-    (17, 9, 'gl20260810001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-13 00:00:00'),
-    (18, 10, 'gl20260818001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-09 00:00:00'),
-    (19, 11, 'gl20260818002', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-02 00:00:00'),
-    (20, 11, 'gl20260818002', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-07 00:00:00'),
-    (21, 11, 'gl20260818002', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-30 00:00:00'),
-    (22, 11, 'gl20260818002', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
-    (23, 12, 'gl20260903001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-07 00:00:00'),
-    (24, 13, 'gl20260907001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-09 00:00:00'),
-    (25, 13, 'gl20260907001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
-    (26, 14, 'gl20260910001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-12 00:00:00'),
-    (27, 14, 'gl20260910001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
-    (28, 16, 'gl20260922001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
-    (29, 17, 'gl20261008001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00');
+  -- inbound_order: 28 confirmed receipts; product 6 on Oct 10 is one package.
+  INSERT INTO `inbound_order` (`id`, `inbound_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `status`, `inbound_time`) VALUES
+    (1, 'CGRK-000001', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-05-26 00:00:00'),
+    (2, 'CGRK-000002', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-06-15 00:00:00'),
+    (3, 'CGRK-000003', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-19 00:00:00'),
+    (4, 'CGRK-000004', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-06-24 00:00:00'),
+    (5, 'CGRK-000005', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-07-04 00:00:00'),
+    (6, 'CGRK-000006', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-07-23 00:00:00'),
+    (7, 'CGRK-000007', 2, '深圳联思微', 'PURCHASE', 'COMPLETED', '2026-07-20 00:00:00'),
+    (8, 'CGRK-000008', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-07-27 00:00:00'),
+    (9, 'CGRK-000009', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-03 00:00:00'),
+    (10, 'CGRK-000010', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-20 00:00:00'),
+    (11, 'CGRK-000011', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-22 00:00:00'),
+    (12, 'CGRK-000012', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-07 00:00:00'),
+    (13, 'CGRK-000013', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-12 00:00:00'),
+    (14, 'CGRK-000014', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
+    (15, 'CGRK-000015', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-03 00:00:00'),
+    (16, 'CGRK-000016', 2, '深圳联思微', 'PURCHASE', 'COMPLETED', '2026-08-07 00:00:00'),
+    (17, 'CGRK-000017', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-08-13 00:00:00'),
+    (18, 'CGRK-000018', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-09 00:00:00'),
+    (19, 'CGRK-000019', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-02 00:00:00'),
+    (20, 'CGRK-000020', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-07 00:00:00'),
+    (21, 'CGRK-000021', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-30 00:00:00'),
+    (23, 'CGRK-000023', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-07 00:00:00'),
+    (24, 'CGRK-000024', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-09 00:00:00'),
+    (25, 'CGRK-000025', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
+    (26, 'CGRK-000026', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-09-12 00:00:00'),
+    (27, 'CGRK-000027', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
+    (28, 'CGRK-000028', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00'),
+    (29, 'CGRK-000029', 1, '深圳中盛昌', 'PURCHASE', 'COMPLETED', '2026-10-10 00:00:00');
   -- inbound_order_item: 36 confirmed rows
   INSERT INTO `inbound_order_item` (`id`, `inbound_order_id`, `purchase_order_id`, `purchase_order_no`, `purchase_order_item_id`, `inbound_quantity`) VALUES
     (1, 1, 1, 'gl20260407001', 1, 30000),
@@ -194,7 +196,7 @@ BEGIN
     (24, 19, 11, 'gl20260818002', 16, 18000),
     (25, 20, 11, 'gl20260818002', 16, 4000),
     (26, 21, 11, 'gl20260818002', 14, 6000),
-    (27, 22, 11, 'gl20260818002', 14, 1000),
+    (27, 14, 11, 'gl20260818002', 14, 1000),
     (28, 23, 12, 'gl20260903001', 17, 10000),
     (29, 24, 13, 'gl20260907001', 18, 20000),
     (30, 25, 13, 'gl20260907001', 19, 180000),
@@ -203,7 +205,11 @@ BEGIN
     (33, 27, 14, 'gl20260910001', 20, 12000),
     (34, 28, 16, 'gl20260922001', 23, 30000),
     (35, 29, 17, 'gl20261008001', 25, 3000),
-    (36, 29, 17, 'gl20261008001', 26, 3000);
+    (36, 14, 17, 'gl20261008001', 26, 3000);
+  -- Purchase associations are derived from allocation details, never from receipt dates.
+  INSERT INTO `inbound_order_purchase_order` (`inbound_order_id`, `purchase_order_id`, `purchase_order_no`)
+  SELECT DISTINCT `inbound_order_id`, `purchase_order_id`, `purchase_order_no`
+  FROM `inbound_order_item` ORDER BY `inbound_order_id`, `purchase_order_id`;
   -- inbound_order_batch_item: 36 confirmed rows
   INSERT INTO `inbound_order_batch_item` (`id`, `inbound_order_id`, `inbound_order_item_id`, `purchase_order_id`, `purchase_order_no`, `purchase_order_item_id`, `product_id`, `date_code`, `lot_code`, `inbound_quantity`) VALUES
     (1, 1, 1, 1, 'gl20260407001', 1, 1, '', '', 30000),
@@ -232,7 +238,7 @@ BEGIN
     (24, 19, 24, 11, 'gl20260818002', 16, 3, '', '', 18000),
     (25, 20, 25, 11, 'gl20260818002', 16, 3, '', '', 4000),
     (26, 21, 26, 11, 'gl20260818002', 14, 6, '', '', 6000),
-    (27, 22, 27, 11, 'gl20260818002', 14, 6, '', '', 1000),
+    (27, 14, 27, 11, 'gl20260818002', 14, 6, '', '', 1000),
     (28, 23, 28, 12, 'gl20260903001', 17, 8, '', '', 10000),
     (29, 24, 29, 13, 'gl20260907001', 18, 8, '', '', 20000),
     (30, 25, 30, 13, 'gl20260907001', 19, 4, '', '', 180000),
@@ -241,7 +247,7 @@ BEGIN
     (33, 27, 33, 14, 'gl20260910001', 20, 3, '', '', 12000),
     (34, 28, 34, 16, 'gl20260922001', 23, 8, '', '', 30000),
     (35, 29, 35, 17, 'gl20261008001', 25, 7, '', '', 3000),
-    (36, 29, 36, 17, 'gl20261008001', 26, 6, '', '', 3000);
+    (36, 14, 36, 17, 'gl20261008001', 26, 6, '', '', 3000);
   -- customer: 6 confirmed rows
   INSERT INTO `customer` (`id`, `name`, `short_name`, `settle_type`) VALUES
     (1, '深圳同益芯', NULL, 'TT/先款后货'),
@@ -445,7 +451,8 @@ SET SESSION sql_mode = @fd_old_sql_mode;
 SET SESSION time_zone = @fd_old_time_zone;
 SELECT 'customer' AS table_name, COUNT(*) AS actual_rows, 6 AS expected_rows FROM `customer`;
 SELECT 'customer_visit' AS table_name, COUNT(*) AS actual_rows, 0 AS expected_rows FROM `customer_visit`;
-SELECT 'inbound_order' AS table_name, COUNT(*) AS actual_rows, 29 AS expected_rows FROM `inbound_order`;
+SELECT 'inbound_order' AS table_name, COUNT(*) AS actual_rows, 28 AS expected_rows FROM `inbound_order`;
+SELECT 'inbound_order_purchase_order' AS table_name, COUNT(*) AS actual_rows, 30 AS expected_rows FROM `inbound_order_purchase_order`;
 SELECT 'inbound_order_item' AS table_name, COUNT(*) AS actual_rows, 36 AS expected_rows FROM `inbound_order_item`;
 SELECT 'inventory' AS table_name, COUNT(*) AS actual_rows, 36 AS expected_rows FROM `inventory`;
 SELECT 'outbound_order' AS table_name, COUNT(*) AS actual_rows, 25 AS expected_rows FROM `outbound_order`;

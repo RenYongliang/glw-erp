@@ -17,8 +17,10 @@ import {
   Operation,
   FullScreen,
   Document,
+  Box,
 } from '@element-plus/icons-vue'
 import PurchaseRecordDialog from '../components/purchase/PurchaseRecordDialog.vue'
+import InboundReceiptDialog from '../components/purchase/InboundReceiptDialog.vue'
 import { usePurchaseStore } from '../stores/purchase'
 import {
   suppliers,
@@ -30,6 +32,8 @@ import {
   today,
   orderTotals,
   receiptTotals,
+  receiptOrders,
+  receiptProducts,
   receiptLineQuantity,
   returnableQuantity,
   remainingQuantity,
@@ -95,6 +99,8 @@ const editor = ref(false),
   relatedOrder = ref<PurchaseOrder>(),
   readonly = ref(false),
   editorVersion = ref(0)
+const scopeOrder = ref<PurchaseOrder>()
+const singleReceipt = computed(() => editorKind.value === 'receipts' && !!relatedOrder.value && !editingReceipt.value)
 type TableRow = {
   id: string
   group: string
@@ -119,6 +125,12 @@ function productCells(order: PurchaseOrder, key: string, receipt?: PurchaseRecei
     if (receipt && !receipt.lines.some(line => line.lineId === l.id)) return []
     const cells: Record<string, string> = { brands: l.brand || '', productNames: l.model || '', models: l.packaging || '', quantities: String(l.quantity), pendingDelivery: String(pendingDeliveryQuantity(order, l, store.state.receipts)), received: receipt ? String(receiptLineQuantity(receipt, l.id)) : '—', taxes: `${l.tax}%`, prices: money(l.price), amounts: money(l.amount ?? totals.details[i]?.total ?? 0), deliveries: l.delivery ?? order.delivery, remarks: l.remark || '—' }
     return cells[key] || '—'
+  })
+}
+function receiptCells(receipt: PurchaseReceipt, key: string): string[] {
+  return receiptProducts(receipt, receiptOrders(receipt, store.state.orders)).map(product => {
+    const values: Record<string, string> = { brands: product.brand, productNames: product.model, models: product.packaging, quantities: String(product.ordered), received: String(product.quantity) }
+    return values[key] || '—'
   })
 }
 const receiptColumns = [
@@ -168,17 +180,17 @@ const records = computed<TableRow[]>(() =>
         }
       })
     : store.state.receipts.map((r) => {
-        const o = store.state.orders.find((o) => o.id === r.orderId),
-          t = receiptTotals(r, o)
+        const linkedOrders = receiptOrders(r, store.state.orders), o = linkedOrders[0],
+          t = receiptTotals(r, linkedOrders)
         return {
           id: r.id,
           receipt: r,
           order: o,
           group: purchaseSupplierName(o) || '未填写',
           values: {
-            ...Object.fromEntries(productKeys.map(key => [key, o ? productCells(o, key, r).join('、') : '—'])),
+            ...Object.fromEntries(productKeys.map(key => [key, receiptCells(r, key).join('、')])),
             name: o?.name || '—',
-            orderCode: o?.code || '—',
+            orderCode: linkedOrders.map(order => order.code).join('、') || '—',
             supplier: purchaseSupplierName(o) || '—',
             supplierCode: o?.code || '—',
             contact: purchaseContact(o) || '—',
@@ -274,6 +286,7 @@ function display(row: TableRow, key: string) {
   return typeof value === 'number' && key !== 'quantity' ? money(value) : value
 }
 function open(row?: TableRow, read = false) {
+  scopeOrder.value = undefined
   editorKind.value = props.kind
   editingOrder.value = isOrder ? row?.order : undefined
   editingReceipt.value = isOrder ? undefined : row?.receipt
@@ -283,6 +296,7 @@ function open(row?: TableRow, read = false) {
   editor.value = true
 }
 function receive(order: PurchaseOrder) {
+  scopeOrder.value = undefined
   editor.value = false
   editorKind.value = 'receipts'
   editingOrder.value = undefined
@@ -291,6 +305,14 @@ function receive(order: PurchaseOrder) {
   readonly.value = false
   editorVersion.value++
   editor.value = true
+}
+function openAllocation(row: TableRow, order: PurchaseOrder) {
+  open(row, true)
+  scopeOrder.value = order
+}
+function receiveMultiple() {
+  open()
+  editorKind.value = 'receipts'
 }
 function saved() {
   editor.value = false
@@ -582,7 +604,7 @@ function confirmImport() {
     <div class="purchase-toolbar">
       <div class="purchase-toolbar-actions">
         <el-button type="primary" :icon="Plus" @click="open()">添加</el-button
-        ><el-button
+        ><el-button v-if="isOrder" class="purchase-multi-receive" type="success" plain :icon="Box" @click="receiveMultiple">多单入库</el-button><el-button
           text
           :icon="Upload"
           @click="
@@ -743,6 +765,12 @@ function confirmImport() {
                   }"
                 >
                   <span v-if="c.key === 'supplier'">{{ row.order?.supplierShortName || purchaseSupplierName(row.order) || '—' }}</span>
+                  <div v-else-if="row.receipt && c.key === 'orderCode'" class="inbound-purchase-links">
+                    <button v-for="order in receiptOrders(row.receipt, store.state.orders)" :key="order.id" class="purchase-record-link" @click.stop="openAllocation(row, order)" @dblclick.stop>{{ order.code }}</button>
+                  </div>
+                  <div v-else-if="row.receipt && productKeys.includes(c.key)" class="purchase-product-cell">
+                    <div v-for="(value,index) in receiptCells(row.receipt, c.key)" :key="index" :title="c.key === 'models' ? value : undefined">{{ value }}</div>
+                  </div>
                   <div v-else-if="row.order && productKeys.includes(c.key)" class="purchase-product-cell">
                     <div v-for="(value,index) in productCells(row.order, c.key, row.receipt)" :key="index" :title="c.key === 'models' ? value : undefined">{{ value }}</div>
                   </div>
@@ -820,7 +848,7 @@ function confirmImport() {
     <template #footer><el-button @click="draftFilters = emptyPurchaseOrderFilters()">重置条件</el-button><el-button @click="orderFilterOpen = false">取消</el-button><el-button type="primary" @click="applyOrderFilters">应用筛选</el-button></template>
   </el-dialog>
   <PurchaseRecordDialog
-    v-if="editor"
+    v-if="editor && (editorKind === 'orders' || singleReceipt)"
     :key="editorVersion"
     :kind="editorKind"
     :order="editingOrder"
@@ -831,6 +859,7 @@ function confirmImport() {
     @saved="saved"
     @receive="receive"
   />
+  <InboundReceiptDialog v-if="editor && editorKind === 'receipts' && !singleReceipt" :key="editorVersion" :receipt="editingReceipt" :scope-order="scopeOrder" @close="editor = false" @saved="saved" />
   <el-drawer v-model="logsOpen" title="操作记录" size="min(600px,95vw)" class="purchase-dialog"
     ><el-empty v-if="!store.state.logs.length" description="暂无操作记录" /><el-timeline v-else
       ><el-timeline-item v-for="log in store.state.logs" :key="log.id" :timestamp="log.time"
@@ -932,6 +961,7 @@ function confirmImport() {
 
 <style>
 .purchase-product-td { padding: 0 !important; text-align: left; }
+.inbound-purchase-links { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 0; }
 .purchase-product-cell > div { min-height: 35px; padding: 8px 10px; box-sizing: border-box; white-space: nowrap; }
 .purchase-product-cell > div + div { border-top: 1px solid #eef0f3; }
 .purchase-table .purchase-packaging-compact { width: 160px; max-width: 160px; }

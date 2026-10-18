@@ -13,9 +13,15 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface InboundOrderConverter {
     @Mapping(target = "items", ignore = true)
+    @Mapping(target = "purchaseOrders", ignore = true)
     InboundOrderVO toVO(InboundOrder inboundOrder);
 
     @Mapping(target = "batches", ignore = true)
+    @Mapping(target = "productId", ignore = true)
+    @Mapping(target = "brand", ignore = true)
+    @Mapping(target = "partNo", ignore = true)
+    @Mapping(target = "packageType", ignore = true)
+    @Mapping(target = "unitPrice", ignore = true)
     InboundOrderItemVO toItemVO(InboundOrderItem inboundOrderItem);
 
     InboundOrderBatchItemVO toBatchItemVO(InboundOrderBatchItem inboundOrderBatchItem);

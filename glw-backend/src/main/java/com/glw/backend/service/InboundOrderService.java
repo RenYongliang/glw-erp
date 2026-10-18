@@ -13,4 +13,6 @@ public interface InboundOrderService extends IService<InboundOrder> {
     IPage<InboundOrderVO> pageInboundOrder(InboundOrderPageDTO pageDTO);
 
     InboundOrderVO createInboundOrder(InboundOrderCreateDTO createDTO);
+
+    InboundOrderVO detail(Long id, Long purchaseOrderId);
 }

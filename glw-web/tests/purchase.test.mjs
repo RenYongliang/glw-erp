@@ -4,6 +4,8 @@ import {
   orderTotals,
   receiptTotals,
   receiptLineQuantity,
+  receiptProducts,
+  receiptOrders,
   purchaseLineProductText,
   products,
   validateReceipt,
@@ -42,6 +44,32 @@ const receipt = () => ({
   confirmed: true,
   keeper: '测试',
   receivedAt: '2026-09-24 10:00',
+})
+test('one receipt allocates quantities and costs to multiple purchase orders independently', () => {
+  const first = { ...structuredClone(order), supplierId: '1', discount: 0, lines: [{ id: 'a', productId: '6', model: 'ET5907', quantity: 5000, price: 0.85, tax: 0 }] }
+  const second = { ...structuredClone(first), id: 'o2', lines: [{ ...first.lines[0], id: 'b', quantity: 4000, price: 0.9 }] }
+  const combined = { ...receipt(), orderIds: ['o1', 'o2'], quality: '合格', lines: [
+    { lineId: 'a', arrived: 2000, rejected: 0, batches: [{ id: 'a1', dateCode: '2610', lotCode: 'A', quantity: 2000 }] },
+    { lineId: 'b', arrived: 3000, rejected: 0, batches: [{ id: 'b1', dateCode: '2610', lotCode: 'A', quantity: 3000 }] },
+  ] }
+  const s = { ...state(), orders: [first, second], receipts: [combined] }
+  assert.deepEqual(receiptTotals(combined, first), { quantity: 2000, total: 1700 })
+  assert.deepEqual(receiptTotals(combined, second), { quantity: 3000, total: 2700 })
+  assert.deepEqual(receiptTotals(combined, [first, second]), { quantity: 5000, total: 4400 })
+  assert.equal(pendingDeliveryQuantity(second, second.lines[0], s.receipts), 1000)
+  assert.equal(remainingQuantity(s, 'o2', 'b'), 1000)
+  assert.equal(returnableQuantity(s, 'o2', 'b'), 3000)
+  assert.equal(receiptOrders(combined, s.orders).length, 2)
+  const grouped = receiptProducts(combined, s.orders)
+  assert.equal(grouped.length, 1)
+  assert.equal(grouped[0].quantity, 5000)
+  assert.equal(grouped[0].lines.length, 2)
+  assert.equal(validateReceipt(combined, s), '')
+  second.supplierId = '2'
+  assert.match(validateReceipt(combined, s), /同一供应商/)
+  second.supplierId = '1'
+  combined.orderIds = ['o1']
+  assert.match(validateReceipt(combined, s), /不属于/)
 })
 test('receipt product information uses backend purchase details instead of demo product IDs', () => {
   const line = { id: '11', productId: '8', quantity: 100, price: 1, tax: 13,

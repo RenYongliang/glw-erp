@@ -1,6 +1,7 @@
 package com.glw.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.glw.backend.common.BusinessException;
@@ -8,6 +9,7 @@ import com.glw.backend.common.ErrorCode;
 import com.glw.backend.converter.InboundOrderConverter;
 import com.glw.backend.mapper.InboundOrderItemMapper;
 import com.glw.backend.mapper.InboundOrderMapper;
+import com.glw.backend.mapper.ProductMapper;
 import com.glw.backend.model.dto.InboundOrderBatchCreateDTO;
 import com.glw.backend.model.dto.InboundOrderCreateDTO;
 import com.glw.backend.model.dto.InboundOrderItemCreateDTO;
@@ -16,6 +18,8 @@ import com.glw.backend.model.entity.InboundOrderBatchItem;
 import com.glw.backend.model.entity.Inventory;
 import com.glw.backend.model.entity.InboundOrder;
 import com.glw.backend.model.entity.InboundOrderItem;
+import com.glw.backend.model.entity.InboundOrderPurchaseOrder;
+import com.glw.backend.model.entity.Product;
 import com.glw.backend.model.entity.PurchaseOrder;
 import com.glw.backend.model.entity.PurchaseOrderItem;
 import com.glw.backend.model.enums.InboundStatus;
@@ -23,9 +27,11 @@ import com.glw.backend.model.enums.InboundType;
 import com.glw.backend.model.enums.PurchaseOrderStatus;
 import com.glw.backend.model.vo.InboundOrderBatchItemVO;
 import com.glw.backend.model.vo.InboundOrderVO;
+import com.glw.backend.model.vo.InboundPurchaseOrderVO;
 import com.glw.backend.service.InboundOrderBatchItemService;
 import com.glw.backend.service.InboundOrderItemService;
 import com.glw.backend.service.InboundOrderService;
+import com.glw.backend.service.InboundOrderPurchaseOrderService;
 import com.glw.backend.service.InventoryService;
 import com.glw.backend.service.PurchaseOrderItemService;
 import com.glw.backend.service.PurchaseOrderService;
@@ -61,19 +67,40 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     private final PurchaseOrderItemService purchaseOrderItemService;
     private final InventoryService inventoryService;
     private final InboundOrderConverter inboundOrderConverter;
+    private final InboundOrderPurchaseOrderService relationService;
+    private final ProductMapper productMapper;
+
+    @Override
+    public InboundOrderVO detail(Long id, Long purchaseOrderId) {
+        InboundOrder order = getById(id);
+        if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "入库单不存在");
+        InboundOrderVO result = inboundOrderConverter.toVO(order);
+        fillItems(List.of(result));
+        if (purchaseOrderId != null) {
+            if (result.getPurchaseOrders().stream().noneMatch(po -> po.getPurchaseOrderId().equals(purchaseOrderId)))
+                throw new BusinessException(ErrorCode.NOT_FOUND, "该采购单不属于当前入库单");
+            result.setItems(result.getItems().stream()
+                    .filter(item -> item.getPurchaseOrderId().equals(purchaseOrderId)).toList());
+            result.setPurchaseOrders(result.getPurchaseOrders().stream()
+                    .filter(po -> po.getPurchaseOrderId().equals(purchaseOrderId)).toList());
+        }
+        return result;
+    }
 
     @Override
     public IPage<InboundOrderVO> pageInboundOrder(InboundOrderPageDTO pageDTO) {
         Page<InboundOrder> page = lambdaQuery()
                 .eq(pageDTO.getId() != null, InboundOrder::getId, pageDTO.getId())
-                .eq(pageDTO.getPurchaseOrderId() != null, InboundOrder::getPurchaseOrderId, pageDTO.getPurchaseOrderId())
-                .eq(StringUtils.hasText(pageDTO.getPurchaseOrderNo()), InboundOrder::getPurchaseOrderNo, pageDTO.getPurchaseOrderNo())
+                .apply(pageDTO.getPurchaseOrderId() != null,
+                        "EXISTS (SELECT 1 FROM inbound_order_purchase_order rel WHERE rel.inbound_order_id = inbound_order.id AND rel.purchase_order_id = {0})", pageDTO.getPurchaseOrderId())
+                .apply(StringUtils.hasText(pageDTO.getPurchaseOrderNo()),
+                        "EXISTS (SELECT 1 FROM inbound_order_purchase_order rel WHERE rel.inbound_order_id = inbound_order.id AND rel.purchase_order_no = {0})", pageDTO.getPurchaseOrderNo())
                 .eq(pageDTO.getSupplierId() != null, InboundOrder::getSupplierId, pageDTO.getSupplierId())
                 .like(StringUtils.hasText(pageDTO.getSupplierName()), InboundOrder::getSupplierName, pageDTO.getSupplierName())
                 .eq(pageDTO.getInboundType() != null, InboundOrder::getInboundType, pageDTO.getInboundType())
                 .eq(pageDTO.getStatus() != null, InboundOrder::getStatus, pageDTO.getStatus())
-                .ge(StringUtils.hasText(pageDTO.getInboundTimeStart()), InboundOrder::getInboundTimeStart, pageDTO.getInboundTimeStart())
-                .le(StringUtils.hasText(pageDTO.getInboundTimeEnd()), InboundOrder::getInboundTimeEnd, pageDTO.getInboundTimeEnd())
+                .ge(StringUtils.hasText(pageDTO.getInboundTimeStart()), InboundOrder::getInboundTime, pageDTO.getInboundTimeStart())
+                .le(StringUtils.hasText(pageDTO.getInboundTimeEnd()), InboundOrder::getInboundTime, pageDTO.getInboundTimeEnd())
                 .orderByDesc(InboundOrder::getInboundTime)
                 .orderByDesc(InboundOrder::getId)
                 .page(pageDTO.toPage());
@@ -86,46 +113,73 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     @Override
     @Transactional(rollbackFor = Exception.class)
     public InboundOrderVO createInboundOrder(InboundOrderCreateDTO createDTO) {
-        PurchaseOrder purchaseOrder = purchaseOrderService.getById(createDTO.getPurchaseOrderId());
-        if (purchaseOrder == null) {
+        List<Long> purchaseIds = createDTO.getPurchaseOrderIds().stream().distinct().sorted().toList();
+        if (purchaseIds.size() != createDTO.getPurchaseOrderIds().size())
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "采购订单不可重复选择");
+        // Lock orders in a stable order before checking their remaining quantities.
+        List<PurchaseOrder> purchaseOrders = purchaseOrderService.lambdaQuery()
+                .in(PurchaseOrder::getId, purchaseIds).orderByAsc(PurchaseOrder::getId).last("FOR UPDATE").list();
+        if (purchaseOrders.size() != purchaseIds.size())
             throw new BusinessException(ErrorCode.NOT_FOUND, "采购订单不存在");
-        }
+        PurchaseOrder supplierOrder = purchaseOrders.getFirst();
+        if (purchaseOrders.stream().anyMatch(order -> !Objects.equals(order.getSupplierId(), supplierOrder.getSupplierId())))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "同一入库单只能关联同一供应商的采购订单");
+        if (purchaseOrders.stream().anyMatch(order -> order.getOrderStatus() == PurchaseOrderStatus.COMPLETED))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已完成的采购订单不能再次入库");
+        Map<Long, PurchaseOrder> purchaseOrderMap = purchaseOrders.stream()
+                .collect(Collectors.toMap(PurchaseOrder::getId, order -> order));
 
         List<PurchaseOrderItem> orderItems = purchaseOrderItemService.lambdaQuery()
-                .eq(PurchaseOrderItem::getPurchaseOrderId, purchaseOrder.getId())
+                .in(PurchaseOrderItem::getPurchaseOrderId, purchaseIds)
                 .orderByAsc(PurchaseOrderItem::getId)
                 .list();
         Map<Long, PurchaseOrderItem> orderItemMap = orderItems.stream()
                 .collect(Collectors.toMap(PurchaseOrderItem::getId, item -> item));
         Map<Long, Long> receivedMap = inboundOrderItemMapper
-                .sumCompletedByPurchaseOrderIds(List.of(purchaseOrder.getId()))
+                .sumCompletedByPurchaseOrderIds(purchaseIds)
                 .stream()
                 .collect(Collectors.toMap(
                         InboundOrderItemMapper.ReceivedQuantity::purchaseOrderItemId,
                         InboundOrderItemMapper.ReceivedQuantity::quantity));
 
         validateItems(createDTO, orderItemMap, receivedMap);
+        Set<Long> allocatedOrders = createDTO.getItems().stream()
+                .map(item -> orderItemMap.get(item.getPurchaseOrderItemId()).getPurchaseOrderId()).collect(Collectors.toSet());
+        if (!allocatedOrders.equals(new HashSet<>(purchaseIds)))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "每个关联采购单都必须有本次入库明细");
+        List<Long> productIds = createDTO.getItems().stream()
+                .map(item -> orderItemMap.get(item.getPurchaseOrderItemId()).getProductId()).distinct().sorted().toList();
+        productMapper.selectList(Wrappers.<Product>lambdaQuery().in(Product::getId, productIds)
+                .orderByAsc(Product::getId).last("FOR UPDATE"));
         LocalDateTime inboundTime = parseInboundTime(createDTO.getInboundTime());
 
         InboundOrder inboundOrder = new InboundOrder();
-        inboundOrder.setPurchaseOrderId(purchaseOrder.getId());
-        inboundOrder.setPurchaseOrderNo(purchaseOrder.getPurchaseOrderNo());
-        inboundOrder.setSupplierId(purchaseOrder.getSupplierId());
-        inboundOrder.setSupplierName(purchaseOrder.getSupplierName());
+        inboundOrder.setSupplierId(supplierOrder.getSupplierId());
+        inboundOrder.setSupplierName(supplierOrder.getSupplierName());
         inboundOrder.setInboundType(InboundType.PURCHASE);
         inboundOrder.setStatus(InboundStatus.COMPLETED);
         inboundOrder.setInboundTime(inboundTime);
         inboundOrder.setVersion(0);
         save(inboundOrder);
+        inboundOrder.setInboundOrderNo("CGRK-" + String.format("%06d", inboundOrder.getId()));
+        if (!updateById(inboundOrder))
+            throw new BusinessException(ErrorCode.CONFLICT, "入库单保存失败，请重试");
+        for (PurchaseOrder order : purchaseOrders) {
+            var relation = new InboundOrderPurchaseOrder();
+            relation.setInboundOrderId(inboundOrder.getId());
+            relation.setPurchaseOrderId(order.getId());
+            relation.setPurchaseOrderNo(order.getPurchaseOrderNo());
+            relationService.save(relation);
+        }
 
-        InboundOrderVO result = inboundOrderConverter.toVO(inboundOrder);
-        long totalReceivedAfter = receivedMap.values().stream().mapToLong(Long::longValue).sum();
+        Map<Long, Long> receivedAfter = new java.util.HashMap<>(receivedMap);
         for (InboundOrderItemCreateDTO itemDTO : createDTO.getItems()) {
             PurchaseOrderItem orderItem = orderItemMap.get(itemDTO.getPurchaseOrderItemId());
+            PurchaseOrder purchaseOrder = purchaseOrderMap.get(orderItem.getPurchaseOrderId());
             int itemQuantity = itemDTO.getBatches().stream()
                     .mapToInt(batch -> batch.getInboundQuantity())
                     .sum();
-            totalReceivedAfter += itemQuantity;
+            receivedAfter.merge(orderItem.getId(), (long) itemQuantity, Long::sum);
 
             InboundOrderItem inboundOrderItem = new InboundOrderItem();
             inboundOrderItem.setInboundOrderId(inboundOrder.getId());
@@ -135,7 +189,6 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
             inboundOrderItem.setInboundQuantity(itemQuantity);
             inboundOrderItemService.save(inboundOrderItem);
 
-            var itemVO = inboundOrderConverter.toItemVO(inboundOrderItem);
             for (InboundOrderBatchCreateDTO batchDTO : itemDTO.getBatches()) {
                 InboundOrderBatchItem batchItem = new InboundOrderBatchItem();
                 batchItem.setInboundOrderId(inboundOrder.getId());
@@ -163,15 +216,19 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
                 inventory.setVersion(0);
                 inventoryService.save(inventory);
 
-                itemVO.getBatches().add(inboundOrderConverter.toBatchItemVO(batchItem));
             }
-            result.getItems().add(itemVO);
         }
 
-        purchaseOrder.setOrderStatus(resolveOrderStatus(orderItems, totalReceivedAfter));
-        if (!purchaseOrderService.updateById(purchaseOrder)) {
-            throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
+        for (PurchaseOrder purchaseOrder : purchaseOrders) {
+            List<PurchaseOrderItem> items = orderItems.stream()
+                    .filter(item -> item.getPurchaseOrderId().equals(purchaseOrder.getId())).toList();
+            long totalReceivedAfter = items.stream().mapToLong(item -> receivedAfter.getOrDefault(item.getId(), 0L)).sum();
+            purchaseOrder.setOrderStatus(resolveOrderStatus(items, totalReceivedAfter));
+            if (!purchaseOrderService.updateById(purchaseOrder))
+                throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
         }
+        InboundOrderVO result = inboundOrderConverter.toVO(inboundOrder);
+        fillItems(List.of(result));
         return result;
     }
 
@@ -193,7 +250,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
                     .mapToLong(batch -> batch.getInboundQuantity())
                     .sum();
             long remaining = orderItem.getQuantity() - receivedMap.getOrDefault(orderItem.getId(), 0L);
-            if (quantity > remaining) {
+            if (quantity < 1 || quantity > Integer.MAX_VALUE || quantity > remaining) {
                 throw new BusinessException(
                         ErrorCode.BAD_REQUEST,
                         "产品 " + orderItem.getPartNo() + " 的入库数量不能超过待入库数量");
@@ -221,21 +278,22 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
 
     private PurchaseOrderStatus resolveOrderStatus(
             List<PurchaseOrderItem> orderItems, long totalReceivedAfter) {
-        int totalQuantity = orderItems.stream()
+        long totalQuantity = orderItems.stream()
                 .filter(Objects::nonNull)
-                .mapToInt(PurchaseOrderItem::getQuantity)
+                .mapToLong(PurchaseOrderItem::getQuantity)
                 .sum();
         return totalReceivedAfter >= totalQuantity
                 ? PurchaseOrderStatus.COMPLETED
                 : PurchaseOrderStatus.PARTIALLY_RECEIVED;
     }
 
-    private synchronized String nextBatchNo(Long productId, LocalDateTime inboundTime) {
+    private String nextBatchNo(Long productId, LocalDateTime inboundTime) {
         String prefix = "BAT"
                 + inboundTime.format(DateTimeFormatter.ofPattern("yyMMdd"))
                 + String.format("%05d", productId);
         int nextSequence = inventoryService.lambdaQuery()
                 .likeRight(Inventory::getBatchNo, prefix)
+                .last("FOR UPDATE")
                 .list()
                 .stream()
                 .map(Inventory::getBatchNo)
@@ -255,6 +313,17 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         if (CollectionUtils.isEmpty(records)) return;
 
         List<Long> orderIds = records.stream().map(InboundOrderVO::getId).toList();
+        Map<Long, List<InboundOrderPurchaseOrder>> relations = relationService.lambdaQuery()
+                .in(InboundOrderPurchaseOrder::getInboundOrderId, orderIds)
+                .orderByAsc(InboundOrderPurchaseOrder::getPurchaseOrderId).list().stream()
+                .collect(Collectors.groupingBy(InboundOrderPurchaseOrder::getInboundOrderId));
+        records.forEach(order -> order.setPurchaseOrders(relations.getOrDefault(order.getId(), List.of())
+                .stream().map(relation -> {
+                    var vo = new InboundPurchaseOrderVO();
+                    vo.setPurchaseOrderId(relation.getPurchaseOrderId());
+                    vo.setPurchaseOrderNo(relation.getPurchaseOrderNo());
+                    return vo;
+                }).toList()));
         Map<Long, List<InboundOrderItem>> items = inboundOrderItemService.lambdaQuery()
                 .in(InboundOrderItem::getInboundOrderId, orderIds)
                 .orderByAsc(InboundOrderItem::getId)
@@ -277,16 +346,24 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
                         .list()
                         .stream()
                         .collect(Collectors.groupingBy(InboundOrderBatchItem::getInboundOrderItemId));
-        Map<Long, Long> productIds = purchaseOrderItemIds.isEmpty() ? Map.of()
+        Map<Long, PurchaseOrderItem> purchaseItems = purchaseOrderItemIds.isEmpty() ? Map.of()
                 : purchaseOrderItemService.lambdaQuery()
                         .in(PurchaseOrderItem::getId, purchaseOrderItemIds)
                         .list()
                         .stream()
-                        .collect(Collectors.toMap(PurchaseOrderItem::getId, PurchaseOrderItem::getProductId));
+                        .collect(Collectors.toMap(PurchaseOrderItem::getId, item -> item));
         records.forEach(order -> order.setItems(
                 items.getOrDefault(order.getId(), List.of()).stream()
                         .map(item -> {
                             var itemVO = inboundOrderConverter.toItemVO(item);
+                            PurchaseOrderItem source = purchaseItems.get(item.getPurchaseOrderItemId());
+                            if (source != null) {
+                                itemVO.setProductId(source.getProductId());
+                                itemVO.setBrand(source.getBrand());
+                                itemVO.setPartNo(source.getPartNo());
+                                itemVO.setPackageType(source.getPackageType());
+                                itemVO.setUnitPrice(source.getUnitPrice());
+                            }
                             List<InboundOrderBatchItemVO> batchVOs = batches
                                     .getOrDefault(item.getId(), List.of())
                                     .stream()
@@ -295,7 +372,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
                             if (batchVOs.isEmpty()) {
                                 InboundOrderBatchItemVO fallback = new InboundOrderBatchItemVO();
                                 fallback.setInboundOrderItemId(item.getId());
-                                fallback.setProductId(productIds.get(item.getPurchaseOrderItemId()));
+                                fallback.setProductId(itemVO.getProductId());
                                 fallback.setDateCode("");
                                 fallback.setLotCode("");
                                 fallback.setInboundQuantity(item.getInboundQuantity());

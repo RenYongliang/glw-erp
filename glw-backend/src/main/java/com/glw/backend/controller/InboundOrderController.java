@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/api/inbound-order")
@@ -21,6 +23,16 @@ import jakarta.validation.Valid;
 @Profile("!mock")
 public class InboundOrderController {
     private final InboundOrderService inboundOrderService;
+
+    @GetMapping("/{id}")
+    public ApiResponse<InboundOrderVO> detail(@PathVariable Long id) {
+        return ApiResponse.ok(inboundOrderService.detail(id, null));
+    }
+
+    @GetMapping("/{id}/purchase-orders/{purchaseOrderId}")
+    public ApiResponse<InboundOrderVO> allocation(@PathVariable Long id, @PathVariable Long purchaseOrderId) {
+        return ApiResponse.ok(inboundOrderService.detail(id, purchaseOrderId));
+    }
 
     @PostMapping("/list")
     public ApiResponse<IPage<InboundOrderVO>> list(@RequestBody InboundOrderPageDTO pageDTO) {

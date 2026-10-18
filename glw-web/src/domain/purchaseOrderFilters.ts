@@ -17,7 +17,7 @@ export function purchaseFilterCount(filters: PurchaseOrderFilters): number {
 export function purchaseReceiptStatus(order: PurchaseOrder, receipts: PurchaseReceipt[]): PurchaseOrderFilters['receiptStatus'] {
   const quantities = new Map<string, number>()
   for (const receipt of receipts) {
-    if (receipt.orderId !== order.id || !receipt.confirmed) continue
+    if (!(receipt.orderIds ?? [receipt.orderId]).includes(order.id) || !receipt.confirmed) continue
     for (const line of receipt.lines) quantities.set(line.lineId, (quantities.get(line.lineId) || 0) + Math.max(0, line.arrived - line.rejected))
   }
   if (order.lines.length && order.lines.every(line => (quantities.get(line.id) || 0) >= line.quantity)) return '已收货'

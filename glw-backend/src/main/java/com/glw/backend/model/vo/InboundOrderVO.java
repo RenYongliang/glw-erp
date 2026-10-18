@@ -11,8 +11,7 @@ import java.util.List;
 @Data
 public class InboundOrderVO {
     private Long id;
-    private Long purchaseOrderId;
-    private String purchaseOrderNo;
+    private String inboundOrderNo;
     private Long supplierId;
     private String supplierName;
     private InboundType inboundType;
@@ -20,4 +19,5 @@ public class InboundOrderVO {
     private String inboundTime;
     private Integer version;
     private List<InboundOrderItemVO> items = new ArrayList<>();
+    private List<InboundPurchaseOrderVO> purchaseOrders = new ArrayList<>();
 }

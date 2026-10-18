@@ -84,6 +84,12 @@ export interface ReceiptBatch {
   quantity: number
 }
 export interface ReceiptLine {
+  orderId?: string
+  productId?: string
+  brand?: string
+  model?: string
+  packaging?: string
+  unitPrice?: number
   lineId: string
   arrived: number
   rejected: number
@@ -91,6 +97,8 @@ export interface ReceiptLine {
   batches: ReceiptBatch[]
 }
 export interface PurchaseReceipt {
+  orderIds?: string[]
+  supplierName?: string
   id: string
   code: string
   orderId: string
@@ -235,7 +243,7 @@ export function pendingDeliveryQuantity(
 ) {
   if (line.pendingQuantity !== undefined) return Math.max(0, line.pendingQuantity)
   const received = receipts
-    .filter(receipt => receipt.orderId === order.id && receipt.confirmed)
+    .filter(receipt => receiptMatchesOrder(receipt, order.id) && receipt.confirmed)
     .flatMap(receipt => receipt.lines)
     .filter(receiptLine => receiptLine.lineId === line.id)
     .reduce((sum, receiptLine) => sum + Math.max(0, receiptLine.arrived - receiptLine.rejected), 0)
@@ -253,7 +261,7 @@ export function remainingQuantity(
   return (
     ordered -
     state.receipts
-      .filter((r) => r.orderId === orderId && r.id !== excludeReceipt &&
+      .filter((r) => receiptMatchesOrder(r, orderId) && r.id !== excludeReceipt &&
         (line?.pendingQuantity === undefined || !r.confirmed))
       .reduce(
         (sum, r) =>
@@ -268,7 +276,7 @@ export function remainingQuantity(
 export function returnableQuantity(state: PurchaseState, orderId: string, lineId: string) {
   return (
     state.receipts
-      .filter((r) => r.orderId === orderId && r.confirmed)
+      .filter((r) => receiptMatchesOrder(r, orderId) && r.confirmed)
       .reduce(
         (sum, r) =>
           sum +
@@ -288,13 +296,41 @@ export function receiptLineQuantity(receipt: PurchaseReceipt, lineId: string) {
     .reduce((sum, line) => sum + line.arrived - line.rejected, 0)
 }
 
-export function receiptTotals(receipt: PurchaseReceipt, order?: PurchaseOrder) {
+export function receiptOrderIds(receipt: PurchaseReceipt): string[] {
+  return receipt.orderIds ?? (receipt.orderId ? [receipt.orderId] : [])
+}
+export function receiptMatchesOrder(receipt: PurchaseReceipt, orderId: string) {
+  return receiptOrderIds(receipt).includes(orderId)
+}
+export function receiptOrders(receipt: PurchaseReceipt, orders: PurchaseOrder[]) {
+  return receiptOrderIds(receipt).map(id => orders.find(order => order.id === id))
+    .filter((order): order is PurchaseOrder => !!order)
+}
+export function receiptProducts(receipt: PurchaseReceipt, orders: PurchaseOrder[]) {
+  const groups = new Map<string, { productId: string; brand: string; model: string; packaging: string; quantity: number; ordered: number; lines: ReceiptLine[] }>()
+  for (const line of receipt.lines) {
+    const source = orders.flatMap(order => order.lines).find(item => item.id === line.lineId)
+    const productId = line.productId || source?.productId || line.lineId
+    const group = groups.get(productId) ?? { productId, brand: line.brand ?? source?.brand ?? '', model: line.model ?? source?.model ?? '', packaging: line.packaging ?? source?.packaging ?? '', quantity: 0, ordered: 0, lines: [] }
+    group.quantity += line.arrived - line.rejected
+    group.ordered += source?.quantity ?? 0
+    group.lines.push(line)
+    groups.set(productId, group)
+  }
+  return [...groups.values()]
+}
+export function receiptTotals(receipt: PurchaseReceipt, order?: PurchaseOrder | PurchaseOrder[]): { quantity: number; total: number } {
+  if (Array.isArray(order)) return order.reduce((sum, po) => {
+    const totals = receiptTotals(receipt, po)
+    return { quantity: sum.quantity + totals.quantity, total: roundMoney(sum.total + totals.total) }
+  }, { quantity: 0, total: 0 })
   if (!order) return { quantity: 0, total: 0 }
   const totals = orderTotals(order)
   return receipt.lines.reduce(
     (sum, l) => {
       const quantity = l.arrived - l.rejected,
         i = order.lines.findIndex((p) => p.id === l.lineId)
+      if (i < 0) return sum
       return {
         quantity: sum.quantity + quantity,
         total: roundMoney(sum.total + roundMoney(quantity * (totals.details[i]?.unit || 0))),
@@ -365,14 +401,19 @@ export function validateOrder(order: PurchaseOrder) {
   return ''
 }
 export function validateReceipt(receipt: PurchaseReceipt, state: PurchaseState) {
-  const order = state.orders.find((o) => o.id === receipt.orderId)
-  if (!order || !['待收货', '部分收货'].includes(order.status))
+  const ids = receiptOrderIds(receipt)
+  const orders = receiptOrders(receipt, state.orders)
+  if (!ids.length || new Set(ids).size !== ids.length || orders.length !== ids.length || orders.some(o => !['待收货', '部分收货'].includes(o.status)))
     return '请选择可入库的采购订单'
-  if (receipt.warehouse !== order.warehouse) return '入库仓库必须与采购订单一致'
+  if (new Set(orders.map(o => o.supplierId)).size !== 1) return '同一入库单只能关联同一供应商的采购订单'
+  if (orders.some(o => receipt.warehouse !== o.warehouse)) return '入库仓库必须与采购订单一致'
+  if (orders.some(o => !receipt.lines.some(l => o.lines.some(p => p.id === l.lineId)))) return '每个关联采购单都必须有本次入库明细'
   if (!receipt.lines.length) return '本次入库数量须大于 0'
   if (new Set(receipt.lines.map((l) => l.lineId)).size !== receipt.lines.length)
     return '产品明细不可重复'
   for (const l of receipt.lines) {
+    const order = orders.find(o => o.lines.some(p => p.id === l.lineId))
+    if (!order) return '入库明细不属于所选采购订单'
     const batches = l.batches ?? []
     if (!batches.length || batches.some((batch) => !Number.isSafeInteger(batch.quantity) || batch.quantity <= 0))
       return '请填写批次入库数量，数量必须是正整数'

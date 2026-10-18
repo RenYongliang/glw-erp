@@ -3,8 +3,7 @@
 <mapper namespace="com.glw.backend.mapper.InboundOrderMapper">
     <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.InboundOrder">
         <id column="id" property="id" jdbcType="BIGINT"/>
-        <result column="purchase_order_id" property="purchaseOrderId" jdbcType="BIGINT"/>
-        <result column="purchase_order_no" property="purchaseOrderNo" jdbcType="VARCHAR"/>
+        <result column="inbound_order_no" property="inboundOrderNo" jdbcType="VARCHAR"/>
         <result column="supplier_id" property="supplierId" jdbcType="BIGINT"/>
         <result column="supplier_name" property="supplierName" jdbcType="VARCHAR"/>
         <result column="inbound_type" property="inboundType" javaType="com.glw.backend.model.enums.InboundType" jdbcType="VARCHAR"/>
@@ -18,6 +17,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `purchase_order_id`, `purchase_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `status`, `inbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `inbound_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `status`, `inbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

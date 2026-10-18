@@ -6,6 +6,7 @@ import {
   orderTotals,
   validateOrder,
   validateReceipt,
+  receiptMatchesOrder,
   returnableQuantity,
   type PurchaseState,
   type PurchaseOrder,
@@ -64,7 +65,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     const index = next.orders.findIndex((o) => o.id === order.id)
     if (
       index >= 0 &&
-      (next.receipts.some((r) => r.orderId === order.id) ||
+      (next.receipts.some((r) => receiptMatchesOrder(r, order.id)) ||
         next.payments.some((p) => p.orderId === order.id) ||
         next.returns.some((r) => r.orderId === order.id))
     )
@@ -109,7 +110,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
       kind === 'orders' &&
       ids.some(
         (id) =>
-          next.receipts.some((r) => r.orderId === id) ||
+          next.receipts.some((r) => receiptMatchesOrder(r, id)) ||
           next.payments.some((p) => p.orderId === id) ||
           next.returns.some((r) => r.orderId === id),
       )
@@ -118,7 +119,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     if (
       kind === 'receipts' &&
       next.receipts.some(
-        (r) => ids.includes(r.id) && next.returns.some((t) => t.orderId === r.orderId),
+        (r) => ids.includes(r.id) && next.returns.some((t) => receiptMatchesOrder(r, t.orderId)),
       )
     )
       throw Error('关联订单已有退货记录，不能删除入库单')
