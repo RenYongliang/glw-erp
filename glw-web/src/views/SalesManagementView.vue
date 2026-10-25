@@ -1230,6 +1230,15 @@ function confirmImport() {
 .sales-order-page .sales-management-table .purchase-group td {
   text-align: left;
 }
+.sales-management-table tbody tr:not(.purchase-group):nth-child(even) td {
+  background: #f8fafc;
+}
+.sales-management-table tbody tr:not(.purchase-group):nth-child(even):hover td {
+  background: #f4fbfa;
+}
+.sales-management-table tbody tr.selected td {
+  background: #eaf8f4;
+}
 </style>
 
 <style>
