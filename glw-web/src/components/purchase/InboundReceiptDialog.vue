@@ -25,7 +25,7 @@ const emit = defineEmits<{ close: []; saved: [] }>()
 const store = usePurchaseStore()
 const auth = useAuthStore()
 const view = !!props.receipt
-const title = props.scopeOrder ? '采购单入库明细' : view ? '采购入库详情' : '多单入库'
+const title = props.scopeOrder ? '采购单入库明细' : view ? '入库详情' : '新增入库'
 const full = ref(false)
 const saving = ref(false)
 const loading = ref(false)
@@ -188,7 +188,7 @@ async function close() {
   if (!saving.value) emit('close')
 }
 async function save() {
-  if (orders.value.length < 2) return ElMessage.warning('多单入库请至少选择两张采购单')
+  if (orders.value.length < 1) return ElMessage.warning('请选择采购单')
   saving.value = true
   try {
     receipt.value.lines.forEach(syncQuantity)

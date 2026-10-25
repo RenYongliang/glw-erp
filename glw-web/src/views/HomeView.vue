@@ -34,7 +34,7 @@ const business = [
   { title: '销售出库', icon: Right, color: 'blue' },
   { title: '供应商信息', icon: OfficeBuilding, color: 'blue' },
   { title: '采购订单', icon: ShoppingCart, color: 'orange' },
-  { title: '采购入库', icon: Right, color: 'blue' },
+  { title: '产品入库', icon: Right, color: 'blue' },
 ]
 const reports = ['库存统计看板', '供应商信息查询', '销售订单看板', '采购订单看板', '仓库经营看板']
 const isPurchase = computed(() => mode.value === 'purchase')

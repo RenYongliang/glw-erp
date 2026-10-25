@@ -74,11 +74,11 @@ export function buildMultiInboundLines(
     products.map((p) => p.productId),
   ).filter((item) => orderIds.includes(item.order.id))
   if (
-    orderIds.length < 2 ||
+    orderIds.length < 1 ||
     new Set(orderIds).size !== orderIds.length ||
     orders.length !== orderIds.length
   )
-    throw Error('请选择至少两张包含本次入库产品的待入库采购单')
+    throw Error('请选择包含本次入库产品的待入库采购单')
   if (new Set(orders.map((item) => item.order.supplierId)).size > 1)
     throw Error('同一入库单只能关联同一供应商的采购订单')
   const lines = new Map<string, ReceiptLine>()

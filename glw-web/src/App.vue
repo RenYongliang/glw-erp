@@ -72,7 +72,7 @@ const salesMenus = [
 const salesExpanded = ref(route.path.startsWith('/sales/'))
 const purchaseMenus = [
   { title: '采购订单', path: '/purchase/orders' },
-  { title: '采购入库', path: '/purchase/receipts' },
+  { title: '产品入库', path: '/purchase/receipts' },
 ]
 const basicExpanded = ref(route.path.startsWith('/products/'))
 const purchaseExpanded = ref(route.path.startsWith('/purchase/'))

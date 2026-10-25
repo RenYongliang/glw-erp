@@ -125,7 +125,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
       throw Error('关联订单已有退货记录，不能删除入库单')
     if (kind === 'orders') next.orders = next.orders.filter((r) => !ids.includes(r.id))
     else next.receipts = next.receipts.filter((r) => !ids.includes(r.id))
-    commit(next, '删除' + (kind === 'orders' ? '采购订单' : '采购入库'), `${ids.length} 条`)
+    commit(next, '删除' + (kind === 'orders' ? '采购订单' : '产品入库'), `${ids.length} 条`)
   }
   function pay(input: PurchasePayment) {
     const next = snapshot(),
@@ -179,7 +179,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
       row.code = nextPurchaseCode('IN', next.receipts, row.receivedAt)
       next.receipts.unshift(row)
     }
-    commit(next, '导入采购入库', `${rows.length} 条`)
+      commit(next, '导入产品入库', `${rows.length} 条`)
   }
   return {
     state,

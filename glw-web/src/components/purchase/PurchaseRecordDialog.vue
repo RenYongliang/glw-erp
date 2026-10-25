@@ -98,7 +98,7 @@ const receipt = ref<PurchaseReceipt>(
       },
 )
 const isOrder = props.kind === 'orders',
-  title = isOrder ? '采购订单' : '采购入库'
+  title = isOrder ? '采购订单' : '产品入库'
 for (const line of receipt.value.lines) {
   line.batches ??= []
   line.arrived = line.batches.reduce((sum, batch) => sum + Math.max(0, batch.quantity), 0)
@@ -459,7 +459,7 @@ function quickFill() {
               aria-label="订单交付日期"
           /></el-form-item>
         </template>
-        <el-form-item v-if="isOrder || receipt.code" :label="isOrder ? '采购订单编号' : '采购入库单编号'"
+        <el-form-item v-if="isOrder || receipt.code" :label="isOrder ? '采购订单编号' : '入库单编号'"
           ><div class="purchase-read">
             {{ (isOrder ? order.code : receipt.code) || '自动生成无需填写' }}
           </div></el-form-item

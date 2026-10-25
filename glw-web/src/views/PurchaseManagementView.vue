@@ -17,7 +17,6 @@ import {
   Operation,
   FullScreen,
   Document,
-  Box,
 } from '@element-plus/icons-vue'
 import PurchaseRecordDialog from '../components/purchase/PurchaseRecordDialog.vue'
 import InboundReceiptDialog from '../components/purchase/InboundReceiptDialog.vue'
@@ -311,10 +310,6 @@ function openAllocation(row: TableRow, order: PurchaseOrder) {
   open(row, true)
   scopeOrder.value = order
 }
-function receiveMultiple() {
-  open()
-  editorKind.value = 'receipts'
-}
 function saved() {
   editor.value = false
   selected.value = []
@@ -400,7 +395,7 @@ function exportData() {
   const rows = selected.value.length
     ? filtered.value.filter((r) => selected.value.includes(r.id))
     : filtered.value
-  download(`${isOrder ? '采购订单' : '采购入库'}-${today()}.csv`, [
+  download(`${isOrder ? '采购订单' : '产品入库'}-${today()}.csv`, [
     shownColumns.value.map((c) => c.label),
     ...rows.map((r) => shownColumns.value.map((c) => r.values[c.key])),
   ])
@@ -435,7 +430,7 @@ const importHeaders = isOrder
       '质检时间',
     ]
 function downloadTemplate() {
-  download(`${isOrder ? '采购订单' : '采购入库'}导入模板.csv`, [
+  download(`${isOrder ? '采购订单' : '产品入库'}导入模板.csv`, [
     importHeaders,
     isOrder
       ? ['测试采购订单', 'GYS002', today(), today(), '杭州仓', 'CP001', 100, 8.5, 0]
@@ -605,7 +600,7 @@ function confirmImport() {
     <div class="purchase-toolbar">
       <div class="purchase-toolbar-actions">
         <el-button type="primary" :icon="Plus" @click="open()">添加</el-button
-        ><el-button v-if="isOrder" class="purchase-multi-receive" type="primary" :icon="Box" @click="receiveMultiple">入库</el-button><el-button
+        ><el-button
           text
           :icon="Upload"
           @click="
@@ -653,7 +648,7 @@ function confirmImport() {
         >
 
         <el-dropdown trigger="click" @command="changeGrouping">
-          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain :aria-label="isOrder ? '采购订单分组方式' : '采购入库分组方式'">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'supplier' ? '按供应商分组' : '不分组' }}</el-button>
+          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain :aria-label="isOrder ? '采购订单分组方式' : '产品入库分组方式'">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'supplier' ? '按供应商分组' : '不分组' }}</el-button>
           <template #dropdown><el-dropdown-menu>
             <el-dropdown-item command="month">{{ isOrder ? '按采购日期月份分组' : '按入库时间月份分组' }}</el-dropdown-item>
             <el-dropdown-item command="supplier">按供应商分组</el-dropdown-item>
@@ -927,7 +922,7 @@ function confirmImport() {
   </el-dialog>
   <el-dialog
     v-model="importOpen"
-    :title="'导入' + (isOrder ? '采购订单' : '采购入库')"
+    :title="'导入' + (isOrder ? '采购订单' : '产品入库')"
     width="min(850px,94vw)"
     class="purchase-dialog"
     destroy-on-close

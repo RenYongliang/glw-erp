@@ -44,7 +44,7 @@ const router = createRouter({
       name: 'purchase-receipts',
       component: () => import('../views/PurchaseManagementView.vue'),
       props: { kind: 'receipts' },
-      meta: { title: '采购入库' },
+      meta: { title: '产品入库' },
     },
     {
       path: '/customers',

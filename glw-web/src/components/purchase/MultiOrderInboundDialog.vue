@@ -25,6 +25,10 @@ const store = usePurchaseStore(),
 const full = ref(false),
   saving = ref(false),
   dirty = ref(false)
+type InboundType = 'PURCHASE'
+const inboundTypes = [{ value: 'PURCHASE', label: '采购入库' }] as const
+const inboundType = ref<InboundType>('PURCHASE')
+const isPurchaseInbound = computed(() => inboundType.value === 'PURCHASE')
 const productIds = ref<string[]>([]),
   orderIds = ref<string[]>([])
 const drafts = ref<Record<string, MultiInboundProduct>>({})
@@ -71,8 +75,18 @@ watch(productIds, (ids) => {
 watch(candidates, (items) => {
   orderIds.value = orderIds.value.filter((id) => items.some((item) => item.order.id === id))
 })
+watch(inboundType, () => {
+  productIds.value = []
+  orderIds.value = []
+  drafts.value = {}
+  photos.value = []
+  dirty.value = true
+})
 function columns(product: MultiInboundProduct) {
   return inboundAllocationColumns(pendingLines.value, product.productId, orderIds.value)
+}
+function productLabel(product: MultiInboundProduct) {
+  return [product.model, product.brand, product.packaging].filter(Boolean).join(' · ')
 }
 function allocation(batch: MultiInboundBatch, product: MultiInboundProduct) {
   return columns(product).reduce(
@@ -146,6 +160,7 @@ function summary(product: MultiInboundProduct) {
 }
 async function save() {
   if (saving.value) return
+  if (!isPurchaseInbound.value) return ElMessage.warning('该入库类型暂未开放')
   try {
     const lines = buildMultiInboundLines(products.value, pendingLines.value, orderIds.value)
     const first = selectedOrders.value[0]!.order
@@ -220,7 +235,7 @@ async function selectPhotos(event: Event) {
 <template>
   <el-dialog
     :model-value="true"
-    title="多单入库"
+    title="新增入库"
     width="min(1120px,96vw)"
     :fullscreen="full"
     class="purchase-dialog multi-inbound-dialog"
@@ -229,7 +244,7 @@ async function selectPhotos(event: Event) {
   >
     <template #header
       ><div class="multi-heading">
-        <strong>多单入库</strong
+        <strong>新增入库</strong
         ><el-button
           text
           :icon="FullScreen"
@@ -238,49 +253,57 @@ async function selectPhotos(event: Event) {
           @click="full = !full"
         /></div
     ></template>
-    <el-form label-position="top" :disabled="saving" class="multi-product-picker">
-      <el-form-item label="本次入库产品" required
-        ><el-select
-          v-model="productIds"
-          multiple
-          filterable
-          clearable
-          placeholder="选择入库产品"
-          aria-label="选择入库产品"
-          ><el-option
-            v-for="product in catalog"
-            :key="product.productId"
-            :value="product.productId"
-            :label="[product.model, product.brand, product.packaging].filter(Boolean).join(' · ')"
-            ><span class="multi-option-model">{{ product.model }}</span
-            ><span class="multi-option-meta">{{ product.brand }} · {{ product.packaging }}</span
-            ><span class="multi-option-pending"
-              >待交 {{ product.pending.toLocaleString('zh-CN') }}</span
-            ></el-option
-          ></el-select
-        ></el-form-item
-      >
+    <h3 class='purchase-section multi-section-heading'>入库信息</h3>
+    <el-form label-position='top' :disabled='saving' class='multi-inbound-info'>
+      <el-form-item label='入库类型' required>
+        <el-select v-model='inboundType' aria-label='选择入库类型'>
+          <el-option
+            v-for='item in inboundTypes'
+            :key='item.value'
+            :label='item.label'
+            :value='item.value'
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label='入库日期' required>
+        <el-date-picker
+          v-model='receivedAt'
+          type='datetime'
+          format='YYYY-MM-DD HH:mm'
+          value-format='YYYY-MM-DD HH:mm:ss'
+          :clearable='false'
+          :disabled='saving'
+          @change='dirty = true'
+        />
+      </el-form-item>
     </el-form>
-    <div class="multi-meta">
-      <span
-        >供应商 <b :title="purchaseSupplierName(selectedOrders[0]?.order)">{{ supplier }}</b></span
-      ><label
-        ><span>入库日期<span class="multi-required"> *</span></span
-        ><el-date-picker
-          v-model="receivedAt"
-          type="datetime"
-          format="YYYY-MM-DD HH:mm"
-          value-format="YYYY-MM-DD HH:mm:ss"
-          :clearable="false"
-          :disabled="saving"
-          @change="dirty = true" /></label
-      ><span
-        >入库总数 <b class="multi-total">{{ quantity.toLocaleString('zh-CN') }}</b></span
-      >
-    </div>
-    <h3 class="multi-section-title">
-      产品批次 <small>{{ products.length }} 个产品</small>
-    </h3>
+    <template v-if='isPurchaseInbound'>
+      <h3 class='purchase-section multi-section-heading'>
+        入库产品与批次 <small>已选 {{ products.length }} 个产品</small>
+      </h3>
+      <el-form label-position='top' :disabled='saving' class='multi-product-picker'>
+        <el-form-item label='本次入库产品' required>
+          <el-select
+            v-model='productIds'
+            multiple
+            filterable
+            clearable
+            placeholder='选择入库产品'
+            aria-label='选择入库产品'
+          >
+            <el-option
+              v-for='product in catalog'
+              :key='product.productId'
+              :value='product.productId'
+              :label='productLabel(product)'
+            >
+              <span class='multi-option-model'>{{ product.model }}</span>
+              <span class='multi-option-meta'>{{ product.brand }} · {{ product.packaging }}</span>
+              <span class='multi-option-pending'>待交 {{ product.pending.toLocaleString('zh-CN') }}</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
     <el-empty v-if="!products.length" description="请选择入库产品" :image-size="52" />
     <div v-else class="multi-products">
       <section v-for="product in products" :key="product.productId" class="multi-product">
@@ -361,8 +384,11 @@ async function selectPhotos(event: Event) {
         </el-table>
       </section>
     </div>
-    <h3 class="multi-section-title">
-      采购单 <small>已选 {{ orderIds.length }} / {{ candidates.length }} 张</small>
+    <h3 class="purchase-section multi-section-heading">
+      采购单与数量分配
+      <small
+        >已选 {{ orderIds.length }} / {{ candidates.length }} 张{{ supplierId ? ' · ' + supplier : '' }}</small
+      >
     </h3>
     <el-table
       :data="candidates"
@@ -405,13 +431,6 @@ async function selectPhotos(event: Event) {
         ></el-table-column
       >
     </el-table>
-    <h3 class="multi-section-title">
-      入库数量分配
-      <small
-        >已分配 {{ allocatedQuantity.toLocaleString('zh-CN') }} / 入库
-        {{ quantity.toLocaleString('zh-CN') }}</small
-      >
-    </h3>
     <el-empty v-if="!selectedOrders.length" description="请选择采购单" :image-size="52" />
     <div v-else class="multi-products multi-allocation-products">
       <section v-for="product in products" :key="product.productId" class="multi-product">
@@ -480,7 +499,9 @@ async function selectPhotos(event: Event) {
         <div v-else class="multi-unmatched">该产品尚未选择可入库的采购单</div>
       </section>
     </div>
-    <h3 class="multi-section-title">入库确认</h3>
+    </template>
+    <el-empty v-else description="该入库类型暂未开放" :image-size="52" />
+    <h3 class="purchase-section multi-section-heading">入库凭证 <small>照片选填</small></h3>
     <div class="multi-photo-actions">
       <label
         ><el-icon><Camera /></el-icon>拍照<input
@@ -520,7 +541,7 @@ async function selectPhotos(event: Event) {
       ><el-button :disabled="saving" @click="close">取消</el-button
       ><el-button
         type="primary"
-        :disabled="orderIds.length < 2 || !products.length"
+        :disabled="orderIds.length < 1 || !products.length"
         :loading="saving"
         @click="save"
         >确认入库</el-button
@@ -538,6 +559,28 @@ async function selectPhotos(event: Event) {
 }
 .multi-heading strong {
   font-size: 17px;
+}
+.multi-inbound-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+}
+.multi-inbound-info .el-form-item {
+  margin-bottom: 10px;
+}
+.multi-inbound-info :deep(.el-date-editor) {
+  width: 100%;
+}
+.multi-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.multi-section-heading small {
+  color: #8b95a3;
+  font-size: 12px;
+  font-weight: 400;
 }
 .multi-product-picker .el-form-item {
   margin-bottom: 12px;
@@ -728,6 +771,9 @@ async function selectPhotos(event: Event) {
   color: #268a70;
 }
 @media (max-width: 650px) {
+  .multi-inbound-info {
+    grid-template-columns: 1fr;
+  }
   .multi-meta {
     gap: 12px;
   }
