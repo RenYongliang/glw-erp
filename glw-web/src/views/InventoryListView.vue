@@ -184,9 +184,13 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); generation++ })
 .inventory-table .cell { padding: 0 10px; line-height: 22px; }
 .inventory-table th.el-table__cell { color: #536174; font-weight: 500; }
 .inventory-table .el-table__expanded-cell { padding: 0 !important; }
-.inventory-table .el-table__body tbody tr:nth-child(even) td.el-table__cell,
-.inventory-batch-table .el-table__body tbody tr:nth-child(even) td.el-table__cell {
-  background: #f8fafc;
+.inventory-table .el-table__body > tbody > tr:nth-child(even of .el-table__row) > td.el-table__cell,
+.inventory-batch-table .el-table__body > tbody > tr:nth-child(even of .el-table__row) > td.el-table__cell {
+  background: #eef2f6;
+}
+.inventory-table .el-table__body > tbody > tr.el-table__row:hover > td.el-table__cell,
+.inventory-batch-table .el-table__body > tbody > tr.el-table__row:hover > td.el-table__cell {
+  background: #f4fbfa;
 }
 .inventory-batch-detail { padding: 10px 14px 12px 42px; background: #f8fafb; }
 .inventory-batch-table { font-size: 12px; --el-table-header-bg-color: #f1f4f7; }

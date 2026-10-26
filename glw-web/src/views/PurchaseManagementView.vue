@@ -965,10 +965,10 @@ function confirmImport() {
 .purchase-table .purchase-code-compact { width: 1%; padding-left: 8px; padding-right: 8px; }
 .purchase-packaging-compact .purchase-product-cell { width: 160px; }
 .purchase-packaging-compact .purchase-product-cell > div { overflow: hidden; text-overflow: ellipsis; }
-.purchase-table tbody tr:not(.purchase-group):nth-child(even) td {
-  background: #f8fafc;
+.purchase-table tbody > tr:nth-child(even of :not(.purchase-group)) > td {
+  background: #eef2f6;
 }
-.purchase-table tbody tr:not(.purchase-group):nth-child(even):hover td {
+.purchase-table tbody > tr:nth-child(even of :not(.purchase-group)):hover > td {
   background: #f4fbfa;
 }
 .purchase-table tbody tr.selected td {
