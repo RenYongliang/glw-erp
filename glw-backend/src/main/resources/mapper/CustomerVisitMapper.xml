@@ -12,6 +12,7 @@
         <result column="unit_price" property="unitPrice" jdbcType="DECIMAL"/>
         <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="progress" property="progress" jdbcType="VARCHAR"/>
+        <result column="stage" property="stage" jdbcType="VARCHAR"/>
         <result column="detail" property="detail" jdbcType="LONGVARCHAR"/>
         <result column="version" property="version" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
@@ -21,6 +22,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `customer_id`, `visit_time`, `project`, `original_part_no`, `product_id`, `demand_quantity`, `unit_price`, `tax_included`, `progress`, `detail`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `customer_id`, `visit_time`, `project`, `original_part_no`, `product_id`, `demand_quantity`, `unit_price`, `tax_included`, `progress`, `stage`, `detail`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

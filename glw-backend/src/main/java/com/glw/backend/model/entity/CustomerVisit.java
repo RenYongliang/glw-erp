@@ -59,6 +59,9 @@ public class CustomerVisit {
     @TableField("progress")
     private String progress;
 
+    @TableField("stage")
+    private String stage;
+
     /** 详细内容。 */
     @TableField("detail")
     private String detail;

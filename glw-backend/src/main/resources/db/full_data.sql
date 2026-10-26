@@ -257,13 +257,13 @@ BEGIN
     (35, 29, 35, 17, 'GL20261008001', 25, 7, '', '', 3000),
     (36, 14, 36, 17, 'GL20261008001', 26, 6, '', '', 3000);
   -- customer: 6 confirmed rows
-  INSERT INTO `customer` (`id`, `name`, `short_name`, `settle_type`) VALUES
-    (1, '深圳同益芯', NULL, 'TT/先款后货'),
-    (2, '深圳市中诺泽科技有限公司', '深圳中诺泽', 'TT/先款后货'),
-    (3, '深圳市成胜微电子有限公司', '深圳成胜微', 'TT/先款后货'),
-    (4, '广州番禺巨大汽车音响设备有限公司', '广州巨大汽车音响', NULL),
-    (5, '深圳市铭泰电子信息科技有限公司', '深圳市铭泰电子', '次月结60'),
-    (6, '深圳市勤泰智能信息技术有限公司', '深圳市勤泰信息', '次月结60');
+  INSERT INTO `customer` (`id`, `name`, `short_name`, `settle_type`, `category`) VALUES
+    (1, '深圳同益芯', NULL, 'TT/先款后货', NULL),
+    (2, '深圳市中诺泽科技有限公司', '深圳中诺泽', 'TT/先款后货', NULL),
+    (3, '深圳市成胜微电子有限公司', '深圳成胜微', 'TT/先款后货', NULL),
+    (4, '广州番禺巨大汽车音响设备有限公司', '广州巨大汽车音响', NULL, NULL),
+    (5, '深圳市铭泰电子信息科技有限公司', '深圳市铭泰电子', '次月结60', NULL),
+    (6, '深圳市勤泰智能信息技术有限公司', '深圳市勤泰信息', '次月结60', NULL);
   -- inventory: 36 confirmed rows
   INSERT INTO `inventory` (`id`, `product_id`, `date_code`, `lot_code`, `batch_no`, `inbound_order_item_id`, `inbound_order_batch_item_id`, `unit_cost`, `initial_quantity`, `quantity`, `reserved_quantity`, `created_at`) VALUES
     (1, 1, '', '', 'BAT26052600001001', 1, 1, 0.7000, 30000, 0, 0, '2026-05-26 00:00:00'),

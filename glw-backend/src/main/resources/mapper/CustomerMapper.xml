@@ -5,6 +5,7 @@
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="name" property="name" jdbcType="VARCHAR"/>
         <result column="short_name" property="shortName" jdbcType="VARCHAR"/>
+        <result column="category" property="category" jdbcType="VARCHAR"/>
         <result column="address" property="address" jdbcType="VARCHAR"/>
         <result column="contact" property="contact" jdbcType="VARCHAR"/>
         <result column="contact_phone" property="contactPhone" jdbcType="VARCHAR"/>
@@ -17,6 +18,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `name`, `short_name`, `address`, `contact`, `contact_phone`, `settle_type`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `name`, `short_name`, `category`, `address`, `contact`, `contact_phone`, `settle_type`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

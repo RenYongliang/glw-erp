@@ -27,6 +27,9 @@ public class Customer {
     @TableField("short_name")
     private String shortName;
 
+    @TableField("category")
+    private String category;
+
     /** 客户地址。 */
     @TableField("address")
     private String address;
