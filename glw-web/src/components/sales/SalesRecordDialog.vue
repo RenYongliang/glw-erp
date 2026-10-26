@@ -7,9 +7,9 @@ import ShipmentBatchPicker from "./ShipmentBatchPicker.vue";
 import { validateBatchSelection, type ShipmentBatch } from "../../domain/shipmentBatches";
 import { useSalesStore } from "../../stores/sales";
 import { fetchSalesProducts, fetchProductCostBatches } from "../../services/productApi";
+import { fetchCustomerOptions, type CustomerOption } from "../../services/customerApi";
 import { formatUnitCost, formatCostRange, type SalesProductOption, type ProductCostBatch } from "../../services/productApiData";
 import {
-  customers,
   orderCustomerName,
   salesLineProduct,
   defaultShippingInfo,
@@ -45,6 +45,21 @@ const store = useSalesStore(),
   dirty = ref(false);
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const productCatalog = ref<SalesProductOption[]>([]);
+const customers = ref<CustomerOption[]>([]);
+const customersLoading = ref(false), customersError = ref('');
+const availableCustomers = computed(() => {
+  const query = pickerQuery.value.trim().toLowerCase();
+  return customers.value.filter(customer => [customer.name, customer.shortName, customer.contact, customer.phone]
+    .join(' ').toLowerCase().includes(query));
+});
+async function loadCustomers() {
+  if (customersLoading.value) return;
+  customersLoading.value = true;
+  customersError.value = '';
+  try { customers.value = await fetchCustomerOptions(); }
+  catch (error) { customersError.value = error instanceof Error ? error.message : '客户加载失败'; }
+  finally { customersLoading.value = false; }
+}
 const productsLoading = ref(false), productsError = ref('');
 const costBatchesOpen = ref(false), costBatchesLoading = ref(false), costBatchesError = ref('');
 const costProduct = ref<SalesProductOption>();
@@ -130,7 +145,7 @@ const linkedOrder = computed(() =>
     : store.state.orders.find((o) => o.id === shipment.value.orderId),
 );
 const customer = computed(() =>
-  customers.find((s) => s.id === linkedOrder.value?.customerId),
+  customers.value.find((s) => s.id === linkedOrder.value?.customerId),
 );
 const shippingInfo = ref(clone(props.shipment?.shipping || defaultShippingInfo(linkedOrder.value)));
 const printableShipment = computed(() => ({ ...shipment.value, shipping: shippingInfo.value }));
@@ -142,7 +157,7 @@ const totals = computed(() => orderTotals(order.value)),
     shipmentTotals(shipment.value, linkedOrder.value),
   );
 const baseFields = computed(() => [
-  ...(!isOrder ? [["客户名称", orderCustomerName(linkedOrder.value)], ["客户编码", customer.value?.code]] : []),
+  ...(!isOrder ? [["客户名称", orderCustomerName(linkedOrder.value)]] : []),
   [isOrder ? "联系人" : "客户联系人姓名", customer.value?.contact],
   [isOrder ? "联系人手机" : "客户联系人手机", customer.value?.phone],
 ]);
@@ -190,7 +205,8 @@ const availableProducts = computed(() =>
         .join()
         .toLowerCase()
         .includes(pickerQuery.value.toLowerCase()),
-  ),
+  ).sort((a, b) => Number(b.stock > 0) - Number(a.stock > 0)
+    || a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' })),
 );
 watch(
   () => shipment.value.tag,
@@ -204,9 +220,11 @@ watch(
   },
 );
 function chooseCustomer(id: string) {
+  const s = customers.value.find((s) => s.id === id);
+  if (!s) return;
   order.value.customerId = id;
-  const s = customers.find((s) => s.id === id)!;
   order.value.customerName = s.name;
+  order.value.customerShortName = s.shortName || undefined;
   order.value.name = `${s.name}-第${store.state.orders.filter((o) => o.customerId === id).length + 1}份销售订单`;
   picker.value = "";
   dirty.value = true;
@@ -215,10 +233,11 @@ function useCustomerName() {
   const name = pickerQuery.value.trim();
   if (!name) return void ElMessage.warning("请填写客户名称");
   if (name.length > 100) return void ElMessage.warning("客户名称不能超过100字");
-  const existing = customers.find(c => c.name === name);
+  const existing = customers.value.find(c => c.name === name);
   if (existing) return chooseCustomer(existing.id);
   order.value.customerId = "";
   order.value.customerName = name;
+  order.value.customerShortName = undefined;
   order.value.name = `${name}-销售订单`;
   picker.value = "";
   dirty.value = true;
@@ -326,6 +345,7 @@ function syncDispatchFont() {
 }
 onMounted(() => {
   void loadProducts();
+  void loadCustomers();
   syncDispatchFont();
   void document.fonts.ready.then(syncDispatchFont);
   window.addEventListener('resize', syncDispatchFont);
@@ -374,6 +394,7 @@ function openPicker(name: string) {
   productSelection.value = [];
   picker.value = name;
   if (name === 'product' && (productsError.value || !productCatalog.value.length)) void loadProducts();
+  if (name === 'customer') void loadCustomers();
 }
 const saving = ref(false);
 async function save() {
@@ -713,7 +734,7 @@ function quickFill() {
       </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
-        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:65},{key:'name',label:'型号',width:85},{key:'model',label:'封装',width:160}]" :key="f.key" :label="f.label" :min-width="f.width" :width="f.key === 'model' ? 160 : undefined" show-overflow-tooltip>
+        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:65},{key:'name',label:'型号',width:105},{key:'model',label:'封装',width:160}]" :key="f.key" :label="f.label" :min-width="f.width" :width="f.key === 'model' ? 160 : undefined" show-overflow-tooltip>
           <template #default="{row}">{{ lineProductValue(row, f.key) }}</template>
         </el-table-column>
         <el-table-column label="单价(含税)" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="4" controls-position="right" aria-label="单价(含税)" /></template></el-table-column>
@@ -1109,10 +1130,10 @@ function quickFill() {
             ><el-descriptions-item label="税种"
               >增值税专用发票</el-descriptions-item
             ><el-descriptions-item label="银行账户">{{
-              customer?.account
+              '—'
             }}</el-descriptions-item
             ><el-descriptions-item label="开户银行">{{
-              customer?.bank
+              '—'
             }}</el-descriptions-item></el-descriptions
           ><el-table :data="linkedPayments" border
             ><el-table-column prop="date" label="收款日期" /><el-table-column
@@ -1333,26 +1354,27 @@ function quickFill() {
   >
     <el-input
       v-model="pickerQuery"
-      :placeholder="picker === 'customer' ? '搜索已有客户，或输入新客户名称' : picker === 'product' ? '搜索品牌、型号、封装或产品ID' : '搜索销售订单'"
+      :placeholder="picker === 'customer' ? '搜索客户名称、简称、联系人或手机' : picker === 'product' ? '搜索品牌、型号、封装或产品ID' : '搜索销售订单'"
       clearable
       class="purchase-picker-search"
     />
     <div v-if="picker === 'customer'" class="sales-new-customer">
       <span>列表中没有该客户？输入客户名称后可直接用于订单，客户资料可稍后维护。</span>
-      <el-button type="primary" plain :disabled="!pickerQuery.trim()" @click="useCustomerName">使用此客户名称</el-button>
+      <el-button type="primary" plain :disabled="!pickerQuery.trim() || customersLoading || !!customersError" @click="useCustomerName">使用此客户名称</el-button>
     </div>
+    <el-alert v-if="picker === 'customer' && customersError" :title="customersError" type="error" :closable="false">
+      <el-button link type="primary" @click="loadCustomers">重试</el-button>
+    </el-alert>
     <el-table
-      v-if="picker === 'customer'"
-      :data="
-        customers.filter((s) => [s.name, s.code].join().includes(pickerQuery))
-      "
+      v-if="picker === 'customer' && !customersError"
+      v-loading="customersLoading"
+      :data="availableCustomers"
+      max-height="420"
+      class="sales-customer-options"
+      :empty-text="pickerQuery.trim() ? '没有匹配的客户' : '暂无客户数据'"
       border
       @row-dblclick="chooseCustomer($event.id)"
-      ><el-table-column prop="name" label="客户名称" /><el-table-column
-        prop="code"
-        label="客户编码"
-        width="125"
-      /><el-table-column
+      ><el-table-column prop="name" label="客户名称" min-width="200" show-overflow-tooltip /><el-table-column
         prop="contact"
         label="联系人"
         width="110"
@@ -1360,6 +1382,7 @@ function quickFill() {
         prop="phone"
         label="手机"
         width="150"
+      /><el-table-column prop="settlement" label="结算方式" width="125" show-overflow-tooltip
       /><el-table-column width="80"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="chooseCustomer(row.id)"
