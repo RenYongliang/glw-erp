@@ -236,7 +236,8 @@ async function selectPhotos(event: Event) {
   <el-dialog
     :model-value="true"
     title="新增入库"
-    width="min(1120px,96vw)"
+    width="820px"
+    top="3vh"
     :fullscreen="full"
     class="purchase-dialog multi-inbound-dialog"
     :close-on-click-modal="false"

@@ -88,10 +88,10 @@ interface InboundOrderCreateRequest {
   }[]
 }
 
-async function allRecords<T>(path: string): Promise<T[]> {
+async function allRecords<T>(path: string, filters: Record<string, unknown> = {}): Promise<T[]> {
   const records: T[] = []
   for (let pageNo = 1; ; pageNo++) {
-    const page = await apiRequest<PageResponse<T>>(path, { method: 'POST', body: JSON.stringify({ pageNo, pageSize: 200 }) })
+    const page = await apiRequest<PageResponse<T>>(path, { method: 'POST', body: JSON.stringify({ ...filters, pageNo, pageSize: 200 }) })
     records.push(...page.records)
     if (pageNo >= page.pages || !page.records.length) return records
   }
@@ -198,6 +198,15 @@ export async function fetchInboundOrders() {
 
 export async function fetchInboundDetail(id: string, orderId?: string) {
   return toPurchaseReceipt(await apiRequest<InboundOrderResponse>(`/inbound-order/${id}${orderId ? `/purchase-orders/${orderId}` : ''}`))
+}
+
+export async function fetchPurchaseInboundHistory(orderId: string) {
+  const receipts = await allRecords<InboundOrderResponse>('/inbound-order/list', { purchaseOrderId: Number(orderId) })
+  return receipts.map(receipt => toPurchaseReceipt({
+    ...receipt,
+    purchaseOrders: receipt.purchaseOrders.filter(order => String(order.purchaseOrderId) === orderId),
+    items: receipt.items.filter(item => String(item.purchaseOrderId) === orderId),
+  }))
 }
 
 export async function createInboundOrder(receipt: PurchaseReceipt) {

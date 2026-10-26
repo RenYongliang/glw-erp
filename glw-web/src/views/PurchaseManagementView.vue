@@ -20,6 +20,7 @@ import {
 } from '@element-plus/icons-vue'
 import PurchaseRecordDialog from '../components/purchase/PurchaseRecordDialog.vue'
 import InboundReceiptDialog from '../components/purchase/InboundReceiptDialog.vue'
+import PurchaseInboundHistoryDialog from '../components/purchase/PurchaseInboundHistoryDialog.vue'
 import MultiOrderInboundDialog from '../components/purchase/MultiOrderInboundDialog.vue'
 import { usePurchaseStore } from '../stores/purchase'
 import {
@@ -855,7 +856,8 @@ function confirmImport() {
     @saved="saved"
     @receive="receive"
   />
-  <InboundReceiptDialog v-if="editor && editorKind === 'receipts' && editingReceipt" :key="editorVersion" :receipt="editingReceipt" :scope-order="scopeOrder" @close="editor = false" @saved="saved" />
+  <PurchaseInboundHistoryDialog v-if="editor && editorKind === 'receipts' && editingReceipt && scopeOrder" :key="editorVersion" :order="scopeOrder" :current-receipt-id="editingReceipt.id" @close="editor = false" />
+  <InboundReceiptDialog v-else-if="editor && editorKind === 'receipts' && editingReceipt" :key="editorVersion" :receipt="editingReceipt" @close="editor = false" @saved="saved" />
   <MultiOrderInboundDialog v-if="editor && editorKind === 'receipts' && !singleReceipt && !editingReceipt" :key="editorVersion" @close="editor = false" @saved="saved" />
   <el-drawer v-model="logsOpen" title="操作记录" size="min(600px,95vw)" class="purchase-dialog"
     ><el-empty v-if="!store.state.logs.length" description="暂无操作记录" /><el-timeline v-else
