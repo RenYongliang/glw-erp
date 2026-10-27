@@ -40,6 +40,7 @@ import {
   type SalesReturn,
 } from "../domain/sales";
 import { encodeCsv, parseCsv } from "../domain/crm";
+import { downloadExport } from '../services/exportApi';
 import "../assets/purchase.css";
 const props = defineProps<{ kind: SalesKind }>(),
   store = useSalesStore(),
@@ -483,15 +484,21 @@ function download(name: string, rows: unknown[][]) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function exportData() {
-  const rows = selected.value.length
-    ? filtered.value.filter((r) => selected.value.includes(r.id))
-    : filtered.value;
-  download(`${isOrder ? "销售订单" : "销售出库"}-${today()}.csv`, [
-    shownColumns.value.map((c) => c.label),
-    ...rows.map((r) => shownColumns.value.map((c) => r.values[c.key])),
-  ]);
-  ElMessage.success(`已导出 ${rows.length} 条数据`);
+const exporting = ref(false);
+async function exportData() {
+  if (exporting.value) return;
+  exporting.value = true;
+  try {
+    await downloadExport(isOrder ? 'sales-orders' : 'outbound-orders', {
+      keyword: keyword.value, tab: tab.value, sales: orderFilters.value,
+      selectedIds: selected.value.map(Number), columns: shownColumns.value.map(c => c.key),
+      sortKey: sortKey.value, sortDirection: sortDirection.value,
+      filterOpen: filterOpen.value, filterKey: filterKey.value,
+      filterOperator: filterOperator.value, filterValue: filterValue.value,
+    }, `${isOrder ? '销售订单' : '销售出库'}-${today()}`);
+    ElMessage.success('导出成功');
+  } catch (e) { ElMessage.error((e as Error).message); }
+  finally { exporting.value = false; }
 }
 const importOpen = ref(false),
   importRows = ref<Record<string, string>[]>([]),
@@ -702,7 +709,7 @@ function confirmImport() {
             }
           "
           >导入</el-button
-        ><el-button text :icon="Download" @click="exportData">导出</el-button
+        ><el-button text :icon="Download" :loading="exporting" :disabled="store.loading || !!store.loadError" @click="exportData">导出</el-button
         ><el-button text :icon="Delete" @click="remove">删除</el-button
         >
       </div>

@@ -6,7 +6,7 @@ import { fetchCrmCustomers, fetchCrmVisits, saveCustomer, saveVisit, deleteCrmRe
   categoryOptions, stageOptions, settlementOptions, settlementLabel, type CustomerRecord, type VisitRecord } from '../../services/crmApi'
 import { fetchSalesProducts } from '../../services/productApi'
 import type { SalesProductOption } from '../../services/productApiData'
-import { encodeCsv } from '../../domain/crm'
+import { downloadExport } from '../../services/exportApi'
 import { today } from '../../domain/purchase'
 import '../../assets/purchase.css'
 
@@ -103,14 +103,16 @@ async function remove(row: CustomerRecord | VisitRecord) {
     await deleteCrmRecord(props.kind, row); ElMessage.success('已删除'); await load()
   } catch (e) { if (e instanceof Error) ElMessage.error(e.message) }
 }
-function exportRows() {
-  const rows = isCustomer.value ? [['客户名称', '客户简称', '客户分类', '联系人', '手机', '客户地址', '结算方式'], ...filtered.value.map(value => {
-    const row = value as CustomerRecord; return [row.name, row.shortName, categoryOptions.find(option => option.value === row.category)?.label || '未分类', row.contact, row.contactPhone, row.address, settlementLabel(row.settleType)]
-  })] : [['客户', '跟进阶段', '拜访时间', '项目应用', '原用物料型号', '品牌', '推荐型号', '封装', '项目用量', '产品报价', '是否含税', '进度', '详细内容'], ...filtered.value.map(value => {
-    const row = value as VisitRecord; return [row.customerName, row.stage, row.visitTime, row.project, row.originalPartNo, row.brand, row.partNo, row.packageType, row.demandQuantity, row.unitPrice, row.taxIncluded === 1 ? '含税' : '未税', row.progress, row.detail]
-  })]
-  const url = URL.createObjectURL(new Blob([encodeCsv(rows)], { type: 'text/csv;charset=utf-8' }))
-  const link = document.createElement('a'); link.href = url; link.download = `${title.value}.csv`; link.click(); URL.revokeObjectURL(url)
+const exporting = ref(false)
+async function exportRows() {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    await downloadExport(props.kind, { keyword: keyword.value, settlement: settlement.value,
+      category: category.value, stage: stage.value, customerId: filterCustomer.value, dates: dates.value || [] }, title.value)
+    ElMessage.success('导出成功')
+  } catch (e) { ElMessage.error((e as Error).message) }
+  finally { exporting.value = false }
 }
 </script>
 
@@ -129,7 +131,7 @@ function exportRows() {
     </nav>
     <div class="crm-business-toolbar">
       <div class="crm-business-actions"><el-button type="primary" :icon="Plus" @click="openRecord()">添加</el-button>
-        <el-button text :icon="Download" :disabled="!filtered.length" @click="exportRows">导出</el-button></div>
+        <el-button text :icon="Download" :loading="exporting" :disabled="loading || !filtered.length" @click="exportRows">导出</el-button></div>
       <div class="crm-business-filters">
         <el-select v-if="isCustomer" v-model="settlement" clearable placeholder="全部结算方式" aria-label="筛选结算方式"><el-option v-for="option in settlements" :key="option.value" :value="option.value" :label="option.label" /></el-select>
         <template v-else>

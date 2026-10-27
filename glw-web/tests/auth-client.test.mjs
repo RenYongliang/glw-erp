@@ -28,6 +28,24 @@ const reply = (data, status = 200) =>
     JSON.stringify({ code: status === 200 ? 0 : status * 100, message: 'response', data }),
     { status },
   )
+test('CSV download refreshes expired access and returns the server file unchanged', async () => {
+  const csv = '\uFEFF"客户","金额"\r\n"示例","0.0750"\r\n'
+  const { client, calls } = setup((url, init) => {
+    if (url.endsWith('refresh-token')) return reply(tokens(2))
+    if (init.headers.get('Authorization') !== 'Bearer access-2') return reply(null, 401)
+    return new Response(csv, { headers: { 'Content-Type': 'text/csv;charset=UTF-8' } })
+  })
+  const blob = await client.request('/exports/customers', { method: 'POST', body: '{}' }, false, true)
+  assert.ok(blob instanceof Blob)
+  assert.deepEqual(new Uint8Array(await blob.arrayBuffer()), new TextEncoder().encode(csv))
+  assert.equal(calls.length, 3)
+  assert.equal(calls[2].init.headers.get('Authorization'), 'Bearer access-2')
+})
+test('CSV download surfaces backend validation errors instead of downloading an error file', async () => {
+  const { client } = setup(() => reply(null, 400))
+  await assert.rejects(client.request('/exports/customers', { method: 'POST', body: '{}' }, false, true),
+    error => error instanceof ApiError && error.status === 400)
+})
 function setup(handler) {
   const local = new MemoryStorage(),
     tab = new MemoryStorage(),

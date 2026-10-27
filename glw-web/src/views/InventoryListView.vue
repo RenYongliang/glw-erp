@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Box, Search, Filter, Refresh, Download, FullScreen, Expand, Fold } from '@element-plus/icons-vue'
 import { fetchInventory, type InventoryProduct, type InventoryQuery } from '../services/inventoryApi'
-import { encodeCsv } from '../domain/crm'
+import { downloadExport } from '../services/exportApi'
 import '../assets/purchase.css'
 
 const view = ref('stock')
@@ -75,23 +75,7 @@ async function exportData() {
   exporting.value = true
   const snapshot = query(1, 200)
   try {
-    const products: InventoryProduct[] = []
-    for (let current = 1; ; current++) {
-      const result = await fetchInventory({ ...snapshot, pageNo: current })
-      products.push(...result.records)
-      if (current * 200 >= Number(result.total) || !result.records.length) break
-    }
-    const data = products.flatMap(product => product.batches.length ? product.batches.map(batch => [
-      String(product.productId), product.brand || '', product.partNo, product.packageType || '',
-      batch.dateCode, batch.lotCode, batch.batchNo, String(batch.availableQuantity), cost(batch.unitCost), cost(batch.stockValue), date(batch.inboundTime),
-    ]) : [[String(product.productId), product.brand || '', product.partNo, product.packageType || '', '', '', '', '0', '', '0', '']])
-    const csv = encodeCsv([['产品ID', '品牌', '型号', '封装', 'Date Code', 'Lot Code', '批次号', '可出库库存', '单位成本', '库存金额', '入库日期'], ...data])
-    const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `库存明细-${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    await downloadExport('inventory', { inventory: snapshot }, `库存明细-${new Date().toISOString().slice(0, 10)}`)
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '导出失败')
   } finally { exporting.value = false }

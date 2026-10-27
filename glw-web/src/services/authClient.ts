@@ -90,7 +90,7 @@ export class AuthClient {
     }
     this.notify()
   }
-  private async send<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  private async send<T>(path: string, init: RequestInit = {}, token?: string, binary = false): Promise<T> {
     if (
       !path.startsWith('/') ||
       path.startsWith('//') ||
@@ -109,9 +109,11 @@ export class AuthClient {
       credentials: 'omit',
       cache: 'no-store',
       signal: init.signal
-        ? AbortSignal.any([init.signal, AbortSignal.timeout(15000)])
-        : AbortSignal.timeout(15000),
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(binary ? 120000 : 15000)])
+        : AbortSignal.timeout(binary ? 120000 : 15000),
     })
+    if (binary && response.ok && response.headers.get('Content-Type')?.includes('text/csv'))
+      return await response.blob() as T
     let envelope: { code: number; message: string; data: T }
     try {
       envelope = await response.json()
@@ -186,8 +188,8 @@ export class AuthClient {
     if (!session) return null
     return session.expiresAt <= Date.now() + 30000 ? this.refresh() : session
   }
-  async request<T>(path: string, init: RequestInit = {}, anonymous = false): Promise<T> {
-    if (anonymous) return this.send<T>(path, init)
+  async request<T>(path: string, init: RequestInit = {}, anonymous = false, binary = false): Promise<T> {
+    if (anonymous) return this.send<T>(path, init, undefined, binary)
     const session = await this.ensureSession()
     if (!session) {
       this.clear()
@@ -195,12 +197,12 @@ export class AuthClient {
     }
     const generation = this.generation
     try {
-      return await this.send<T>(path, init, session.accessToken)
+      return await this.send<T>(path, init, session.accessToken, binary)
     } catch (e) {
       if (!(e instanceof ApiError) || e.status !== 401 || generation !== this.generation) throw e
       const next = await this.refresh(session.accessToken)
       try {
-        return await this.send<T>(path, init, next.accessToken)
+        return await this.send<T>(path, init, next.accessToken, binary)
       } catch (retryError) {
         if (
           retryError instanceof ApiError &&

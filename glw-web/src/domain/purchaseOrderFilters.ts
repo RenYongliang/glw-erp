@@ -27,7 +27,7 @@ export function matchesPurchaseOrderFilters(order: PurchaseOrder, catalog: Produ
   const includes = (value: string, query: string) => value.toLowerCase().includes(query.trim().toLowerCase())
   if (!includes(order.code, filters.code)) return false
   if (filters.supplier && supplier !== filters.supplier) return false
-  const payment = Math.round(paid * 100) <= 0 ? '未付款' : Math.round(paid * 100) >= Math.round(total * 100) ? '已付款' : '部分付款'
+  const payment = order.paymentStatus ?? (Math.round(paid * 100) <= 0 ? '未付款' : Math.round(paid * 100) >= Math.round(total * 100) ? '已付款' : '部分付款')
   if (filters.paymentStatus && payment !== filters.paymentStatus) return false
   if (filters.receiptStatus && purchaseReceiptStatus(order, receipts) !== filters.receiptStatus) return false
   if (filters.dates?.some(Boolean)) {
@@ -37,8 +37,8 @@ export function matchesPurchaseOrderFilters(order: PurchaseOrder, catalog: Produ
   if (!Object.values(filters.product).some(value => value.trim())) return true
   return order.lines.some(line => {
     const product = catalog.find(p => p.id === line.productId)
-    return includes(product?.brand || '', filters.product.brand)
-      && includes(product?.model || '', filters.product.model)
-      && includes(product?.packaging || '', filters.product.packaging)
+    return includes(line.brand ?? product?.brand ?? '', filters.product.brand)
+      && includes(line.model ?? product?.model ?? '', filters.product.model)
+      && includes(line.packaging ?? product?.packaging ?? '', filters.product.packaging)
   })
 }

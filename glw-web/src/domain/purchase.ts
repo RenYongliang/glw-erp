@@ -71,6 +71,7 @@ export interface PurchaseOrder {
   lines: PurchaseLine[]
   arrivals: ArrivalPlan[]
   payments: PaymentPlan[]
+  paymentStatus?: '未付款' | '部分付款' | '已付款'
   attachments: Attachment[]
   term: string
   status: '待审批' | '审批通过' | '不通过' | '待收货' | '部分收货' | '已完成'

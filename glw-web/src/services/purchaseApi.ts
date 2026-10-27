@@ -136,6 +136,7 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
     })),
     arrivals: [],
     payments: [],
+    paymentStatus: ({ UNPAID: '未付款', PARTIALLY_PAID: '部分付款', PAID: '已付款' } as const)[order.paymentStatus as 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'],
     attachments: [],
     term: order.remark || '',
     status: orderStatus(order.orderStatus),
