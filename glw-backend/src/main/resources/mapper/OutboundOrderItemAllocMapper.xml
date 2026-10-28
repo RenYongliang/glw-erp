@@ -6,6 +6,7 @@
         <result column="outbound_order_id" property="outboundOrderId" jdbcType="BIGINT"/>
         <result column="outbound_order_item_id" property="outboundOrderItemId" jdbcType="BIGINT"/>
         <result column="sales_order_id" property="salesOrderId" jdbcType="BIGINT"/>
+        <result column="sales_order_no" property="salesOrderNo" jdbcType="VARCHAR"/>
         <result column="customer_order_no" property="customerOrderNo" jdbcType="VARCHAR"/>
         <result column="sales_order_item_id" property="salesOrderItemId" jdbcType="BIGINT"/>
         <result column="allocated_quantity" property="allocatedQuantity" jdbcType="INTEGER"/>
@@ -21,7 +22,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `outbound_order_id`, `outbound_order_item_id`, `sales_order_id`, `customer_order_no`, `sales_order_item_id`, `allocated_quantity`, `unit_price`, `tax_included`, `tax_rate`, `amount`, `currency`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `outbound_order_id`, `outbound_order_item_id`, `sales_order_id`, `sales_order_no`, `customer_order_no`, `sales_order_item_id`, `allocated_quantity`, `unit_price`, `tax_included`, `tax_rate`, `amount`, `currency`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 
     <resultMap id="ShippedQuantityMap" type="com.glw.backend.mapper.OutboundOrderItemAllocMapper$ShippedQuantity">

@@ -84,21 +84,18 @@ class SalesListServiceTest {
         var items = mock(OutboundOrderItemService.class);
         var allocations = mock(OutboundOrderItemAllocService.class);
         var batches = mock(OutboundOrderItemBatchService.class);
-        var relations = mock(OutboundOrderSalesOrderService.class);
         var customers = mock(CustomerMapper.class);
         var service = spy(new OutboundOrderServiceImpl(items, allocations, batches, mock(OutboundOrderItemAllocMapper.class),
-                relations, mock(SalesOrderMapper.class), mock(SalesOrderItemService.class), mock(InventoryService.class),
+                mock(SalesOrderMapper.class), mock(SalesOrderItemService.class), mock(InventoryService.class),
                 Mappers.getMapper(OutboundOrderConverter.class), customers, mock(com.glw.backend.service.DocumentNumberService.class)));
         LambdaQueryChainWrapper<OutboundOrder> ordersQuery = query();
         LambdaQueryChainWrapper<OutboundOrderItem> itemsQuery = query();
         LambdaQueryChainWrapper<OutboundOrderItemAlloc> allocsQuery = query();
         LambdaQueryChainWrapper<OutboundOrderItemBatch> batchesQuery = query();
-        LambdaQueryChainWrapper<OutboundOrderSalesOrder> relationsQuery = query();
         doReturn(ordersQuery).when(service).lambdaQuery();
         when(items.lambdaQuery()).thenReturn(itemsQuery);
         when(allocations.lambdaQuery()).thenReturn(allocsQuery);
         when(batches.lambdaQuery()).thenReturn(batchesQuery);
-        when(relations.lambdaQuery()).thenReturn(relationsQuery);
         var first = new OutboundOrder(); first.setId(1L);
         var second = new OutboundOrder(); second.setId(2L);
         first.setCustomerId(7L); second.setCustomerId(7L);
@@ -107,16 +104,25 @@ class SalesListServiceTest {
         when(customers.selectByIds(List.of(7L))).thenReturn(List.of(customer));
         var page = new Page<OutboundOrder>(1, 10); page.setRecords(List.of(first, second));
         when(ordersQuery.page(any())).thenReturn(page);
-        var relation = new OutboundOrderSalesOrder(); relation.setOutboundOrderId(2L);
-        relation.setSalesOrderId(21L); relation.setSalesOrderNo("SO-21"); relation.setCustomerOrderNo("CO-21");
-        when(relationsQuery.list()).thenReturn(List.of(relation));
         var item = new OutboundOrderItem(); item.setId(11L); item.setOutboundOrderId(2L);
         item.setOutboundQuantity(400);
         when(itemsQuery.list()).thenReturn(List.of(item));
         var allocation = new OutboundOrderItemAlloc(); allocation.setId(51L);
         allocation.setOutboundOrderItemId(11L); allocation.setSalesOrderId(21L);
+        allocation.setSalesOrderNo("SO-21"); allocation.setCustomerOrderNo("CO-21");
         allocation.setSalesOrderItemId(21L); allocation.setAllocatedQuantity(400);
-        when(allocsQuery.list()).thenReturn(List.of(allocation));
+        var secondItem = new OutboundOrderItem(); secondItem.setId(12L); secondItem.setOutboundOrderId(2L);
+        secondItem.setOutboundQuantity(30);
+        when(itemsQuery.list()).thenReturn(List.of(item, secondItem));
+        var repeatedOrder = new OutboundOrderItemAlloc(); repeatedOrder.setId(52L);
+        repeatedOrder.setOutboundOrderItemId(12L); repeatedOrder.setSalesOrderId(21L);
+        repeatedOrder.setSalesOrderNo("SO-21"); repeatedOrder.setCustomerOrderNo("CO-21");
+        repeatedOrder.setAllocatedQuantity(10);
+        var otherOrder = new OutboundOrderItemAlloc(); otherOrder.setId(53L);
+        otherOrder.setOutboundOrderItemId(12L); otherOrder.setSalesOrderId(20L);
+        otherOrder.setSalesOrderNo("SO-20"); otherOrder.setCustomerOrderNo("CO-20");
+        otherOrder.setAllocatedQuantity(20);
+        when(allocsQuery.list()).thenReturn(List.of(allocation, repeatedOrder, otherOrder));
         var batch = new OutboundOrderItemBatch(); batch.setId(31L); batch.setAllocId(51L);
         batch.setInventoryId(41L); batch.setQuantity(400); batch.setUnitCost(new BigDecimal("0.0350"));
         when(batchesQuery.list()).thenReturn(List.of(batch));
@@ -124,7 +130,11 @@ class SalesListServiceTest {
         var records = service.pageOutboundOrder(dto).getRecords();
         assertThat(records.getFirst().getCustomerShortName()).isEqualTo("Short");
         assertThat(records.get(1).getCustomerName()).isEqualTo("Customer Full Name");
-        assertThat(records.get(1).getSalesOrders()).extracting(vo -> vo.getSalesOrderNo()).containsExactly("SO-21");
+        assertThat(records.getFirst().getSalesOrders()).isEmpty();
+        assertThat(records.get(1).getSalesOrders()).extracting(vo -> vo.getSalesOrderNo())
+                .containsExactly("SO-20", "SO-21");
+        assertThat(records.get(1).getSalesOrders()).extracting(vo -> vo.getCustomerOrderNo())
+                .containsExactly("CO-20", "CO-21");
         verify(customers, times(1)).selectByIds(List.of(7L));
         assertThat(records.getFirst().getItems()).isEmpty();
         var actual = records.get(1).getItems().getFirst();
@@ -142,7 +152,7 @@ class SalesListServiceTest {
         var allocations = mock(OutboundOrderItemAllocService.class);
         var batches = mock(OutboundOrderItemBatchService.class);
         var service = spy(new OutboundOrderServiceImpl(items, allocations, batches, mock(OutboundOrderItemAllocMapper.class),
-                mock(OutboundOrderSalesOrderService.class), mock(SalesOrderMapper.class), mock(SalesOrderItemService.class),
+                mock(SalesOrderMapper.class), mock(SalesOrderItemService.class),
                 mock(InventoryService.class), Mappers.getMapper(OutboundOrderConverter.class), mock(CustomerMapper.class),
                 mock(com.glw.backend.service.DocumentNumberService.class)));
         LambdaQueryChainWrapper<OutboundOrder> ordersQuery = query();

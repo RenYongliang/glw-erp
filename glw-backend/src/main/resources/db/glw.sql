@@ -85,20 +85,8 @@ CREATE TABLE `inbound_order`  (
   UNIQUE INDEX `uk_inbound_order_no`(`inbound_order_no`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '入库表' ROW_FORMAT = Dynamic;
 
--- One actual receipt can fulfill several purchase orders.
+-- Remove obsolete association tables during full initialization.
 DROP TABLE IF EXISTS `inbound_order_purchase_order`;
-CREATE TABLE `inbound_order_purchase_order` (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `inbound_order_id` bigint NOT NULL COMMENT '入库单ID',
-  `purchase_order_id` bigint NOT NULL COMMENT '采购单ID',
-  `purchase_order_no` varchar(64) NOT NULL COMMENT '采购单编号快照',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_inbound_purchase` (`inbound_order_id`, `purchase_order_id`),
-  KEY `idx_purchase_order_id` (`purchase_order_id`),
-  KEY `idx_purchase_order_no` (`purchase_order_no`)
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '入库单与采购单关联表';
 
 -- ----------------------------
 -- Table structure for inbound_order_item
@@ -149,8 +137,9 @@ CREATE TABLE `inbound_order_item_alloc`  (
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_item_purchase_item_lot`(`inbound_order_item_id`, `purchase_order_item_id`, `date_code`, `lot_code`) USING BTREE,
-  INDEX `idx_inbound_order_id`(`inbound_order_id`) USING BTREE,
-  INDEX `idx_purchase_order_id`(`purchase_order_id`) USING BTREE,
+  INDEX `idx_inbound_purchase`(`inbound_order_id`, `purchase_order_id`) USING BTREE,
+  INDEX `idx_purchase_inbound`(`purchase_order_id`, `inbound_order_id`) USING BTREE,
+  INDEX `idx_purchase_no_inbound`(`purchase_order_no`, `inbound_order_id`) USING BTREE,
   INDEX `idx_purchase_order_item_id`(`purchase_order_item_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '入库产品行-采购行分配' ROW_FORMAT = Dynamic;
 
@@ -204,22 +193,9 @@ CREATE TABLE `outbound_order`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '出库表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Table structure for outbound_order_sales_order
+-- Remove obsolete shipment associations; allocations are the source of truth.
 -- ----------------------------
 DROP TABLE IF EXISTS `outbound_order_sales_order`;
-CREATE TABLE `outbound_order_sales_order`  (
-  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `outbound_order_id` bigint(0) NOT NULL COMMENT '出库单id',
-  `sales_order_id` bigint(0) NOT NULL COMMENT '销售订单id',
-  `sales_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '销售订单编号快照',
-  `customer_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '客户采购单编号快照',
-  `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
-  `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_outbound_sales_order`(`outbound_order_id`, `sales_order_id`) USING BTREE,
-  INDEX `idx_sales_order_id`(`sales_order_id`) USING BTREE,
-  INDEX `idx_customer_order_no`(`customer_order_no`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '出库单与销售订单关联表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for outbound_order_item
@@ -252,6 +228,7 @@ CREATE TABLE `outbound_order_item_alloc`  (
   `outbound_order_id` bigint(0) NOT NULL COMMENT '出库单id',
   `outbound_order_item_id` bigint(0) NOT NULL COMMENT '出库产品行id',
   `sales_order_id` bigint(0) NOT NULL COMMENT '销售订单id',
+  `sales_order_no` varchar(64) NOT NULL COMMENT '销售订单编号快照',
   `customer_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '客户采购单编号快照',
   `sales_order_item_id` bigint(0) NOT NULL COMMENT '销售商品表id',
   `allocated_quantity` int(0) NOT NULL COMMENT '分配到该销售行的数量',
@@ -266,8 +243,9 @@ CREATE TABLE `outbound_order_item_alloc`  (
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_outbound_item_sales_item`(`outbound_order_item_id`, `sales_order_item_id`) USING BTREE,
-  INDEX `idx_outbound_order_id`(`outbound_order_id`) USING BTREE,
-  INDEX `idx_sales_order_id`(`sales_order_id`) USING BTREE,
+  INDEX `idx_outbound_sales`(`outbound_order_id`, `sales_order_id`) USING BTREE,
+  INDEX `idx_sales_outbound`(`sales_order_id`, `outbound_order_id`) USING BTREE,
+  INDEX `idx_customer_no_outbound`(`customer_order_no`, `outbound_order_id`) USING BTREE,
   INDEX `idx_sales_order_item_id`(`sales_order_item_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '出库产品行-销售行分配' ROW_FORMAT = Dynamic;
 

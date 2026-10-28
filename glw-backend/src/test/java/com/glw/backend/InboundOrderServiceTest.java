@@ -44,14 +44,12 @@ class InboundOrderServiceTest {
         final PurchaseOrderService orders = mock(PurchaseOrderService.class);
         final PurchaseOrderItemService purchaseItems = mock(PurchaseOrderItemService.class);
         final InventoryService inventory = mock(InventoryService.class);
-        final InboundOrderPurchaseOrderService relations = mock(InboundOrderPurchaseOrderService.class);
         final InboundOrderItemAllocMapper totals = mock(InboundOrderItemAllocMapper.class);
         final DocumentNumberService numbers = mock(DocumentNumberService.class);
         final InboundOrderServiceImpl service = spy(new InboundOrderServiceImpl(items, allocations, totals,
-                orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), relations, mock(ProductMapper.class), numbers));
+                orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), mock(ProductMapper.class), numbers));
         final List<InboundOrderItem> savedItems = new ArrayList<>();
         final List<InboundOrderItemAlloc> savedAllocations = new ArrayList<>();
-        final List<InboundOrderPurchaseOrder> savedRelations = new ArrayList<>();
         final List<Inventory> stock = new ArrayList<>();
         final PurchaseOrder first = order(1L);
         final PurchaseOrder second = order(2L);
@@ -70,9 +68,6 @@ class InboundOrderServiceTest {
             LambdaQueryChainWrapper<InboundOrderItemAlloc> allocQuery = query();
             when(allocations.lambdaQuery()).thenReturn(allocQuery);
             when(allocQuery.list()).thenReturn(savedAllocations);
-            LambdaQueryChainWrapper<InboundOrderPurchaseOrder> relationQuery = query();
-            when(relations.lambdaQuery()).thenReturn(relationQuery);
-            when(relationQuery.list()).thenReturn(savedRelations);
             LambdaQueryChainWrapper<Inventory> inventoryQuery = query();
             when(inventory.lambdaQuery()).thenReturn(inventoryQuery);
             when(inventoryQuery.list()).thenAnswer(call -> new ArrayList<>(stock));
@@ -83,7 +78,6 @@ class InboundOrderServiceTest {
             when(orders.updateById(any(PurchaseOrder.class))).thenReturn(true);
             when(items.save(any())).thenAnswer(call -> { InboundOrderItem row = call.getArgument(0); row.setId((long) savedItems.size() + 1); savedItems.add(row); return true; });
             when(allocations.save(any())).thenAnswer(call -> { InboundOrderItemAlloc row = call.getArgument(0); row.setId((long) savedAllocations.size() + 1); savedAllocations.add(row); return true; });
-            when(relations.save(any())).thenAnswer(call -> savedRelations.add(call.getArgument(0)));
             when(inventory.save(any())).thenAnswer(call -> stock.add(call.getArgument(0)));
         }
     }
@@ -193,6 +187,26 @@ class InboundOrderServiceTest {
         assertThat(f.stock).hasSize(3);
         assertThat(existing.getQuantity()).isEqualTo(9000);
         assertThat(f.stock.get(1).getBatchNo()).isEqualTo("BAT26101800006002");
+    }
+
+    @Test
+    void purchaseAssociationsAreDeduplicatedSortedAndUseAllocationSnapshots() {
+        var f = new Fixture();
+        var request = request(20, 10);
+        var anotherBatch = allocation(11L, 30);
+        anotherBatch.setLotCode("LOT-B");
+        request.setAllocations(List.of(request.getAllocations().get(1), anotherBatch,
+                request.getAllocations().getFirst()));
+        f.service.createInboundOrder(request);
+        f.first.setPurchaseOrderNo("CHANGED-AFTER-RECEIPT");
+        doReturn(receipt()).when(f.service).getById(100L);
+        var result = f.service.detail(100L, null);
+        assertThat(result.getPurchaseOrders()).extracting(vo -> vo.getPurchaseOrderId())
+                .containsExactly(1L, 2L);
+        assertThat(result.getPurchaseOrders()).extracting(vo -> vo.getPurchaseOrderNo())
+                .containsExactly("PO-1", "PO-2");
+        assertThat(result.getItems().getFirst().getAllocations()).hasSize(3);
+        verify(f.orders, never()).getById(any());
     }
 
     private static InboundOrder receipt() {

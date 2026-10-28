@@ -34,6 +34,10 @@ public class OutboundOrderItemAlloc {
     @TableField("sales_order_id")
     private Long salesOrderId;
 
+    /** 销售订单编号快照。 */
+    @TableField("sales_order_no")
+    private String salesOrderNo;
+
     /** 客户采购单编号快照。 */
     @TableField("customer_order_no")
     private String customerOrderNo;

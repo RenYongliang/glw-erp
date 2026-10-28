@@ -21,7 +21,6 @@ import com.glw.backend.model.entity.OutboundOrder;
 import com.glw.backend.model.entity.OutboundOrderItem;
 import com.glw.backend.model.entity.OutboundOrderItemAlloc;
 import com.glw.backend.model.entity.OutboundOrderItemBatch;
-import com.glw.backend.model.entity.OutboundOrderSalesOrder;
 import com.glw.backend.model.entity.SalesOrder;
 import com.glw.backend.model.entity.SalesOrderItem;
 import com.glw.backend.model.enums.OutboundStatus;
@@ -36,7 +35,6 @@ import com.glw.backend.service.InventoryService;
 import com.glw.backend.service.OutboundOrderItemAllocService;
 import com.glw.backend.service.OutboundOrderItemBatchService;
 import com.glw.backend.service.OutboundOrderItemService;
-import com.glw.backend.service.OutboundOrderSalesOrderService;
 import com.glw.backend.service.OutboundOrderService;
 import com.glw.backend.service.SalesOrderItemService;
 
@@ -58,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /** 出库表基础服务实现。 */
@@ -73,7 +72,6 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
     private final OutboundOrderItemAllocService outboundOrderItemAllocService;
     private final OutboundOrderItemBatchService outboundOrderItemBatchService;
     private final OutboundOrderItemAllocMapper outboundOrderItemAllocMapper;
-    private final OutboundOrderSalesOrderService outboundOrderSalesOrderService;
     private final SalesOrderMapper salesOrderMapper;
     private final SalesOrderItemService salesOrderItemService;
     private final InventoryService inventoryService;
@@ -97,9 +95,9 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         Page<OutboundOrder> page = lambdaQuery()
                 .eq(dto.getId() != null, OutboundOrder::getId, dto.getId())
                 .apply(dto.getSalesOrderId() != null,
-                        "EXISTS (SELECT 1 FROM outbound_order_sales_order rel WHERE rel.outbound_order_id = outbound_order.id AND rel.sales_order_id = {0})", dto.getSalesOrderId())
+                        "EXISTS (SELECT 1 FROM outbound_order_item_alloc alloc WHERE alloc.outbound_order_id = outbound_order.id AND alloc.sales_order_id = {0})", dto.getSalesOrderId())
                 .apply(StringUtils.hasText(dto.getCustomerOrderNo()),
-                        "EXISTS (SELECT 1 FROM outbound_order_sales_order rel WHERE rel.outbound_order_id = outbound_order.id AND rel.customer_order_no = {0})", dto.getCustomerOrderNo())
+                        "EXISTS (SELECT 1 FROM outbound_order_item_alloc alloc WHERE alloc.outbound_order_id = outbound_order.id AND alloc.customer_order_no = {0})", dto.getCustomerOrderNo())
                 .eq(dto.getCustomerId() != null, OutboundOrder::getCustomerId, dto.getCustomerId())
                 .like(StringUtils.hasText(dto.getCustomerName()), OutboundOrder::getCustomerName, dto.getCustomerName())
                 .eq(dto.getOutboundType() != null, OutboundOrder::getOutboundType, dto.getOutboundType())
@@ -200,14 +198,6 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         outboundOrder.setOutboundOrderNo(documentNumberService.next(
                 DocumentNumberService.Kind.OUTBOUND, outboundTime));
         save(outboundOrder);
-        for (SalesOrder order : salesOrders) {
-            var relation = new OutboundOrderSalesOrder();
-            relation.setOutboundOrderId(outboundOrder.getId());
-            relation.setSalesOrderId(order.getId());
-            relation.setSalesOrderNo(order.getOrderNo());
-            relation.setCustomerOrderNo(order.getCustomerOrderNo());
-            outboundOrderSalesOrderService.save(relation);
-        }
 
         // One product line per product, allocations are kept as the financial/business split.
         Map<Long, List<OutboundOrderAllocationCreateDTO>> allocationsByProduct =
@@ -242,6 +232,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
             allocation.setOutboundOrderId(outboundOrder.getId());
             allocation.setOutboundOrderItemId(orderItemLine.getId());
             allocation.setSalesOrderId(salesOrder.getId());
+            allocation.setSalesOrderNo(salesOrder.getOrderNo());
             allocation.setCustomerOrderNo(salesOrderItem.getCustomerOrderNo());
             allocation.setSalesOrderItemId(salesOrderItem.getId());
             allocation.setAllocatedQuantity(quantity);
@@ -363,20 +354,6 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         if (CollectionUtils.isEmpty(records)) return;
 
         List<Long> orderIds = records.stream().map(OutboundOrderVO::getId).toList();
-        Map<Long, List<OutboundOrderSalesOrder>> relations = outboundOrderSalesOrderService.lambdaQuery()
-                .in(OutboundOrderSalesOrder::getOutboundOrderId, orderIds)
-                .orderByAsc(OutboundOrderSalesOrder::getSalesOrderId).list().stream()
-                .collect(Collectors.groupingBy(OutboundOrderSalesOrder::getOutboundOrderId));
-        records.forEach(order -> order.setSalesOrders(
-                relations.getOrDefault(order.getId(), List.of()).stream()
-                        .map(relation -> {
-                            var vo = new OutboundSalesOrderVO();
-                            vo.setSalesOrderId(relation.getSalesOrderId());
-                            vo.setSalesOrderNo(relation.getSalesOrderNo());
-                            vo.setCustomerOrderNo(relation.getCustomerOrderNo());
-                            return vo;
-                        })
-                        .toList()));
         Map<Long, List<OutboundOrderItem>> items = outboundOrderItemService.lambdaQuery()
                 .in(OutboundOrderItem::getOutboundOrderId, orderIds)
                 .orderByAsc(OutboundOrderItem::getId)
@@ -405,7 +382,19 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
                         .list()
                         .stream()
                         .collect(Collectors.groupingBy(OutboundOrderItemBatch::getAllocId));
-        records.forEach(order -> order.setItems(
+        records.forEach(order -> {
+            Map<Long, OutboundSalesOrderVO> salesOrders = new TreeMap<>();
+            items.getOrDefault(order.getId(), List.of()).stream()
+                    .flatMap(item -> allocations.getOrDefault(item.getId(), List.of()).stream())
+                    .forEach(allocation -> salesOrders.computeIfAbsent(allocation.getSalesOrderId(), id -> {
+                        var vo = new OutboundSalesOrderVO();
+                        vo.setSalesOrderId(id);
+                        vo.setSalesOrderNo(allocation.getSalesOrderNo());
+                        vo.setCustomerOrderNo(allocation.getCustomerOrderNo());
+                        return vo;
+                    }));
+            order.setSalesOrders(List.copyOf(salesOrders.values()));
+            order.setItems(
                 items.getOrDefault(order.getId(), List.of()).stream()
                         .map(item -> {
                             var itemVO = converter.toItemVO(item);
@@ -430,6 +419,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
                                             .toList());
                             return itemVO;
                         })
-                        .toList()));
+                        .toList());
+        });
     }
 }

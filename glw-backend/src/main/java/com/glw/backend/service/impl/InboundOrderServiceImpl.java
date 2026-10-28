@@ -16,7 +16,6 @@ import com.glw.backend.model.dto.InboundOrderPageDTO;
 import com.glw.backend.model.entity.InboundOrder;
 import com.glw.backend.model.entity.InboundOrderItem;
 import com.glw.backend.model.entity.InboundOrderItemAlloc;
-import com.glw.backend.model.entity.InboundOrderPurchaseOrder;
 import com.glw.backend.model.entity.Inventory;
 import com.glw.backend.model.entity.Product;
 import com.glw.backend.model.entity.PurchaseOrder;
@@ -31,7 +30,6 @@ import com.glw.backend.model.vo.InboundPurchaseOrderVO;
 import com.glw.backend.service.DocumentNumberService;
 import com.glw.backend.service.InboundOrderItemAllocService;
 import com.glw.backend.service.InboundOrderItemService;
-import com.glw.backend.service.InboundOrderPurchaseOrderService;
 import com.glw.backend.service.InboundOrderService;
 import com.glw.backend.service.InventoryService;
 import com.glw.backend.service.PurchaseOrderItemService;
@@ -58,6 +56,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /** 入库表基础服务实现。 */
@@ -76,7 +75,6 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     private final PurchaseOrderItemService purchaseOrderItemService;
     private final InventoryService inventoryService;
     private final InboundOrderConverter inboundOrderConverter;
-    private final InboundOrderPurchaseOrderService relationService;
     private final ProductMapper productMapper;
     private final DocumentNumberService documentNumberService;
 
@@ -113,9 +111,9 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         Page<InboundOrder> page = lambdaQuery()
                 .eq(pageDTO.getId() != null, InboundOrder::getId, pageDTO.getId())
                 .apply(pageDTO.getPurchaseOrderId() != null,
-                        "EXISTS (SELECT 1 FROM inbound_order_purchase_order rel WHERE rel.inbound_order_id = inbound_order.id AND rel.purchase_order_id = {0})", pageDTO.getPurchaseOrderId())
+                        "EXISTS (SELECT 1 FROM inbound_order_item_alloc alloc WHERE alloc.inbound_order_id = inbound_order.id AND alloc.purchase_order_id = {0})", pageDTO.getPurchaseOrderId())
                 .apply(StringUtils.hasText(pageDTO.getPurchaseOrderNo()),
-                        "EXISTS (SELECT 1 FROM inbound_order_purchase_order rel WHERE rel.inbound_order_id = inbound_order.id AND rel.purchase_order_no = {0})", pageDTO.getPurchaseOrderNo())
+                        "EXISTS (SELECT 1 FROM inbound_order_item_alloc alloc WHERE alloc.inbound_order_id = inbound_order.id AND alloc.purchase_order_no = {0})", pageDTO.getPurchaseOrderNo())
                 .eq(pageDTO.getSupplierId() != null, InboundOrder::getSupplierId, pageDTO.getSupplierId())
                 .like(StringUtils.hasText(pageDTO.getSupplierName()), InboundOrder::getSupplierName, pageDTO.getSupplierName())
                 .eq(pageDTO.getInboundType() != null, InboundOrder::getInboundType, pageDTO.getInboundType())
@@ -183,13 +181,6 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         inboundOrder.setVersion(0);
         inboundOrder.setInboundOrderNo(documentNumberService.next(DocumentNumberService.Kind.INBOUND, inboundTime));
         save(inboundOrder);
-        for (PurchaseOrder order : purchaseOrders) {
-            var relation = new InboundOrderPurchaseOrder();
-            relation.setInboundOrderId(inboundOrder.getId());
-            relation.setPurchaseOrderId(order.getId());
-            relation.setPurchaseOrderNo(order.getPurchaseOrderNo());
-            relationService.save(relation);
-        }
 
         // One product line per product, allocations are kept as the financial/business split.
         Map<Long, List<InboundOrderAllocationCreateDTO>> allocationsByProduct =
@@ -405,17 +396,6 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         if (CollectionUtils.isEmpty(records)) return;
 
         List<Long> orderIds = records.stream().map(InboundOrderVO::getId).toList();
-        Map<Long, List<InboundOrderPurchaseOrder>> relations = relationService.lambdaQuery()
-                .in(InboundOrderPurchaseOrder::getInboundOrderId, orderIds)
-                .orderByAsc(InboundOrderPurchaseOrder::getPurchaseOrderId).list().stream()
-                .collect(Collectors.groupingBy(InboundOrderPurchaseOrder::getInboundOrderId));
-        records.forEach(order -> order.setPurchaseOrders(relations.getOrDefault(order.getId(), List.of())
-                .stream().map(relation -> {
-                    var vo = new InboundPurchaseOrderVO();
-                    vo.setPurchaseOrderId(relation.getPurchaseOrderId());
-                    vo.setPurchaseOrderNo(relation.getPurchaseOrderNo());
-                    return vo;
-                }).toList()));
         Map<Long, List<InboundOrderItem>> items = inboundOrderItemService.lambdaQuery()
                 .in(InboundOrderItem::getInboundOrderId, orderIds)
                 .orderByAsc(InboundOrderItem::getId)
@@ -433,7 +413,18 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
                         .list()
                         .stream()
                         .collect(Collectors.groupingBy(InboundOrderItemAlloc::getInboundOrderItemId));
-        records.forEach(order -> order.setItems(
+        records.forEach(order -> {
+            Map<Long, InboundPurchaseOrderVO> purchaseOrders = new TreeMap<>();
+            items.getOrDefault(order.getId(), List.of()).stream()
+                    .flatMap(item -> allocations.getOrDefault(item.getId(), List.of()).stream())
+                    .forEach(allocation -> purchaseOrders.computeIfAbsent(allocation.getPurchaseOrderId(), id -> {
+                        var vo = new InboundPurchaseOrderVO();
+                        vo.setPurchaseOrderId(id);
+                        vo.setPurchaseOrderNo(allocation.getPurchaseOrderNo());
+                        return vo;
+                    }));
+            order.setPurchaseOrders(List.copyOf(purchaseOrders.values()));
+            order.setItems(
                 items.getOrDefault(order.getId(), List.of()).stream()
                         .map(item -> {
                             var itemVO = inboundOrderConverter.toItemVO(item);
@@ -443,6 +434,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
                                             .toList());
                             return itemVO;
                         })
-                        .toList()));
+                        .toList());
+        });
     }
 }

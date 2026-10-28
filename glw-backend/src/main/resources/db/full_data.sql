@@ -42,9 +42,6 @@ BEGIN
   IF EXISTS (SELECT 1 FROM `inbound_order_item_alloc` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inbound_order_item_alloc';
   END IF;
-  IF EXISTS (SELECT 1 FROM `inbound_order_purchase_order` LIMIT 1) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inbound_order_purchase_order';
-  END IF;
   IF EXISTS (SELECT 1 FROM `inventory` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: inventory';
   END IF;
@@ -53,9 +50,6 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM `outbound_order_item` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: outbound_order_item';
-  END IF;
-  IF EXISTS (SELECT 1 FROM `outbound_order_sales_order` LIMIT 1) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: outbound_order_sales_order';
   END IF;
   IF EXISTS (SELECT 1 FROM `outbound_order_item_alloc` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: outbound_order_item_alloc';
@@ -256,10 +250,6 @@ BEGIN
     (34, 28, 33, 16, 'GL20260922001', 23, '', '', 30000, 0.0750, 1, NULL, 2250.00, 'CNY'),
     (35, 29, 34, 17, 'GL20261008001', 25, '', '', 3000, 0.7000, 1, NULL, 2100.00, 'CNY'),
     (36, 14, 17, 17, 'GL20261008001', 26, '', '', 3000, 0.8500, 1, NULL, 2550.00, 'CNY');
-  -- Purchase associations are derived from allocation details, never from receipt dates.
-  INSERT INTO `inbound_order_purchase_order` (`inbound_order_id`, `purchase_order_id`, `purchase_order_no`)
-  SELECT DISTINCT `inbound_order_id`, `purchase_order_id`, `purchase_order_no`
-  FROM `inbound_order_item_alloc` ORDER BY `inbound_order_id`, `purchase_order_id`;
   -- customer: 6 confirmed rows
   INSERT INTO `customer` (`id`, `name`, `short_name`, `settle_type`, `category`) VALUES
     (1, '深圳同益芯', NULL, 'TT/先款后货', NULL),
@@ -374,33 +364,6 @@ BEGIN
     (23, 'OUT20261010002', 5, '深圳市铭泰电子信息科技有限公司', 'SALE', 'COMPLETED', '2026-10-10 00:00:00'),
     (24, 'OUT20261013001', 6, '深圳市勤泰智能信息技术有限公司', 'SALE', 'COMPLETED', '2026-10-13 00:00:00'),
     (25, 'OUT20261014001', 6, '深圳市勤泰智能信息技术有限公司', 'SALE', 'COMPLETED', '2026-10-14 00:00:00');
-  -- outbound_order_sales_order: one sales order per confirmed outbound document
-  INSERT INTO `outbound_order_sales_order` (`outbound_order_id`, `sales_order_id`, `sales_order_no`, `customer_order_no`) VALUES
-    (1, 1, 'SO20260407001', 'TYX20260407015'),
-    (2, 3, 'SO20260612001', '无'),
-    (3, 2, 'SO20260517001', 'ZNZPO-2605-1701'),
-    (4, 2, 'SO20260517001', 'ZNZPO-2605-1701'),
-    (5, 4, 'SO20260716001', '3508-260716001'),
-    (6, 5, 'SO20260717001', 'MT2026/071700'),
-    (7, 7, 'SO20260721001', 'MT2026/072100'),
-    (8, 8, 'SO20260730001', 'MT2026/073000'),
-    (9, 6, 'SO20260715001', 'QT202607150003'),
-    (10, 6, 'SO20260715001', 'QT202607150003'),
-    (11, 9, 'SO20260804001', '3508-260803064'),
-    (12, 10, 'SO20260808001', 'MT2026/080800'),
-    (13, 12, 'SO20260818001', '无'),
-    (14, 6, 'SO20260715001', 'QT202607150003'),
-    (15, 13, 'SO20260820001', 'MT2026/082000'),
-    (16, 6, 'SO20260715001', 'QT202607150003'),
-    (17, 14, 'SO20260903001', 'MT2026/090300'),
-    (18, 6, 'SO20260715001', 'QT202607150003'),
-    (19, 15, 'SO20260907001', 'MT2026/090700'),
-    (20, 6, 'SO20260715001', 'QT202607150003'),
-    (21, 6, 'SO20260715001', 'QT202607150003'),
-    (22, 11, 'SO20260817001', 'MT2026/081700'),
-    (23, 17, 'SO20260921001', 'MT2026/092100'),
-    (24, 6, 'SO20260715001', 'QT202607150003'),
-    (25, 6, 'SO20260715001', 'QT202607150003');
   -- outbound_order_item: 33 confirmed product lines
   INSERT INTO `outbound_order_item` (`id`, `outbound_order_id`, `product_id`, `brand`, `part_no`, `package_type`, `outbound_quantity`) VALUES
     (1, 1, 1, '力芯微', 'ET7303Y', 'QFN14', 30000),
@@ -437,40 +400,40 @@ BEGIN
     (32, 24, 3, '力芯微', 'ET5A033YB', 'DFN1*1', 6000),
     (33, 25, 7, '力芯微', 'ET2104', 'WLCSP12(0.5 Pitch)/ QFN12/TSSOP14', 6000);
   -- outbound_order_item_alloc: 33 confirmed sales-line allocations (IDs preserved from the old detail rows)
-  INSERT INTO `outbound_order_item_alloc` (`id`, `outbound_order_id`, `outbound_order_item_id`, `sales_order_id`, `customer_order_no`, `sales_order_item_id`, `allocated_quantity`, `unit_price`, `tax_included`, `tax_rate`, `amount`, `currency`) VALUES
-    (1, 1, 1, 1, 'TYX20260407015', 1, 30000, 0.8500, 1, NULL, 25500.00, 'CNY'),
-    (2, 2, 2, 3, '无', 3, 3000, 0.7500, 1, NULL, 2250.00, 'CNY'),
-    (3, 3, 3, 2, 'ZNZPO-2605-1701', 2, 16000, 0.3200, 1, NULL, 5120.00, 'CNY'),
-    (4, 4, 4, 2, 'ZNZPO-2605-1701', 2, 8000, 0.3200, 1, NULL, 2560.00, 'CNY'),
-    (5, 5, 5, 4, '3508-260716001', 4, 100, 2.5000, 1, NULL, 250.00, 'CNY'),
-    (6, 6, 6, 5, 'MT2026/071700', 5, 9000, 0.3500, 0, NULL, 3150.00, 'CNY'),
-    (7, 7, 7, 7, 'MT2026/072100', 9, 60000, 0.3500, 0, NULL, 21000.00, 'CNY'),
-    (8, 8, 8, 8, 'MT2026/073000', 10, 60000, 0.3500, 0, NULL, 21000.00, 'CNY'),
-    (9, 9, 9, 6, 'QT202607150003', 6, 6000, 1.0000, 1, NULL, 6000.00, 'CNY'),
-    (10, 9, 10, 6, 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
-    (11, 10, 11, 6, 'QT202607150003', 6, 3000, 1.0000, 1, NULL, 3000.00, 'CNY'),
-    (12, 11, 12, 9, '3508-260803064', 11, 750, 2.5000, 1, NULL, 1875.00, 'CNY'),
-    (13, 12, 13, 10, 'MT2026/080800', 12, 120000, 0.3500, 0, NULL, 42000.00, 'CNY'),
-    (14, 13, 14, 12, '无', 14, 30000, 0.7500, 1, NULL, 22500.00, 'CNY'),
-    (15, 14, 15, 6, 'QT202607150003', 7, 9000, 0.3500, 1, NULL, 3150.00, 'CNY'),
-    (16, 14, 16, 6, 'QT202607150003', 8, 6000, 0.9000, 1, NULL, 5400.00, 'CNY'),
-    (17, 15, 17, 13, 'MT2026/082000', 15, 3000, 0.3500, 0, NULL, 1050.00, 'CNY'),
-    (18, 16, 18, 6, 'QT202607150003', 7, 12000, 0.3500, 1, NULL, 4200.00, 'CNY'),
-    (19, 16, 19, 6, 'QT202607150003', 6, 3000, 1.0000, 1, NULL, 3000.00, 'CNY'),
-    (20, 17, 20, 14, 'MT2026/090300', 16, 10000, 0.1000, 0, NULL, 1000.00, 'CNY'),
-    (21, 18, 21, 6, 'QT202607150003', 6, 6000, 1.0000, 1, NULL, 6000.00, 'CNY'),
-    (22, 18, 22, 6, 'QT202607150003', 7, 3000, 0.3500, 1, NULL, 1050.00, 'CNY'),
-    (23, 18, 23, 6, 'QT202607150003', 8, 6000, 0.9000, 1, NULL, 5400.00, 'CNY'),
-    (24, 19, 24, 15, 'MT2026/090700', 19, 180000, 0.3500, 0, NULL, 63000.00, 'CNY'),
-    (25, 19, 25, 15, 'MT2026/090700', 18, 6000, 0.3500, 0, NULL, 2100.00, 'CNY'),
-    (26, 19, 26, 15, 'MT2026/090700', 17, 20000, 0.1000, 0, NULL, 2000.00, 'CNY'),
-    (27, 20, 27, 6, 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
-    (28, 21, 28, 6, 'QT202607150003', 6, 12000, 1.0000, 1, NULL, 12000.00, 'CNY'),
-    (29, 21, 29, 6, 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
-    (30, 22, 30, 11, 'MT2026/081700', 13, 180000, 0.3500, 0, NULL, 63000.00, 'CNY'),
-    (31, 23, 31, 17, 'MT2026/092100', 21, 30000, 0.1000, 0, NULL, 3000.00, 'CNY'),
-    (32, 24, 32, 6, 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
-    (33, 25, 33, 6, 'QT202607150003', 8, 6000, 0.9000, 1, NULL, 5400.00, 'CNY');
+  INSERT INTO `outbound_order_item_alloc` (`id`, `outbound_order_id`, `outbound_order_item_id`, `sales_order_id`, `sales_order_no`, `customer_order_no`, `sales_order_item_id`, `allocated_quantity`, `unit_price`, `tax_included`, `tax_rate`, `amount`, `currency`) VALUES
+    (1, 1, 1, 1, 'SO20260407001', 'TYX20260407015', 1, 30000, 0.8500, 1, NULL, 25500.00, 'CNY'),
+    (2, 2, 2, 3, 'SO20260612001', '无', 3, 3000, 0.7500, 1, NULL, 2250.00, 'CNY'),
+    (3, 3, 3, 2, 'SO20260517001', 'ZNZPO-2605-1701', 2, 16000, 0.3200, 1, NULL, 5120.00, 'CNY'),
+    (4, 4, 4, 2, 'SO20260517001', 'ZNZPO-2605-1701', 2, 8000, 0.3200, 1, NULL, 2560.00, 'CNY'),
+    (5, 5, 5, 4, 'SO20260716001', '3508-260716001', 4, 100, 2.5000, 1, NULL, 250.00, 'CNY'),
+    (6, 6, 6, 5, 'SO20260717001', 'MT2026/071700', 5, 9000, 0.3500, 0, NULL, 3150.00, 'CNY'),
+    (7, 7, 7, 7, 'SO20260721001', 'MT2026/072100', 9, 60000, 0.3500, 0, NULL, 21000.00, 'CNY'),
+    (8, 8, 8, 8, 'SO20260730001', 'MT2026/073000', 10, 60000, 0.3500, 0, NULL, 21000.00, 'CNY'),
+    (9, 9, 9, 6, 'SO20260715001', 'QT202607150003', 6, 6000, 1.0000, 1, NULL, 6000.00, 'CNY'),
+    (10, 9, 10, 6, 'SO20260715001', 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
+    (11, 10, 11, 6, 'SO20260715001', 'QT202607150003', 6, 3000, 1.0000, 1, NULL, 3000.00, 'CNY'),
+    (12, 11, 12, 9, 'SO20260804001', '3508-260803064', 11, 750, 2.5000, 1, NULL, 1875.00, 'CNY'),
+    (13, 12, 13, 10, 'SO20260808001', 'MT2026/080800', 12, 120000, 0.3500, 0, NULL, 42000.00, 'CNY'),
+    (14, 13, 14, 12, 'SO20260818001', '无', 14, 30000, 0.7500, 1, NULL, 22500.00, 'CNY'),
+    (15, 14, 15, 6, 'SO20260715001', 'QT202607150003', 7, 9000, 0.3500, 1, NULL, 3150.00, 'CNY'),
+    (16, 14, 16, 6, 'SO20260715001', 'QT202607150003', 8, 6000, 0.9000, 1, NULL, 5400.00, 'CNY'),
+    (17, 15, 17, 13, 'SO20260820001', 'MT2026/082000', 15, 3000, 0.3500, 0, NULL, 1050.00, 'CNY'),
+    (18, 16, 18, 6, 'SO20260715001', 'QT202607150003', 7, 12000, 0.3500, 1, NULL, 4200.00, 'CNY'),
+    (19, 16, 19, 6, 'SO20260715001', 'QT202607150003', 6, 3000, 1.0000, 1, NULL, 3000.00, 'CNY'),
+    (20, 17, 20, 14, 'SO20260903001', 'MT2026/090300', 16, 10000, 0.1000, 0, NULL, 1000.00, 'CNY'),
+    (21, 18, 21, 6, 'SO20260715001', 'QT202607150003', 6, 6000, 1.0000, 1, NULL, 6000.00, 'CNY'),
+    (22, 18, 22, 6, 'SO20260715001', 'QT202607150003', 7, 3000, 0.3500, 1, NULL, 1050.00, 'CNY'),
+    (23, 18, 23, 6, 'SO20260715001', 'QT202607150003', 8, 6000, 0.9000, 1, NULL, 5400.00, 'CNY'),
+    (24, 19, 24, 15, 'SO20260907001', 'MT2026/090700', 19, 180000, 0.3500, 0, NULL, 63000.00, 'CNY'),
+    (25, 19, 25, 15, 'SO20260907001', 'MT2026/090700', 18, 6000, 0.3500, 0, NULL, 2100.00, 'CNY'),
+    (26, 19, 26, 15, 'SO20260907001', 'MT2026/090700', 17, 20000, 0.1000, 0, NULL, 2000.00, 'CNY'),
+    (27, 20, 27, 6, 'SO20260715001', 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
+    (28, 21, 28, 6, 'SO20260715001', 'QT202607150003', 6, 12000, 1.0000, 1, NULL, 12000.00, 'CNY'),
+    (29, 21, 29, 6, 'SO20260715001', 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
+    (30, 22, 30, 11, 'SO20260817001', 'MT2026/081700', 13, 180000, 0.3500, 0, NULL, 63000.00, 'CNY'),
+    (31, 23, 31, 17, 'SO20260921001', 'MT2026/092100', 21, 30000, 0.1000, 0, NULL, 3000.00, 'CNY'),
+    (32, 24, 32, 6, 'SO20260715001', 'QT202607150003', 7, 6000, 0.3500, 1, NULL, 2100.00, 'CNY'),
+    (33, 25, 33, 6, 'SO20260715001', 'QT202607150003', 8, 6000, 0.9000, 1, NULL, 5400.00, 'CNY');
   -- outbound_order_item_batch: 41 confirmed rows
   INSERT INTO `outbound_order_item_batch` (`id`, `outbound_order_id`, `alloc_id`, `inventory_id`, `quantity`, `unit_cost`) VALUES
     (1, 1, 1, 1, 30000, 0.7000),
@@ -532,12 +495,10 @@ SET SESSION time_zone = @fd_old_time_zone;
 SELECT 'customer' AS table_name, COUNT(*) AS actual_rows, 6 AS expected_rows FROM `customer`;
 SELECT 'customer_visit' AS table_name, COUNT(*) AS actual_rows, 0 AS expected_rows FROM `customer_visit`;
 SELECT 'inbound_order' AS table_name, COUNT(*) AS actual_rows, 28 AS expected_rows FROM `inbound_order`;
-SELECT 'inbound_order_purchase_order' AS table_name, COUNT(*) AS actual_rows, 30 AS expected_rows FROM `inbound_order_purchase_order`;
 SELECT 'inbound_order_item' AS table_name, COUNT(*) AS actual_rows, 34 AS expected_rows FROM `inbound_order_item`;
 SELECT 'inbound_order_item_alloc' AS table_name, COUNT(*) AS actual_rows, 36 AS expected_rows FROM `inbound_order_item_alloc`;
 SELECT 'inventory' AS table_name, COUNT(*) AS actual_rows, 34 AS expected_rows FROM `inventory`;
 SELECT 'outbound_order' AS table_name, COUNT(*) AS actual_rows, 25 AS expected_rows FROM `outbound_order`;
-SELECT 'outbound_order_sales_order' AS table_name, COUNT(*) AS actual_rows, 25 AS expected_rows FROM `outbound_order_sales_order`;
 SELECT 'outbound_order_item' AS table_name, COUNT(*) AS actual_rows, 33 AS expected_rows FROM `outbound_order_item`;
 SELECT 'outbound_order_item_alloc' AS table_name, COUNT(*) AS actual_rows, 33 AS expected_rows FROM `outbound_order_item_alloc`;
 SELECT 'outbound_order_item_batch' AS table_name, COUNT(*) AS actual_rows, 41 AS expected_rows FROM `outbound_order_item_batch`;
