@@ -20,7 +20,11 @@ public class DocumentNumberService {
         SALES("SO", "sales_order", "order_no"),
         PURCHASE("GL", "purchase_order", "purchase_order_no"),
         INBOUND("IN", "inbound_order", "inbound_order_no"),
-        OUTBOUND("OUT", "outbound_order", "outbound_order_no");
+        OUTBOUND("OUT", "outbound_order", "outbound_order_no"),
+        STATEMENT_AR("AR", "fin_statement", "statement_no"),
+        STATEMENT_AP("AP", "fin_statement", "statement_no"),
+        RECEIPT("RC", "fin_payment", "payment_no"),
+        PAYMENT("PY", "fin_payment", "payment_no");
 
         final String prefix;
         final String table;

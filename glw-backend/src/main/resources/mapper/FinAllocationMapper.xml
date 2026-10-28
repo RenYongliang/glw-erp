@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.FinAllocationMapper">
+  <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.FinAllocation">
+    <id column="id" property="id" jdbcType="BIGINT"/>
+    <result column="request_key" property="requestKey" jdbcType="VARCHAR"/>
+    <result column="payment_id" property="paymentId" jdbcType="BIGINT"/>
+    <result column="open_item_id" property="openItemId" jdbcType="BIGINT"/>
+    <result column="amount" property="amount" jdbcType="DECIMAL"/>
+    <result column="status" property="status" jdbcType="VARCHAR"/>
+    <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+    <result column="reversed_at" property="reversedAt" jdbcType="TIMESTAMP"/>
+  </resultMap>
+  <sql id="Base_Column_List">id, request_key, payment_id, open_item_id, amount, status, created_at, reversed_at</sql>
+  <insert id="insertAllocation" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO fin_allocation (request_key,payment_id,open_item_id,amount) VALUES (#{requestKey},#{paymentId},#{openItemId},#{amount})
+  </insert>
+  <select id="allocation" resultType="com.glw.backend.finance.FinanceModels$Allocation">
+    SELECT * FROM fin_allocation WHERE id=#{id}
+  </select>
+  <select id="allocationByKey" resultType="com.glw.backend.finance.FinanceModels$Allocation">
+    SELECT * FROM fin_allocation WHERE request_key=#{key}
+  </select>
+  <select id="allocations" resultType="com.glw.backend.finance.FinanceModels$Allocation">
+    SELECT a.*,o.source_no,o.order_no,p.payment_no FROM fin_allocation a JOIN fin_open_item o ON o.id=a.open_item_id
+      JOIN fin_payment p ON p.id=a.payment_id
+    WHERE 1=1
+    <if test="paymentId != null">AND a.payment_id=#{paymentId}</if>
+    <if test="statementId != null">AND o.statement_id=#{statementId}</if>
+    ORDER BY a.id DESC
+  </select>
+  <update id="reverse">
+    UPDATE fin_allocation SET status='REVERSED',reversed_at=CURRENT_TIMESTAMP WHERE id=#{id} AND status='ACTIVE'
+  </update>
+</mapper>

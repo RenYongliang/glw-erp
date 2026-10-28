@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.FinStatementItemMapper">
+  <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.FinStatementItem">
+    <id column="id" property="id" jdbcType="BIGINT"/>
+    <result column="statement_id" property="statementId" jdbcType="BIGINT"/>
+    <result column="open_item_id" property="openItemId" jdbcType="BIGINT"/>
+    <result column="source_no" property="sourceNo" jdbcType="VARCHAR"/>
+    <result column="order_no" property="orderNo" jdbcType="VARCHAR"/>
+    <result column="partner_order_no" property="partnerOrderNo" jdbcType="VARCHAR"/>
+    <result column="brand" property="brand" jdbcType="VARCHAR"/>
+    <result column="part_no" property="partNo" jdbcType="VARCHAR"/>
+    <result column="package_type" property="packageType" jdbcType="VARCHAR"/>
+    <result column="quantity" property="quantity" jdbcType="INTEGER"/>
+    <result column="unit_price" property="unitPrice" jdbcType="DECIMAL"/>
+    <result column="tax_included" property="taxIncluded" jdbcType="INTEGER"/>
+    <result column="tax_rate" property="taxRate" jdbcType="INTEGER"/>
+    <result column="net_amount" property="netAmount" jdbcType="DECIMAL"/>
+    <result column="tax_amount" property="taxAmount" jdbcType="DECIMAL"/>
+    <result column="gross_amount" property="grossAmount" jdbcType="DECIMAL"/>
+    <result column="biz_date" property="bizDate" jdbcType="DATE"/>
+    <result column="due_date" property="dueDate" jdbcType="DATE"/>
+  </resultMap>
+  <sql id="Base_Column_List">id, statement_id, open_item_id, source_no, order_no, partner_order_no, brand, part_no, package_type, quantity, unit_price, tax_included, tax_rate, net_amount, tax_amount, gross_amount, biz_date, due_date</sql>
+  <insert id="snapshot">
+    INSERT INTO fin_statement_item (statement_id,open_item_id,source_no,order_no,partner_order_no,brand,part_no,package_type,quantity,unit_price,tax_included,tax_rate,net_amount,tax_amount,gross_amount,biz_date,due_date) SELECT #{statementId},id,source_no,order_no,partner_order_no,brand,part_no,package_type,quantity,unit_price,tax_included,tax_rate,net_amount,tax_amount,gross_amount,biz_date,due_date FROM fin_open_item WHERE id=#{id}
+  </insert>
+  <select id="statementItems" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
+    SELECT i.open_item_id id,i.statement_id,i.source_no,i.order_no,i.partner_order_no,i.brand,i.part_no,i.package_type,i.quantity,i.unit_price,i.tax_included,i.tax_rate,i.net_amount,i.tax_amount,i.gross_amount,i.biz_date,i.due_date,o.direction,o.currency,o.partner_id,o.partner_name,o.period,o.reconcile_status,o.settled_amount FROM fin_statement_item i JOIN fin_open_item o ON o.id=i.open_item_id WHERE i.statement_id=#{id} ORDER BY i.id
+  </select>
+</mapper>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.FinanceOrderStatusMapper">
+  <sql id="arStatus">CASE WHEN EXISTS (SELECT 1 FROM fin_open_item f WHERE f.direction='AR' AND f.order_id=sales_order.id) THEN
+      (SELECT CASE WHEN COUNT(f.gross_amount)=COUNT(*) AND SUM(f.quantity)&gt;=(SELECT COALESCE(SUM(quantity-cancelled_quantity),0) FROM sales_order_item WHERE sales_order_id=sales_order.id)
+      AND SUM(f.settled_amount)&gt;=SUM(f.gross_amount) THEN 'PAID' WHEN SUM(f.settled_amount)=0 THEN 'UNPAID' ELSE 'PARTIALLY_PAID' END
+      FROM fin_open_item f WHERE f.direction='AR' AND f.order_id=sales_order.id)
+      ELSE sales_order.payment_status END</sql>
+  <sql id="apStatus">CASE WHEN EXISTS (SELECT 1 FROM fin_open_item f WHERE f.direction='AP' AND f.order_id=purchase_order.id) THEN
+      (SELECT CASE WHEN COUNT(f.gross_amount)=COUNT(*) AND SUM(f.quantity)&gt;=(SELECT COALESCE(SUM(quantity),0) FROM purchase_order_item WHERE purchase_order_id=purchase_order.id)
+      AND SUM(f.settled_amount)&gt;=SUM(f.gross_amount) THEN 'PAID' WHEN SUM(f.settled_amount)=0 THEN 'UNPAID' ELSE 'PARTIALLY_PAID' END
+      FROM fin_open_item f WHERE f.direction='AP' AND f.order_id=purchase_order.id)
+      ELSE purchase_order.payment_status END</sql>
+  <select id="orderStatuses" resultType="com.glw.backend.finance.FinanceOrderStatus$OrderStatus">
+    <choose>
+      <when test="direction == 'AR'">SELECT id order_id,<include refid="arStatus"/> payment_status FROM sales_order</when>
+      <otherwise>SELECT id order_id,<include refid="apStatus"/> payment_status FROM purchase_order</otherwise>
+    </choose>
+    WHERE
+    <choose>
+      <when test="ids != null and ids.size() > 0">id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></when>
+      <otherwise>1=0</otherwise>
+    </choose>
+  </select>
+  <select id="orderIdsByStatus" resultType="long">
+    <choose>
+      <when test="direction == 'AR'">SELECT id FROM sales_order WHERE (<include refid="arStatus"/>)=#{status}</when>
+      <otherwise>SELECT id FROM purchase_order WHERE (<include refid="apStatus"/>)=#{status}</otherwise>
+    </choose>
+  </select>
+</mapper>

@@ -3,7 +3,6 @@ package com.glw.backend;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.glw.backend.common.BusinessException;
 import com.glw.backend.converter.InboundOrderConverter;
@@ -47,7 +46,8 @@ class InboundOrderServiceTest {
         final InboundOrderItemAllocMapper totals = mock(InboundOrderItemAllocMapper.class);
         final DocumentNumberService numbers = mock(DocumentNumberService.class);
         final InboundOrderServiceImpl service = spy(new InboundOrderServiceImpl(items, allocations, totals,
-                orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), mock(ProductMapper.class), numbers));
+                orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), mock(ProductMapper.class), numbers,
+                mock(com.glw.backend.service.FinanceOpenItemService.class)));
         final List<InboundOrderItem> savedItems = new ArrayList<>();
         final List<InboundOrderItemAlloc> savedAllocations = new ArrayList<>();
         final List<Inventory> stock = new ArrayList<>();

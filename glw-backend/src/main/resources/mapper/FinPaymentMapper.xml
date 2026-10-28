@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.FinPaymentMapper">
+  <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.FinPayment">
+    <id column="id" property="id" jdbcType="BIGINT"/>
+    <result column="payment_no" property="paymentNo" jdbcType="VARCHAR"/>
+    <result column="request_key" property="requestKey" jdbcType="VARCHAR"/>
+    <result column="direction" property="direction" jdbcType="VARCHAR"/>
+    <result column="partner_id" property="partnerId" jdbcType="BIGINT"/>
+    <result column="partner_name" property="partnerName" jdbcType="VARCHAR"/>
+    <result column="currency" property="currency" jdbcType="VARCHAR"/>
+    <result column="payment_date" property="paymentDate" jdbcType="DATE"/>
+    <result column="amount" property="amount" jdbcType="DECIMAL"/>
+    <result column="allocated_amount" property="allocatedAmount" jdbcType="DECIMAL"/>
+    <result column="bank_reference" property="bankReference" jdbcType="VARCHAR"/>
+    <result column="remark" property="remark" jdbcType="VARCHAR"/>
+    <result column="status" property="status" jdbcType="VARCHAR"/>
+    <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+  </resultMap>
+  <sql id="Base_Column_List">id, payment_no, request_key, direction, partner_id, partner_name, currency, payment_date, amount, allocated_amount, bank_reference, remark, status, created_at</sql>
+  <sql id="paymentFilter">
+    direction=#{q.direction}
+    <if test="q.partnerId != null">AND partner_id=#{q.partnerId}</if>
+    <if test="q.period != null and q.period != ''">AND DATE_FORMAT(payment_date,'%Y-%m')=#{q.period}</if>
+    <if test="q.status != null and q.status != ''">AND status=#{q.status}</if>
+    <if test="q.keyword != null and q.keyword != ''">AND (LOCATE(#{q.keyword},partner_name)>0 OR LOCATE(#{q.keyword},payment_no)>0 OR LOCATE(#{q.keyword},bank_reference)>0)</if>
+  </sql>
+  <insert id="insertPayment" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO fin_payment (payment_no,request_key,direction,partner_id,partner_name,payment_date,amount,bank_reference,remark)
+    VALUES (#{paymentNo},#{requestKey},#{direction},#{partnerId},#{partnerName},#{paymentDate},#{amount},#{bankReference},#{remark})
+  </insert>
+  <select id="payment" resultType="com.glw.backend.finance.FinanceModels$Payment">
+    SELECT * FROM fin_payment WHERE id=#{id}
+  </select>
+  <select id="paymentByKey" resultType="com.glw.backend.finance.FinanceModels$Payment">
+    SELECT * FROM fin_payment WHERE request_key=#{key}
+  </select>
+  <select id="payments" resultType="com.glw.backend.finance.FinanceModels$Payment">
+    SELECT * FROM fin_payment WHERE <include refid="paymentFilter"/> ORDER BY payment_date DESC,id DESC LIMIT #{q.pageSize} OFFSET #{q.offset}
+  </select>
+  <select id="countPayments" resultType="long">SELECT COUNT(*) FROM fin_payment WHERE <include refid="paymentFilter"/></select>
+  <update id="allocate">
+    UPDATE fin_payment SET allocated_amount=allocated_amount+#{amount},status=CASE WHEN allocated_amount=amount THEN 'ALLOCATED' WHEN allocated_amount=0 THEN 'RECEIVED' ELSE 'PARTIAL_ALLOCATED' END WHERE id=#{id} AND status!='VOID' AND allocated_amount+#{amount} BETWEEN 0 AND amount
+  </update>
+  <update id="voidPayment">
+    UPDATE fin_payment SET status='VOID' WHERE id=#{id} AND allocated_amount=0 AND status!='VOID'
+  </update>
+</mapper>

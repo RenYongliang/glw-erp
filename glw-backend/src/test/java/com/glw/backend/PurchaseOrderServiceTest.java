@@ -30,7 +30,7 @@ class PurchaseOrderServiceTest {
         var supplierMapper = mock(SupplierMapper.class);
         var service = spy(new PurchaseOrderServiceImpl(itemService,
                 Mappers.getMapper(PurchaseOrderConverter.class), inboundMapper, supplierMapper,
-                mock(com.glw.backend.service.DocumentNumberService.class)));
+                mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.mapper.FinanceOrderStatusMapper.class)));
         var orderQuery = mock(LambdaQueryChainWrapper.class, invocation ->
                 invocation.getMethod().getReturnType() == Object.class
                         ? invocation.getMock() : RETURNS_SELF.answer(invocation));

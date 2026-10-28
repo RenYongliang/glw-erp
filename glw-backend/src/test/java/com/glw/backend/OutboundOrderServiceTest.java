@@ -3,7 +3,6 @@ package com.glw.backend;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.glw.backend.common.BusinessException;
 import com.glw.backend.converter.OutboundOrderConverter;
@@ -36,7 +35,8 @@ class OutboundOrderServiceTest {
         final InventoryService inventory = mock(InventoryService.class);
         final OutboundOrderServiceImpl service = spy(new OutboundOrderServiceImpl(items, allocations, batches,
                 mock(OutboundOrderItemAllocMapper.class), orders, salesItems, inventory,
-                Mappers.getMapper(OutboundOrderConverter.class), mock(CustomerMapper.class), mock(DocumentNumberService.class)));
+                Mappers.getMapper(OutboundOrderConverter.class), mock(CustomerMapper.class), mock(DocumentNumberService.class),
+                mock(com.glw.backend.service.FinanceOpenItemService.class)));
         final List<OutboundOrderItem> savedItems = new ArrayList<>();
         final List<OutboundOrderItemAlloc> savedAllocations = new ArrayList<>();
         final List<OutboundOrderItemBatch> savedBatches = new ArrayList<>();

@@ -70,6 +70,13 @@ const salesMenus = [
   { title: '销售出库', path: '/sales/shipments' },
 ]
 const salesExpanded = ref(route.path.startsWith('/sales/'))
+const financeMenus = [
+  { title: '应收应付', path: '/finance/open-items' },
+  { title: '对账单', path: '/finance/statements' },
+  { title: '收付款', path: '/finance/payments' },
+  { title: '结算档案', path: '/finance/profiles' },
+]
+const financeExpanded = ref(route.path.startsWith('/finance/'))
 const purchaseMenus = [
   { title: '采购订单', path: '/purchase/orders' },
   { title: '产品入库', path: '/purchase/receipts' },
@@ -125,6 +132,7 @@ watch(
       basicExpanded.value = true
     }
     if (route.path.startsWith('/sales/')) salesExpanded.value = true
+    if (route.path.startsWith('/finance/')) financeExpanded.value = true
     if (route.path.startsWith('/purchase/')) purchaseExpanded.value = true
     if (route.path.startsWith('/inventory/')) inventoryExpanded.value = true
     if (route.path.startsWith('/boards/')) boardExpanded.value = true
@@ -150,6 +158,7 @@ const filteredMenus = computed(() =>
   menus.filter(
     (item) =>
       item.includes(query.value.trim()) ||
+      (item === '财务管理' && financeMenus.some(menu => menu.title.includes(query.value.trim()))) ||
       (item === '库存管理' && '库存列表'.includes(query.value.trim())) ||
       (item === '销售管理' && salesMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '基础数据' && '产品信息查询'.includes(query.value.trim())) ||
@@ -179,6 +188,9 @@ function navigate(name: string) {
   } else if (name === '客户管理') {
     if (collapsed.value) collapsed.value = false
     customerExpanded.value = !customerExpanded.value
+  } else if (name === '财务管理') {
+    if (collapsed.value) collapsed.value = false
+    financeExpanded.value = !financeExpanded.value
   } else if (name === '库存管理') {
     if (collapsed.value) collapsed.value = false
     inventoryExpanded.value = !inventoryExpanded.value
@@ -241,7 +253,7 @@ async function fullscreen() {
                             ? purchaseExpanded
                             : name === '库存管理'
                               ? inventoryExpanded
-                              : undefined
+                              : name === '财务管理' ? financeExpanded : undefined
                 "
                 @click="navigate(name)"
               >
@@ -254,7 +266,7 @@ async function fullscreen() {
                 >
                 <el-icon
                   v-if="
-                    ['经营看板', '客户管理', '采购管理', '基础数据', '销售管理', '库存管理'].includes(name) &&
+                    ['经营看板', '客户管理', '采购管理', '基础数据', '销售管理', '库存管理', '财务管理'].includes(name) &&
                     !collapsed
                   "
                   class="board-menu-arrow"
@@ -270,7 +282,7 @@ async function fullscreen() {
                               ? customerExpanded
                               : name === '库存管理'
                                 ? inventoryExpanded
-                                : purchaseExpanded,
+                                : name === '财务管理' ? financeExpanded : purchaseExpanded,
                   }"
                   ><ArrowDown
                 /></el-icon>
@@ -286,6 +298,9 @@ async function fullscreen() {
                 >
                   <el-icon><DataAnalysis /></el-icon><span>产品信息查询</span>
                 </RouterLink>
+              </div>
+              <div v-if="name === '财务管理' && (financeExpanded || query)" class="board-submenu">
+                <RouterLink v-for="menu in financeMenus.filter(item => !query || '财务管理'.includes(query) || item.title.includes(query))" :key="menu.path" :to="menu.path" class="nav-item" :class="{ active: route.path === menu.path }" :title="menu.title" :aria-label="menu.title" :aria-current="route.path === menu.path ? 'page' : undefined"><el-icon><Document /></el-icon><span>{{ menu.title }}</span></RouterLink>
               </div>
               <div v-if="name === '库存管理' && (inventoryExpanded || query)" class="board-submenu">
                 <RouterLink to="/inventory/list" class="nav-item" :class="{ active: route.path === '/inventory/list' }"

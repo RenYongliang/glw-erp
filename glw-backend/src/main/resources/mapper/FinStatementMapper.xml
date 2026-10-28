@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.FinStatementMapper">
+  <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.FinStatement">
+    <id column="id" property="id" jdbcType="BIGINT"/>
+    <result column="statement_no" property="statementNo" jdbcType="VARCHAR"/>
+    <result column="direction" property="direction" jdbcType="VARCHAR"/>
+    <result column="partner_id" property="partnerId" jdbcType="BIGINT"/>
+    <result column="partner_name" property="partnerName" jdbcType="VARCHAR"/>
+    <result column="period" property="period" jdbcType="VARCHAR"/>
+    <result column="currency" property="currency" jdbcType="VARCHAR"/>
+    <result column="status" property="status" jdbcType="VARCHAR"/>
+    <result column="gross_amount" property="grossAmount" jdbcType="DECIMAL"/>
+    <result column="remark" property="remark" jdbcType="VARCHAR"/>
+    <result column="sent_at" property="sentAt" jdbcType="TIMESTAMP"/>
+    <result column="confirmed_at" property="confirmedAt" jdbcType="TIMESTAMP"/>
+    <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+  </resultMap>
+  <sql id="Base_Column_List">id, statement_no, direction, partner_id, partner_name, period, currency, status, gross_amount, remark, sent_at, confirmed_at, created_at</sql>
+  <sql id="statementFilter">
+    s.direction=#{q.direction}
+    <if test="q.partnerId != null">AND s.partner_id=#{q.partnerId}</if>
+    <if test="q.period != null and q.period != ''">AND s.period=#{q.period}</if>
+    <if test="q.status != null and q.status != ''">AND s.status=#{q.status}</if>
+    <if test="q.keyword != null and q.keyword != ''">AND (LOCATE(#{q.keyword},s.partner_name)>0 OR LOCATE(#{q.keyword},s.statement_no)>0)</if>
+  </sql>
+  <insert id="insertStatement" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO fin_statement (statement_no,direction,partner_id,partner_name,period,currency,gross_amount,remark)
+    VALUES (#{statementNo},#{direction},#{partnerId},#{partnerName},#{period},#{currency},#{grossAmount},#{remark})
+  </insert>
+  <select id="statements" resultType="com.glw.backend.finance.FinanceModels$Statement">
+    SELECT s.*,(SELECT COALESCE(SUM(o.settled_amount),0) FROM fin_open_item o WHERE o.statement_id=s.id) settled_amount
+    FROM fin_statement s WHERE <include refid="statementFilter"/> ORDER BY s.id DESC LIMIT #{q.pageSize} OFFSET #{q.offset}
+  </select>
+  <select id="countStatements" resultType="long">SELECT COUNT(*) FROM fin_statement s WHERE <include refid="statementFilter"/></select>
+  <select id="statement" resultType="com.glw.backend.finance.FinanceModels$Statement">
+    SELECT s.*, (SELECT COALESCE(SUM(o.settled_amount),0) FROM fin_open_item o WHERE o.statement_id=s.id) settled_amount FROM fin_statement s WHERE s.id=#{id}
+  </select>
+  <update id="statementStatus">
+    UPDATE fin_statement SET status=#{next},sent_at=CASE WHEN #{next}='SENT' THEN CURRENT_TIMESTAMP ELSE sent_at END,confirmed_at=CASE WHEN #{next}='CONFIRMED' THEN CURRENT_TIMESTAMP ELSE confirmed_at END WHERE id=#{id} AND status=#{expected}
+  </update>
+</mapper>

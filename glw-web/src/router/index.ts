@@ -6,6 +6,12 @@ import HomeView from '../views/HomeView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    ...([
+      ['open-items', '应收应付'], ['statements', '对账单'], ['payments', '收付款'], ['profiles', '结算档案'],
+    ] as const).map(([kind, title]) => ({
+      path: `/finance/${kind}`, name: `finance-${kind}`,
+      component: () => import('../views/FinanceView.vue'), props: { kind }, meta: { title },
+    })),
     {
       path: '/inventory/list',
       name: 'inventory-list',

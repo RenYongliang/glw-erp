@@ -1,6 +1,7 @@
 -- glw.sql: complete development schema for MySQL 8+.
 -- Rebuilds all business tables, daily number counters and sys_user.
 -- Run this script first, then full_data.sql. Re-running resets all table data.
+-- Finance is separate: subsequently run finance.sql and use finance historical rebuild.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;

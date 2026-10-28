@@ -39,6 +39,7 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     private final CustomerMapper customerMapper;
     private final OutboundOrderItemAllocMapper outboundOrderItemAllocMapper;
     private final DocumentNumberService documentNumberService;
+    private final com.glw.backend.mapper.FinanceOrderStatusMapper financeMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -71,8 +72,12 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
                 return empty;
             }
         }
+        List<Long> paymentOrderIds = StringUtils.hasText(pageDTO.getPaymentStatus())
+                ? financeMapper.orderIdsByStatus("AR", pageDTO.getPaymentStatus()) : null;
+        if (paymentOrderIds != null && paymentOrderIds.isEmpty()) paymentOrderIds = List.of(-1L);
 
         Page<SalesOrder> page = lambdaQuery()
+                .in(paymentOrderIds != null, SalesOrder::getId, paymentOrderIds)
             .in(filterOrderIds != null, SalesOrder::getId, filterOrderIds)
             .eq(pageDTO.getId() != null, SalesOrder::getId, pageDTO.getId())
             .eq(pageDTO.getOrderNo() != null, SalesOrder::getOrderNo, pageDTO.getOrderNo())
@@ -80,7 +85,6 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
             .eq(pageDTO.getCustomerId() != null, SalesOrder::getCustomerId, pageDTO.getCustomerId())
             .eq(pageDTO.getSettleType() != null, SalesOrder::getSettleType, pageDTO.getSettleType())
             .eq(StringUtils.hasText(pageDTO.getOrderStatus()), SalesOrder::getOrderStatus, pageDTO.getOrderStatus())
-            .eq(StringUtils.hasText(pageDTO.getPaymentStatus()), SalesOrder::getPaymentStatus, pageDTO.getPaymentStatus())
             .ge(StringUtils.hasText(pageDTO.getOrderTimeStart()), SalesOrder::getOrderTime, pageDTO.getOrderTimeStart())
             .le(StringUtils.hasText(pageDTO.getOrderTimeEnd()), SalesOrder::getOrderTime, pageDTO.getOrderTimeEnd())
             .orderByDesc(SalesOrder::getOrderTime)
@@ -101,6 +105,13 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
                 }
             });
             List<Long> orderIds = result.getRecords().stream().map(SalesOrderVO::getId).toList();
+            var financialStatuses = financeMapper.orderStatuses("AR", orderIds).stream().collect(Collectors.toMap(
+                    com.glw.backend.finance.FinanceOrderStatus.OrderStatus::orderId,
+                    com.glw.backend.finance.FinanceOrderStatus.OrderStatus::paymentStatus));
+            result.getRecords().forEach(order -> {
+                if (financialStatuses.containsKey(order.getId())) order.setPaymentStatus(
+                        com.glw.backend.model.enums.SalesPaymentStatus.fromCode(financialStatuses.get(order.getId())));
+            });
             var shipped = outboundOrderItemAllocMapper.sumCompletedBySalesOrderIds(orderIds).stream()
                     .collect(Collectors.toMap(OutboundOrderItemAllocMapper.ShippedQuantity::salesOrderItemId,
                             OutboundOrderItemAllocMapper.ShippedQuantity::quantity));

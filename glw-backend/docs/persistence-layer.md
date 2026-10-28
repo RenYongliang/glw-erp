@@ -7,6 +7,8 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 
 - Mapper 继承 `BaseMapper<T>`，Service 继承 `IService<T>`，实现继承 `ServiceImpl`。可直接使用 save、getById、list、page、updateById、removeById 等基础操作。
 - XML 提供完整的 `BaseResultMap` 和 `Base_Column_List`，实体明确引用对应 resultMap；通用 CRUD SQL 由 MyBatis-Plus 注入，不重复手写。需要联表查询时，在对应 Mapper 和 XML 中扩展。
+- 自定义 SQL 统一写在对应 Mapper XML 中；Mapper 接口只声明方法和参数，不使用 SQL 注解或 SQL Provider，Service 不拼接 SQL。
+- 财务模块按应收应付、对账单、收付款、核销、结算档案等职责拆分 Service 接口与实现；每张财务表独立提供实体、Mapper 和 XML。跨表操作由业务 Service 在同一事务内协调。
 - bigint → Long；普通 int → Integer；decimal → BigDecimal；timestamp → LocalDateTime；varchar/text → String。字段注释和命名与 DDL 对应，包含最新的 purchase_order_item_id。
 - id 由数据库自增。created_at、updated_at 由 MySQL 默认值和 ON UPDATE 维护，插入和更新时均不回写这两个字段；更新后如需最新时间请重新查询。
 - created_by、updated_by 暂由调用业务显式设置。没有臆造自动填充的用户来源。
@@ -91,4 +93,4 @@ customer、supplier、product、customer_visit、sample_apply、sales_order、pu
 
 这是表结构和持久层的准备，完整业务接口仍需校验请求版本非空、检查更新影响行数，并在冲突时返回 409。整单保存必须在同一事务中先更新主表版本，再处理明细与库存，失败则回滚；仅修改明细也必须更新主表版本。四张订单明细表暂不加 version。库存条件更新及出入库状态切换需要显式协调版本号，不能只靠 @Version 保证业务并发安全。
 
-开发阶段统一通过 glw.sql 重建全部表，再执行 full_data.sql 导入基础数据；不维护增量 SQL。
+开发阶段按 `glw.sql` → `full_data.sql` → `finance.sql` 全量初始化；财务表结构单独维护在 `finance.sql`，不维护增量 SQL。财务历史回填及初始化边界见 [财务第一版](../src/main/resources/db/finance_v1.md)。

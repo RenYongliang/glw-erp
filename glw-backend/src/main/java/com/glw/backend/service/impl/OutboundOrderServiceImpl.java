@@ -26,7 +26,6 @@ import com.glw.backend.model.entity.SalesOrderItem;
 import com.glw.backend.model.enums.OutboundStatus;
 import com.glw.backend.model.enums.OutboundType;
 import com.glw.backend.model.enums.SalesOrderStatus;
-import com.glw.backend.model.vo.OutboundOrderItemAllocVO;
 import com.glw.backend.model.vo.OutboundOrderItemBatchVO;
 import com.glw.backend.model.vo.OutboundOrderVO;
 import com.glw.backend.model.vo.OutboundSalesOrderVO;
@@ -78,6 +77,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
     private final OutboundOrderConverter converter;
     private final CustomerMapper customerMapper;
     private final DocumentNumberService documentNumberService;
+    private final com.glw.backend.service.FinanceOpenItemService financeService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -279,6 +279,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
             if (salesOrderMapper.updateById(salesOrder) == 0)
                 throw new BusinessException(ErrorCode.CONFLICT, "销售订单已发生变化，请刷新后重试");
         }
+        financeService.project("AR", outboundOrder.getId());
         OutboundOrderVO result = converter.toVO(outboundOrder);
         fillItems(List.of(result));
         return result;

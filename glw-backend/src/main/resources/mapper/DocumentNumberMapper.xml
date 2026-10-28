@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.DocumentNumberMapper">
+  <insert id="ensureCounter">
+    INSERT INTO document_number_sequence (document_type, business_date, last_sequence)
+    VALUES (#{type}, #{date}, 0)
+    ON DUPLICATE KEY UPDATE document_type = document_type
+  </insert>
+  <select id="lockCounter" resultType="int">
+    SELECT last_sequence FROM document_number_sequence
+    WHERE document_type = #{type} AND business_date = #{date}
+    FOR UPDATE
+  </select>
+  <!-- Identifiers come exclusively from DocumentNumberService.Kind. -->
+  <select id="existingMax" resultType="int">
+    SELECT COALESCE(MAX(CAST(RIGHT(`${column}`, 3) AS UNSIGNED)), 0)
+    FROM `${table}`
+    WHERE `${column}` REGEXP CONCAT('^', #{prefix}, '[0-9]{3}$')
+  </select>
+  <update id="updateCounter">
+    UPDATE document_number_sequence SET last_sequence = #{sequence}
+    WHERE document_type = #{type} AND business_date = #{date}
+  </update>
+</mapper>

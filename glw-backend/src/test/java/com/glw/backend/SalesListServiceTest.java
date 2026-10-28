@@ -3,7 +3,6 @@ package com.glw.backend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.glw.backend.converter.SalesOrderConverter;
@@ -35,7 +34,7 @@ class SalesListServiceTest {
         var items = mock(SalesOrderItemService.class);
         var customers = mock(CustomerMapper.class);
         var outbound = mock(OutboundOrderItemAllocMapper.class);
-        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), customers, outbound, mock(com.glw.backend.service.DocumentNumberService.class)));
+        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), customers, outbound, mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.mapper.FinanceOrderStatusMapper.class)));
         LambdaQueryChainWrapper<SalesOrder> ordersQuery = query();
         LambdaQueryChainWrapper<SalesOrderItem> itemsQuery = query();
         doReturn(ordersQuery).when(service).lambdaQuery();
@@ -70,7 +69,7 @@ class SalesListServiceTest {
     @Test
     void missingProductMatchReturnsEmptyInsteadOfAllOrders() {
         var items = mock(SalesOrderItemService.class);
-        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), mock(CustomerMapper.class), mock(OutboundOrderItemAllocMapper.class), mock(com.glw.backend.service.DocumentNumberService.class)));
+        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), mock(CustomerMapper.class), mock(OutboundOrderItemAllocMapper.class), mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.mapper.FinanceOrderStatusMapper.class)));
         LambdaQueryChainWrapper<SalesOrderItem> itemsQuery = query();
         when(items.lambdaQuery()).thenReturn(itemsQuery);
         when(itemsQuery.list()).thenReturn(List.of());
@@ -87,7 +86,8 @@ class SalesListServiceTest {
         var customers = mock(CustomerMapper.class);
         var service = spy(new OutboundOrderServiceImpl(items, allocations, batches, mock(OutboundOrderItemAllocMapper.class),
                 mock(SalesOrderMapper.class), mock(SalesOrderItemService.class), mock(InventoryService.class),
-                Mappers.getMapper(OutboundOrderConverter.class), customers, mock(com.glw.backend.service.DocumentNumberService.class)));
+                Mappers.getMapper(OutboundOrderConverter.class), customers, mock(com.glw.backend.service.DocumentNumberService.class),
+                mock(com.glw.backend.service.FinanceOpenItemService.class)));
         LambdaQueryChainWrapper<OutboundOrder> ordersQuery = query();
         LambdaQueryChainWrapper<OutboundOrderItem> itemsQuery = query();
         LambdaQueryChainWrapper<OutboundOrderItemAlloc> allocsQuery = query();
@@ -154,7 +154,7 @@ class SalesListServiceTest {
         var service = spy(new OutboundOrderServiceImpl(items, allocations, batches, mock(OutboundOrderItemAllocMapper.class),
                 mock(SalesOrderMapper.class), mock(SalesOrderItemService.class),
                 mock(InventoryService.class), Mappers.getMapper(OutboundOrderConverter.class), mock(CustomerMapper.class),
-                mock(com.glw.backend.service.DocumentNumberService.class)));
+                mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.service.FinanceOpenItemService.class)));
         LambdaQueryChainWrapper<OutboundOrder> ordersQuery = query();
         doReturn(ordersQuery).when(service).lambdaQuery();
         when(ordersQuery.page(any())).thenReturn(new Page<OutboundOrder>(1, 10));

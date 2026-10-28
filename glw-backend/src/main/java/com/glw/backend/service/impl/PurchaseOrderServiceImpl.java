@@ -40,6 +40,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     private final InboundOrderItemAllocMapper inboundOrderItemAllocMapper;
     private final SupplierMapper supplierMapper;
     private final DocumentNumberService documentNumberService;
+    private final com.glw.backend.mapper.FinanceOrderStatusMapper financeMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -63,15 +64,18 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             filterOrderIds = findOrderIdsByItem(pageDTO, filterBrand, filterPartNo, filterPackageType);
             if (CollectionUtils.isEmpty(filterOrderIds)) return emptyPage(pageDTO);
         }
+        List<Long> paymentOrderIds = pageDTO.getPaymentStatus() != null
+                ? financeMapper.orderIdsByStatus("AP", pageDTO.getPaymentStatus().getCode()) : null;
+        if (paymentOrderIds != null && paymentOrderIds.isEmpty()) paymentOrderIds = List.of(-1L);
 
         Page<PurchaseOrder> page = lambdaQuery()
+                .in(paymentOrderIds != null, PurchaseOrder::getId, paymentOrderIds)
                 .in(filterOrderIds != null, PurchaseOrder::getId, filterOrderIds)
                 .eq(pageDTO.getId() != null, PurchaseOrder::getId, pageDTO.getId())
                 .eq(StringUtils.hasText(pageDTO.getPurchaseOrderNo()), PurchaseOrder::getPurchaseOrderNo, pageDTO.getPurchaseOrderNo())
                 .eq(pageDTO.getSupplierId() != null, PurchaseOrder::getSupplierId, pageDTO.getSupplierId())
                 .like(StringUtils.hasText(pageDTO.getSupplierName()), PurchaseOrder::getSupplierName, pageDTO.getSupplierName())
                 .eq(pageDTO.getOrderStatus() != null, PurchaseOrder::getOrderStatus, pageDTO.getOrderStatus())
-                .eq(pageDTO.getPaymentStatus() != null, PurchaseOrder::getPaymentStatus, pageDTO.getPaymentStatus())
                 .ge(StringUtils.hasText(pageDTO.getOrderTimeStart()), PurchaseOrder::getOrderTimeStart, pageDTO.getOrderTimeStart())
                 .le(StringUtils.hasText(pageDTO.getOrderTimeEnd()), PurchaseOrder::getOrderTimeEnd, pageDTO.getOrderTimeEnd())
                 .orderByDesc(PurchaseOrder::getOrderTime)
@@ -107,6 +111,13 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (CollectionUtils.isEmpty(records)) return;
 
         List<Long> orderIds = records.stream().map(PurchaseOrderVO::getId).toList();
+        var financialStatuses = financeMapper.orderStatuses("AP", orderIds).stream().collect(Collectors.toMap(
+                com.glw.backend.finance.FinanceOrderStatus.OrderStatus::orderId,
+                com.glw.backend.finance.FinanceOrderStatus.OrderStatus::paymentStatus));
+        records.forEach(order -> {
+            if (financialStatuses.containsKey(order.getId())) order.setPaymentStatus(
+                    com.glw.backend.model.enums.PurchasePaymentStatus.fromCode(financialStatuses.get(order.getId())));
+        });
         List<Long> supplierIds = records.stream().map(PurchaseOrderVO::getSupplierId)
                 .filter(java.util.Objects::nonNull).distinct().toList();
         Map<Long, Supplier> suppliers = supplierIds.isEmpty() ? Map.of() : supplierMapper.selectByIds(supplierIds)

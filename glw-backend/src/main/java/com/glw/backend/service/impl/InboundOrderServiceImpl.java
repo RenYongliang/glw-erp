@@ -77,6 +77,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     private final InboundOrderConverter inboundOrderConverter;
     private final ProductMapper productMapper;
     private final DocumentNumberService documentNumberService;
+    private final com.glw.backend.service.FinanceOpenItemService financeService;
 
     @Override
     public InboundOrderVO detail(Long id, Long purchaseOrderId) {
@@ -239,6 +240,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
             if (!purchaseOrderService.updateById(purchaseOrder))
                 throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
         }
+        financeService.project("AP", inboundOrder.getId());
         InboundOrderVO result = inboundOrderConverter.toVO(inboundOrder);
         fillItems(List.of(result));
         return result;

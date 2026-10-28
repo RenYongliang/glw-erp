@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.FinProfileMapper">
+  <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.FinProfile">
+    <id column="id" property="id" jdbcType="BIGINT"/>
+    <result column="direction" property="direction" jdbcType="VARCHAR"/>
+    <result column="partner_id" property="partnerId" jdbcType="BIGINT"/>
+    <result column="term_days" property="termDays" jdbcType="INTEGER"/>
+    <result column="term_basis" property="termBasis" jdbcType="VARCHAR"/>
+    <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+  </resultMap>
+  <sql id="Base_Column_List">id, direction, partner_id, term_days, term_basis, updated_at</sql>
+  <select id="profiles" resultType="com.glw.backend.finance.FinanceModels$Profile">
+    SELECT p.*,c.name partner_name FROM fin_profile p JOIN customer c ON c.id=p.partner_id WHERE p.direction='AR' AND #{direction}='AR' UNION ALL SELECT p.*,s.name partner_name FROM fin_profile p JOIN supplier s ON s.id=p.partner_id WHERE p.direction='AP' AND #{direction}='AP' ORDER BY partner_id
+  </select>
+  <select id="profile" resultType="com.glw.backend.finance.FinanceModels$Profile">
+    SELECT * FROM fin_profile WHERE direction=#{direction} AND partner_id=#{partnerId}
+  </select>
+  <insert id="saveProfile">
+    INSERT INTO fin_profile (direction,partner_id,term_days,term_basis) VALUES (#{direction},#{partnerId},#{termDays},#{termBasis}) ON DUPLICATE KEY UPDATE term_days=VALUES(term_days),term_basis=VALUES(term_basis)
+  </insert>
+  <select id="partners" resultType="com.glw.backend.finance.FinanceModels$Partner">
+    SELECT id,name,short_name FROM customer WHERE #{direction}='AR' UNION ALL SELECT id,name,short_name FROM supplier WHERE #{direction}='AP' ORDER BY id
+  </select>
+</mapper>
