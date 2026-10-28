@@ -4,9 +4,10 @@
     <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.OutboundOrderItem">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="outbound_order_id" property="outboundOrderId" jdbcType="BIGINT"/>
-        <result column="sales_order_id" property="salesOrderId" jdbcType="BIGINT"/>
-        <result column="customer_order_no" property="customerOrderNo" jdbcType="VARCHAR"/>
-        <result column="sales_order_item_id" property="salesOrderItemId" jdbcType="BIGINT"/>
+        <result column="product_id" property="productId" jdbcType="BIGINT"/>
+        <result column="brand" property="brand" jdbcType="VARCHAR"/>
+        <result column="part_no" property="partNo" jdbcType="VARCHAR"/>
+        <result column="package_type" property="packageType" jdbcType="VARCHAR"/>
         <result column="outbound_quantity" property="outboundQuantity" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
@@ -15,23 +16,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `outbound_order_id`, `sales_order_id`, `customer_order_no`, `sales_order_item_id`, `outbound_quantity`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `outbound_order_id`, `product_id`, `brand`, `part_no`, `package_type`, `outbound_quantity`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
-    <resultMap id="ShippedQuantityMap" type="com.glw.backend.mapper.OutboundOrderItemMapper$ShippedQuantity">
-        <constructor>
-            <arg column="sales_order_item_id" javaType="java.lang.Long"/>
-            <arg column="quantity" javaType="java.lang.Long"/>
-        </constructor>
-    </resultMap>
-    <select id="sumCompletedBySalesOrderIds" resultMap="ShippedQuantityMap">
-        SELECT item.sales_order_item_id, SUM(item.outbound_quantity) AS quantity
-        FROM outbound_order_item item
-        INNER JOIN outbound_order shipment ON shipment.id = item.outbound_order_id
-        WHERE shipment.status = 'COMPLETED'
-          AND item.sales_order_id IN
-          <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">
-              #{orderId}
-          </foreach>
-        GROUP BY item.sales_order_item_id
-    </select>
 </mapper>

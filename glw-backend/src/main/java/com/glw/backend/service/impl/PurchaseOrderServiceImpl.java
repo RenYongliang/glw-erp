@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.glw.backend.converter.PurchaseOrderConverter;
 import com.glw.backend.mapper.PurchaseOrderMapper;
-import com.glw.backend.mapper.InboundOrderItemMapper;
+import com.glw.backend.mapper.InboundOrderItemAllocMapper;
 import com.glw.backend.mapper.SupplierMapper;
 import com.glw.backend.model.entity.Supplier;
 import com.glw.backend.model.dto.PurchaseOrderPageDTO;
@@ -37,7 +37,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
 
     private final PurchaseOrderItemService purchaseOrderItemService;
     private final PurchaseOrderConverter purchaseOrderConverter;
-    private final InboundOrderItemMapper inboundOrderItemMapper;
+    private final InboundOrderItemAllocMapper inboundOrderItemAllocMapper;
     private final SupplierMapper supplierMapper;
     private final DocumentNumberService documentNumberService;
 
@@ -118,10 +118,10 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                 order.setSupplierShortName(supplier.getShortName());
             }
         });
-        Map<Long, Long> received = inboundOrderItemMapper.sumCompletedByPurchaseOrderIds(orderIds)
+        Map<Long, Long> received = inboundOrderItemAllocMapper.sumCompletedByPurchaseOrderIds(orderIds)
                 .stream()
-                .collect(Collectors.toMap(InboundOrderItemMapper.ReceivedQuantity::purchaseOrderItemId,
-                        InboundOrderItemMapper.ReceivedQuantity::quantity));
+                .collect(Collectors.toMap(InboundOrderItemAllocMapper.ReceivedQuantity::purchaseOrderItemId,
+                        InboundOrderItemAllocMapper.ReceivedQuantity::quantity));
         Map<Long, List<PurchaseOrderItem>> items = purchaseOrderItemService.lambdaQuery()
                 .in(PurchaseOrderItem::getPurchaseOrderId, orderIds)
                 .orderByAsc(PurchaseOrderItem::getId)

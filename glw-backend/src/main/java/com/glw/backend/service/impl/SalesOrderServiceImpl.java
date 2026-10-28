@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.glw.backend.converter.SalesOrderConverter;
 import com.glw.backend.mapper.SalesOrderMapper;
 import com.glw.backend.mapper.CustomerMapper;
-import com.glw.backend.mapper.OutboundOrderItemMapper;
+import com.glw.backend.mapper.OutboundOrderItemAllocMapper;
 import com.glw.backend.model.entity.Customer;
 import com.glw.backend.model.dto.SalesOrderPageDTO;
 import com.glw.backend.model.entity.SalesOrder;
@@ -37,7 +37,7 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     private final SalesOrderItemService salesOrderItemService;
     private final SalesOrderConverter salesOrderConverter;
     private final CustomerMapper customerMapper;
-    private final OutboundOrderItemMapper outboundOrderItemMapper;
+    private final OutboundOrderItemAllocMapper outboundOrderItemAllocMapper;
     private final DocumentNumberService documentNumberService;
 
     @Override
@@ -101,9 +101,9 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
                 }
             });
             List<Long> orderIds = result.getRecords().stream().map(SalesOrderVO::getId).toList();
-            var shipped = outboundOrderItemMapper.sumCompletedBySalesOrderIds(orderIds).stream()
-                    .collect(Collectors.toMap(OutboundOrderItemMapper.ShippedQuantity::salesOrderItemId,
-                            OutboundOrderItemMapper.ShippedQuantity::quantity));
+            var shipped = outboundOrderItemAllocMapper.sumCompletedBySalesOrderIds(orderIds).stream()
+                    .collect(Collectors.toMap(OutboundOrderItemAllocMapper.ShippedQuantity::salesOrderItemId,
+                            OutboundOrderItemAllocMapper.ShippedQuantity::quantity));
             Map<Long, List<SalesOrderItem>> items = salesOrderItemService.lambdaQuery()
                     .in(SalesOrderItem::getSalesOrderId, orderIds)
                     .orderByAsc(SalesOrderItem::getId).list().stream()

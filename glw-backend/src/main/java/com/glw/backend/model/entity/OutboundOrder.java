@@ -27,14 +27,6 @@ public class OutboundOrder {
     @TableField("outbound_order_no")
     private String outboundOrderNo;
 
-    /** 销售订单id。 */
-    @TableField("sales_order_id")
-    private Long salesOrderId;
-
-    /** 客户采购单编号。 */
-    @TableField("customer_order_no")
-    private String customerOrderNo;
-
     /** 客户id。 */
     @TableField("customer_id")
     private Long customerId;

@@ -19,6 +19,9 @@ import {
   money,
   orderTotals,
   shipmentTotals,
+  shipmentMatchesOrder,
+  shipmentOrders,
+  shipmentLineSource,
   remainingQuantity,
   pendingShipmentQuantity,
   type SalesKind,
@@ -139,10 +142,14 @@ const shipment = ref<SalesShipment>(
 );
 const isOrder = props.kind === "orders",
   title = isOrder ? "销售订单" : props.dispatch ? "发货" : "销售出库";
+const linkedOrders = computed(() =>
+  shipmentOrders(shipment.value, store.state.orders),
+);
 const linkedOrder = computed(() =>
   isOrder
     ? order.value
-    : store.state.orders.find((o) => o.id === shipment.value.orderId),
+    : linkedOrders.value[0] ??
+      store.state.orders.find((o) => o.id === shipment.value.orderId),
 );
 const customer = computed(() =>
   customers.value.find((s) => s.id === linkedOrder.value?.customerId),
@@ -154,7 +161,7 @@ const dispatchFields = computed(() => [
 ]);
 const totals = computed(() => orderTotals(order.value)),
   shippedTotals = computed(() =>
-    shipmentTotals(shipment.value, linkedOrder.value),
+    shipmentTotals(shipment.value, linkedOrder.value, store.state.orders),
   );
 const baseFields = computed(() => [
   ...(!isOrder ? [["客户名称", orderCustomerName(linkedOrder.value)]] : []),
@@ -162,7 +169,7 @@ const baseFields = computed(() => [
   [isOrder ? "联系人手机" : "客户联系人手机", customer.value?.phone],
 ]);
 const linkedShipments = computed(() =>
-  store.state.shipments.filter((r) => r.orderId === order.value.id),
+  store.state.shipments.filter((r) => shipmentMatchesOrder(r, order.value.id)),
 );
 const linkedPayments = computed(() =>
   store.state.payments.filter((r) => r.orderId === order.value.id),
@@ -244,6 +251,7 @@ function useCustomerName() {
 }
 function chooseOrder(o: SalesOrder) {
   shipment.value.orderId = o.id;
+  shipment.value.orderIds = [o.id];
   shippingInfo.value = defaultShippingInfo(o);
   shipment.value.warehouse = o.warehouse;
   shipment.value.lines = o.lines
@@ -310,7 +318,16 @@ function productFor(lineId: string) {
   return line ? { ...salesLineProduct(line), id: line.productId } : undefined;
 }
 function orderLine(lineId: string) {
-  return linkedOrder.value?.lines.find((l) => l.id === lineId);
+  if (isOrder) return order.value.lines.find((l) => l.id === lineId);
+  return (
+    shipmentLineSource(shipment.value, lineId, store.state.orders)?.line ??
+    linkedOrder.value?.lines.find((l) => l.id === lineId)
+  );
+}
+/** 出库行所属销售订单；单订单出库时回退到单据主订单。 */
+function lineOrderId(lineId: string) {
+  return shipmentLineSource(shipment.value, lineId, store.state.orders)?.order.id ??
+    shipment.value.orderId;
 }
 const batchLineId = ref('');
 const batchLine = computed(() => shipment.value.lines.find(l => l.lineId === batchLineId.value));
@@ -369,7 +386,7 @@ const dispatchWidths = computed(() => {
     model: contentWidth('型号', lines.map(l => productFor(l.lineId)?.name)),
     package: contentWidth('封装', lines.map(l => productFor(l.lineId)?.model)),
     quantity: contentWidth('数量', lines.map(l => orderLine(l.lineId)?.quantity)),
-    pending: contentWidth('待出库数量', lines.map(l => remainingQuantity(store.state, shipment.value.orderId, l.lineId, shipment.value.id))),
+    pending: contentWidth('待出库数量', lines.map(l => remainingQuantity(store.state, lineOrderId(l.lineId), l.lineId, shipment.value.id))),
     dispatch: contentWidth('本次发货数量', lines.map(l => l.arrived), 105),
     remark: 180,
   };
@@ -415,7 +432,7 @@ async function save() {
             stock = await fetchProductCostBatches(source.productId);
             stockByProduct.set(source.productId, stock);
           }
-          const message = validateBatchSelection(line.batches, stock, remainingQuantity(store.state, shipment.value.orderId, line.lineId, shipment.value.id));
+          const message = validateBatchSelection(line.batches, stock, remainingQuantity(store.state, lineOrderId(line.lineId), line.lineId, shipment.value.id));
           if (message) throw Error(message);
           for (const batch of line.batches) {
             const current = stock.find(b => b.inventoryId === batch.inventoryId)!;
@@ -427,7 +444,7 @@ async function save() {
         }
       }
       if (!props.shipment?.confirmed) shipment.value.shipping = clone({ ...shippingInfo.value, purchaseNumber: linkedOrder.value?.purchaseNumber || "" });
-      store.saveShipment(shipment.value);
+      await store.saveShipment(shipment.value);
     }
     dirty.value = false;
     ElMessage.success(
@@ -784,7 +801,7 @@ function quickFill() {
           ><template #default="{ row }">{{
             remainingQuantity(
               store.state,
-              shipment.orderId,
+              lineOrderId(row.lineId),
               row.lineId,
               shipment.id,
             )
@@ -866,7 +883,7 @@ function quickFill() {
           ><template #default="{ row }">{{
             remainingQuantity(
               store.state,
-              shipment.orderId,
+              lineOrderId(row.lineId),
               row.lineId,
               shipment.id,
             )
@@ -1189,7 +1206,7 @@ function quickFill() {
           ><el-table-column label="已确认出库"
             ><template #default="{ row }">{{
               store.state.shipments
-                .filter((r) => r.orderId === order.id && r.confirmed)
+                .filter((r) => shipmentMatchesOrder(r, order.id) && r.confirmed)
                 .reduce(
                   (s, r) =>
                     s +
@@ -1453,7 +1470,7 @@ function quickFill() {
       ></template
     >
   </el-dialog>
-  <ShipmentBatchPicker v-if="batchLine && batchProduct" :key="batchLineId" :product-id="batchProduct.productId" :product-name="[batchProduct.brand, batchProduct.model, batchProduct.packaging].filter(Boolean).join(' / ')" :pending="remainingQuantity(store.state, shipment.orderId, batchLine.lineId, shipment.id)" :batches="batchLine.batches ?? []" :used-quantities="batchUsedQuantities" @close="batchLineId = ''" @selected="selectShipmentBatches" />
+  <ShipmentBatchPicker v-if="batchLine && batchProduct" :key="batchLineId" :product-id="batchProduct.productId" :product-name="[batchProduct.brand, batchProduct.model, batchProduct.packaging].filter(Boolean).join(' / ')" :pending="remainingQuantity(store.state, lineOrderId(batchLine.lineId), batchLine.lineId, shipment.id)" :batches="batchLine.batches ?? []" :used-quantities="batchUsedQuantities" @close="batchLineId = ''" @selected="selectShipmentBatches" />
   <el-dialog v-model="costBatchesOpen" title="批次成本明细" width="min(720px,94vw)" append-to-body class="purchase-dialog sales-cost-batches-dialog">
     <div class="sales-cost-product">{{ [costProduct?.brand, costProduct?.name, costProduct?.model].filter(Boolean).join(' / ') }}</div>
     <el-alert v-if="costBatchesError" :title="costBatchesError" type="error" :closable="false">

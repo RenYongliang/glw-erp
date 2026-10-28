@@ -7,11 +7,13 @@ import static org.mockito.Mockito.*;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.glw.backend.common.BusinessException;
 import com.glw.backend.converter.InboundOrderConverter;
-import com.glw.backend.mapper.InboundOrderItemMapper;
+import com.glw.backend.mapper.InboundOrderItemAllocMapper;
 import com.glw.backend.mapper.ProductMapper;
 import com.glw.backend.model.dto.*;
 import com.glw.backend.model.entity.*;
 import com.glw.backend.model.enums.PurchaseOrderStatus;
+import com.glw.backend.model.enums.TaxIncluded;
+import com.glw.backend.model.vo.InboundOrderItemAllocVO;
 import com.glw.backend.service.*;
 import com.glw.backend.service.impl.InboundOrderServiceImpl;
 import java.math.BigDecimal;
@@ -38,17 +40,17 @@ class InboundOrderServiceTest {
 
     private static class Fixture {
         final InboundOrderItemService items = mock(InboundOrderItemService.class);
-        final InboundOrderBatchItemService batches = mock(InboundOrderBatchItemService.class);
+        final InboundOrderItemAllocService allocations = mock(InboundOrderItemAllocService.class);
         final PurchaseOrderService orders = mock(PurchaseOrderService.class);
         final PurchaseOrderItemService purchaseItems = mock(PurchaseOrderItemService.class);
         final InventoryService inventory = mock(InventoryService.class);
         final InboundOrderPurchaseOrderService relations = mock(InboundOrderPurchaseOrderService.class);
-        final InboundOrderItemMapper totals = mock(InboundOrderItemMapper.class);
+        final InboundOrderItemAllocMapper totals = mock(InboundOrderItemAllocMapper.class);
         final DocumentNumberService numbers = mock(DocumentNumberService.class);
-        final InboundOrderServiceImpl service = spy(new InboundOrderServiceImpl(items, totals, batches,
+        final InboundOrderServiceImpl service = spy(new InboundOrderServiceImpl(items, allocations, totals,
                 orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), relations, mock(ProductMapper.class), numbers));
         final List<InboundOrderItem> savedItems = new ArrayList<>();
-        final List<InboundOrderBatchItem> savedBatches = new ArrayList<>();
+        final List<InboundOrderItemAlloc> savedAllocations = new ArrayList<>();
         final List<InboundOrderPurchaseOrder> savedRelations = new ArrayList<>();
         final List<Inventory> stock = new ArrayList<>();
         final PurchaseOrder first = order(1L);
@@ -65,22 +67,22 @@ class InboundOrderServiceTest {
             LambdaQueryChainWrapper<InboundOrderItem> itemQuery = query();
             when(items.lambdaQuery()).thenReturn(itemQuery);
             when(itemQuery.list()).thenReturn(savedItems);
-            LambdaQueryChainWrapper<InboundOrderBatchItem> batchQuery = query();
-            when(batches.lambdaQuery()).thenReturn(batchQuery);
-            when(batchQuery.list()).thenReturn(savedBatches);
+            LambdaQueryChainWrapper<InboundOrderItemAlloc> allocQuery = query();
+            when(allocations.lambdaQuery()).thenReturn(allocQuery);
+            when(allocQuery.list()).thenReturn(savedAllocations);
             LambdaQueryChainWrapper<InboundOrderPurchaseOrder> relationQuery = query();
             when(relations.lambdaQuery()).thenReturn(relationQuery);
             when(relationQuery.list()).thenReturn(savedRelations);
             LambdaQueryChainWrapper<Inventory> inventoryQuery = query();
             when(inventory.lambdaQuery()).thenReturn(inventoryQuery);
-            when(inventoryQuery.list()).thenReturn(stock);
+            when(inventoryQuery.list()).thenAnswer(call -> new ArrayList<>(stock));
             when(totals.sumCompletedByPurchaseOrderIds(List.of(1L, 2L))).thenReturn(List.of(
-                    new InboundOrderItemMapper.ReceivedQuantity(11L, 50L)));
+                    new InboundOrderItemAllocMapper.ReceivedQuantity(11L, 50L)));
             doAnswer(call -> { ((InboundOrder) call.getArgument(0)).setId(100L); return true; }).when(service).save(any());
             doReturn(true).when(service).updateById(any(InboundOrder.class));
             when(orders.updateById(any(PurchaseOrder.class))).thenReturn(true);
             when(items.save(any())).thenAnswer(call -> { InboundOrderItem row = call.getArgument(0); row.setId((long) savedItems.size() + 1); savedItems.add(row); return true; });
-            when(batches.save(any())).thenAnswer(call -> { InboundOrderBatchItem row = call.getArgument(0); row.setId((long) savedBatches.size() + 1); savedBatches.add(row); return true; });
+            when(allocations.save(any())).thenAnswer(call -> { InboundOrderItemAlloc row = call.getArgument(0); row.setId((long) savedAllocations.size() + 1); savedAllocations.add(row); return true; });
             when(relations.save(any())).thenAnswer(call -> savedRelations.add(call.getArgument(0)));
             when(inventory.save(any())).thenAnswer(call -> stock.add(call.getArgument(0)));
         }
@@ -93,17 +95,23 @@ class InboundOrderServiceTest {
         assertThat(result.getInboundOrderNo()).isEqualTo("IN20261018001");
         verify(f.numbers).next(DocumentNumberService.Kind.INBOUND, java.time.LocalDateTime.of(2026, 10, 18, 9, 0));
         assertThat(result.getPurchaseOrders()).extracting(vo -> vo.getPurchaseOrderId()).containsExactly(1L, 2L);
-        assertThat(result.getItems()).extracting(vo -> vo.getInboundQuantity()).containsExactly(50, 20);
-        assertThat(result.getItems()).extracting(vo -> vo.getProductId()).containsOnly(6L);
+        assertThat(result.getItems()).hasSize(1);
+        assertThat(result.getItems().getFirst().getInboundQuantity()).isEqualTo(70);
+        assertThat(result.getItems().getFirst().getAllocations())
+                .extracting(InboundOrderItemAllocVO::getInboundQuantity).containsExactly(50, 20);
         assertThat(f.savedItems).extracting(InboundOrderItem::getInboundOrderId).containsOnly(100L);
-        assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("0.85"), new BigDecimal("0.90"));
+        assertThat(f.savedAllocations).extracting(InboundOrderItemAlloc::getPurchaseOrderItemId)
+                .containsExactly(11L, 22L);
+        assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("0.8500"), new BigDecimal("0.9000"));
         assertThat(f.stock).extracting(Inventory::getBatchNo).containsExactly("BAT26101800006001", "BAT26101800006002");
         assertThat(f.first.getOrderStatus()).isEqualTo(PurchaseOrderStatus.COMPLETED);
         assertThat(f.second.getOrderStatus()).isEqualTo(PurchaseOrderStatus.PARTIALLY_RECEIVED);
         doReturn(receipt()).when(f.service).getById(100L);
         var scoped = f.service.detail(100L, 2L);
         assertThat(scoped.getItems()).hasSize(1);
-        assertThat(scoped.getItems().getFirst().getPurchaseOrderItemId()).isEqualTo(22L);
+        assertThat(scoped.getItems().getFirst().getInboundQuantity()).isEqualTo(20);
+        assertThat(scoped.getItems().getFirst().getAllocations())
+                .extracting(InboundOrderItemAllocVO::getPurchaseOrderItemId).containsExactly(22L);
         assertThatThrownBy(() -> f.service.detail(100L, 999L)).isInstanceOf(BusinessException.class);
     }
 
@@ -122,9 +130,69 @@ class InboundOrderServiceTest {
         assertThatThrownBy(() -> f.service.createInboundOrder(request(1, 1))).isInstanceOf(BusinessException.class);
         f.second.setSupplierId(3L);
         var request = request(1, 1);
-        request.setItems(List.of(request.getItems().getFirst()));
+        request.setAllocations(List.of(request.getAllocations().getFirst()));
         assertThatThrownBy(() -> f.service.createInboundOrder(request)).isInstanceOf(BusinessException.class);
         verify(f.service, never()).save(any());
+    }
+
+    private static void prices(Fixture f, PurchaseOrderItem first, PurchaseOrderItem second) {
+        when(f.purchaseItems.lambdaQuery().list()).thenReturn(List.of(first, second));
+    }
+
+    @Test void groupsByTaxInclusiveCostWhileKeepingOriginalPurchaseQuotes() {
+        var f = new Fixture();
+        var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        var second = item(22L, 2L, "1.1300");
+        prices(f, first, second);
+        f.service.createInboundOrder(request(50, 20));
+        assertThat(f.stock).hasSize(1);
+        assertThat(f.stock.getFirst().getUnitCost()).isEqualByComparingTo("1.1300");
+        assertThat(f.stock.getFirst().getInitialQuantity()).isEqualTo(70);
+        assertThat(f.savedAllocations.getFirst().getUnitPrice()).isEqualByComparingTo("1.00");
+        assertThat(f.savedAllocations.getFirst().getTaxIncluded()).isEqualTo(TaxIncluded.EXCLUDED);
+    }
+
+    @Test void identicalQuoteNumbersWithDifferentTaxTreatmentProduceDifferentCosts() {
+        var f = new Fixture();
+        var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        prices(f, first, item(22L, 2L, "1.00"));
+        f.service.createInboundOrder(request(50, 20));
+        assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("1.1300"), new BigDecimal("1.0000"));
+    }
+
+    @Test void roundsConvertedCostToFourDecimalsAndAcceptsExplicitZeroTax() {
+        var f = new Fixture();
+        var first = item(11L, 1L, "0.0750"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        var second = item(22L, 2L, "0.0750"); second.setTaxIncluded(TaxIncluded.EXCLUDED); second.setTaxRate(0);
+        prices(f, first, second);
+        f.service.createInboundOrder(request(50, 20));
+        assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("0.0848"), new BigDecimal("0.0750"));
+    }
+
+    @Test void rejectsIncompleteOrOverflowingCostBeforeWritingReceipt() {
+        for (Integer rate : java.util.Arrays.asList(null, -1, 101)) {
+            var f = new Fixture();
+            var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(rate);
+            prices(f, first, item(22L, 2L, "1.00"));
+            assertThatThrownBy(() -> f.service.createInboundOrder(request(50, 20))).isInstanceOf(BusinessException.class).hasMessageContaining("税率");
+            verify(f.service, never()).save(any());
+        }
+        var f = new Fixture();
+        var first = item(11L, 1L, "99999999.9999"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        prices(f, first, item(22L, 2L, "1.00"));
+        assertThatThrownBy(() -> f.service.createInboundOrder(request(50, 20))).isInstanceOf(BusinessException.class).hasMessageContaining("超出");
+        verify(f.service, never()).save(any());
+    }
+
+    @Test void existingStockFromAnotherReceiptIsNotCombinedWithThisReceipt() {
+        var f = new Fixture();
+        var existing = new Inventory(); existing.setBatchNo("BAT26101800006001"); existing.setQuantity(9000);
+        existing.setUnitCost(new BigDecimal("0.8500")); existing.setInboundOrderItemId(999L);
+        f.stock.add(existing);
+        f.service.createInboundOrder(request(50, 20));
+        assertThat(f.stock).hasSize(3);
+        assertThat(existing.getQuantity()).isEqualTo(9000);
+        assertThat(f.stock.get(1).getBatchNo()).isEqualTo("BAT26101800006002");
     }
 
     private static InboundOrder receipt() {
@@ -136,14 +204,18 @@ class InboundOrderServiceTest {
     }
     private static PurchaseOrderItem item(Long id, Long orderId, String cost) {
         var row = new PurchaseOrderItem(); row.setId(id); row.setPurchaseOrderId(orderId); row.setProductId(6L);
-        row.setPartNo("ET5907"); row.setQuantity(100); row.setUnitPrice(new BigDecimal(cost)); return row;
+        row.setPartNo("ET5907"); row.setQuantity(100); row.setUnitPrice(new BigDecimal(cost)); row.setTaxIncluded(TaxIncluded.INCLUDED); return row;
     }
     private static InboundOrderCreateDTO request(int first, int second) {
         var dto = new InboundOrderCreateDTO(); dto.setPurchaseOrderIds(List.of(1L, 2L)); dto.setInboundTime("2026-10-18T09:00:00");
-        dto.setItems(List.of(allocation(11L, first), allocation(22L, second))); return dto;
+        dto.setAllocations(List.of(allocation(11L, first), allocation(22L, second))); return dto;
     }
-    private static InboundOrderItemCreateDTO allocation(Long id, int quantity) {
-        var batch = new InboundOrderBatchCreateDTO(); batch.setDateCode("2618"); batch.setLotCode("LOT-A"); batch.setInboundQuantity(quantity);
-        var item = new InboundOrderItemCreateDTO(); item.setPurchaseOrderItemId(id); item.setBatches(List.of(batch)); return item;
+    private static InboundOrderAllocationCreateDTO allocation(Long id, int quantity) {
+        var item = new InboundOrderAllocationCreateDTO();
+        item.setPurchaseOrderItemId(id);
+        item.setDateCode("2618");
+        item.setLotCode("LOT-A");
+        item.setAllocatedQuantity(quantity);
+        return item;
     }
 }

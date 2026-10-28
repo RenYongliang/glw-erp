@@ -124,8 +124,12 @@ class ListExportServiceTest {
         var order = sale(1L, "SO1");
         order.getItems().getFirst().setQuantity(1000);
         order.getItems().getFirst().setAmount(new BigDecimal("75.00"));
-        var shipment = new OutboundOrderVO(); shipment.setId(2L); shipment.setSalesOrderId(1L); shipment.setOutboundOrderNo("OUT1");
-        var item = new OutboundOrderItemVO(); item.setSalesOrderItemId(1L); item.setOutboundQuantity(100);
+        var shipment = new OutboundOrderVO(); shipment.setId(2L); shipment.setOutboundOrderNo("OUT1");
+        var link = new OutboundSalesOrderVO(); link.setSalesOrderId(1L); link.setSalesOrderNo("SO1");
+        shipment.setSalesOrders(List.of(link));
+        var item = new OutboundOrderItemVO();
+        var allocation = new OutboundOrderItemAllocVO(); allocation.setSalesOrderItemId(1L); allocation.setOutboundQuantity(100);
+        item.setAllocations(List.of(allocation));
         shipment.setItems(List.of(item));
         when(sales.pageSalesOrder(any())).thenReturn(new Page<SalesOrderVO>(1, 200, 1).setRecords(List.of(order)));
         when(outbound.pageOutboundOrder(any())).thenReturn(new Page<OutboundOrderVO>(1, 200, 1).setRecords(List.of(shipment)));

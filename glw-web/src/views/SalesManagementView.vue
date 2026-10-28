@@ -29,6 +29,7 @@ import {
   today,
   orderTotals,
   shipmentTotals,
+  shipmentOrders,
   returnableQuantity,
   remainingQuantity,
   pendingShipmentQuantity,
@@ -163,12 +164,20 @@ const shipmentColumns = [
 function productSummary(
   order: SalesOrder | undefined,
   shipment?: SalesShipment,
+  orders: SalesOrder[] = [],
 ) {
+  const sources = shipment
+    ? shipmentOrders(shipment, orders.length ? orders : order ? [order] : [])
+    : order
+      ? [order]
+      : [];
   const lines = shipment
-    ? order?.lines.filter((l) =>
-        shipment.lines.some((s) => s.lineId === l.id),
-      ) || []
+    ? sources.flatMap((source) =>
+        source.lines.filter((l) => shipment.lines.some((s) => s.lineId === l.id)),
+      )
     : order?.lines || [];
+  const orderFor = (lineId: string) =>
+    sources.find((source) => source.lines.some((l) => l.id === lineId));
   const values = (key: "name" | "code" | "brand" | "model" | "unit") =>
     lines
       .map((l) => {
@@ -185,9 +194,12 @@ function productSummary(
     amounts: lines.map((l) => money(l.amount ?? l.price * l.quantity)).join("\n"),
     units: values("unit"),
     ordered: lines.map((l) => l.quantity).join("\n"),
-    pendingShipment: lines.map(l => order ? pendingShipmentQuantity(order, l, store.state.shipments) : 0).join('\n'),
+    pendingShipment: lines.map(l => {
+      const source = orderFor(l.id) ?? order;
+      return source ? pendingShipmentQuantity(source, l, store.state.shipments) : 0;
+    }).join('\n'),
     pending: lines
-      .map((l) => shipment ? shipment.lines.filter(s => s.lineId === l.id).reduce((sum, s) => sum + s.arrived, 0) : remainingQuantity(store.state, order!.id, l.id))
+      .map((l) => shipment ? shipment.lines.filter(s => s.lineId === l.id).reduce((sum, s) => sum + s.arrived, 0) : remainingQuantity(store.state, orderFor(l.id)?.id ?? order!.id, l.id))
       .join("\n"),
   };
 }
@@ -263,20 +275,21 @@ const records = computed<TableRow[]>(() =>
         };
       })
     : store.state.shipments.map((r) => {
-        const o = store.state.orders.find((o) => o.id === r.orderId),
+        const linked = shipmentOrders(r, store.state.orders),
+          o = linked[0] ?? store.state.orders.find((o) => o.id === r.orderId),
           s = customers.find((s) => s.id === o?.customerId),
-          t = shipmentTotals(r, o);
+          t = shipmentTotals(r, o, store.state.orders);
         return {
           id: r.id,
           shipment: r,
           order: o,
           group: orderCustomerName(o) || "未填写",
           values: {
-            ...productSummary(o, r),
+            ...productSummary(o, r, store.state.orders),
             tag: r.tag,
             warehouse: r.warehouse,
-            name: o?.name || "—",
-            orderCode: o?.code || "—",
+            name: linked.map((item) => item.name).join("、") || "—",
+            orderCode: linked.map((item) => item.code).join("、") || o?.code || "—",
             customer: r.customerName || orderCustomerName(o) || "—",
             customerShortName: r.customerShortName || r.customerName || o?.customerShortName || orderCustomerName(o) || '—',
             customerCode: s?.code || "—",
@@ -285,7 +298,7 @@ const records = computed<TableRow[]>(() =>
             owner: o?.owner || "—",
             department: o?.department || "—",
             code: r.code,
-            purchaseNumber: o?.purchaseNumber || "—",
+            purchaseNumber: linked.map((item) => item.purchaseNumber).filter(Boolean).join("、") || o?.purchaseNumber || "—",
             shippedAt: r.shippedAt || "—",
             quantity: t.quantity,
             total: t.total,

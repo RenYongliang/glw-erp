@@ -35,21 +35,39 @@ export interface SalesOrderResponse {
   remark?: string | null
   items: SalesOrderItemResponse[]
 }
+export interface OutboundSalesOrderResponse {
+  salesOrderId: number
+  salesOrderNo?: string | null
+  customerOrderNo?: string | null
+}
+export interface OutboundOrderItemAllocResponse {
+  id: number
+  outboundOrderItemId: number
+  salesOrderId: number
+  customerOrderNo?: string | null
+  salesOrderItemId: number
+  outboundQuantity: number
+  unitPrice?: string | number | null
+  taxIncluded?: number | null
+  taxRate?: number | null
+  amount?: string | number | null
+  currency?: string | null
+  batches: { id: number; inventoryId: number; quantity: number; unitCost: string | number }[]
+}
 export interface OutboundOrderResponse {
   id: number
   outboundOrderNo?: string | null
-  salesOrderId: number
-  customerOrderNo?: string | null
   customerId: number
   customerName: string
   customerShortName?: string | null
   status: string
   outboundTime?: string | null
+  salesOrders: OutboundSalesOrderResponse[]
   items: {
     id: number
-    salesOrderItemId: number
+    productId: number
     outboundQuantity: number
-    batches: { id: number; inventoryId: number; quantity: number; unitCost: string | number }[]
+    allocations: OutboundOrderItemAllocResponse[]
   }[]
 }
 
@@ -86,17 +104,23 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
 }
 
 export function toSalesShipment(order: OutboundOrderResponse): SalesShipment {
+  const salesOrders = order.salesOrders || []
+  const allocations = order.items.flatMap(item => item.allocations || [])
   return {
     id: String(order.id), code: order.outboundOrderNo || String(order.id),
-    orderId: String(order.salesOrderId), customerName: order.customerName,
+    orderId: String(salesOrders[0]?.salesOrderId ?? ''),
+    orderIds: salesOrders.map(link => String(link.salesOrderId)),
+    customerName: order.customerName,
     customerShortName: order.customerShortName?.trim() || undefined,
-    purchaseNumber: order.customerOrderNo || '', warehouse: '',
+    purchaseNumber: salesOrders[0]?.customerOrderNo || '', warehouse: '',
     tag: '出库', confirmed: order.status === 'COMPLETED', shippedAt: date(order.outboundTime),
     keeper: '', department: '', photos: [], customerConfirmed: false, customerReceivedAt: '',
-    lines: order.items.map(item => ({
-      lineId: String(item.salesOrderItemId), arrived: item.outboundQuantity, location: '',
-      batches: item.batches.map(batch => ({
-        id: String(batch.id), inventoryId: String(batch.inventoryId),
+    lines: allocations.map(alloc => ({
+      lineId: String(alloc.salesOrderItemId), orderId: String(alloc.salesOrderId),
+      arrived: alloc.outboundQuantity, location: '',
+      batches: alloc.batches.map((batch, index) => ({
+        id: batch.id != null ? String(batch.id) : `legacy-${alloc.id}-${index}`,
+        inventoryId: batch.inventoryId != null ? String(batch.inventoryId) : '',
         quantity: batch.quantity, unitCost: Number(batch.unitCost),
       })),
     })),

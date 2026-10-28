@@ -143,11 +143,15 @@ public class ListExportService {
             for (var item : o.getItems()) {
                 var line = groups.computeIfAbsent(item.getProductId(), id -> values("brands", item.getBrand(), "productNames", item.getPartNo(),
                         "models", item.getPackageType(), "quantities", 0, "received", 0));
-                var original = source.get(item.getPurchaseOrderItemId());
-                line.put("quantities", decimal(line.get("quantities")).add(original == null ? BigDecimal.ZERO : decimal(original.getQuantity())));
-                int quantity = item.getBatches().stream().mapToInt(b -> b.getInboundQuantity() == null ? 0 : b.getInboundQuantity()).sum();
-                line.put("received", decimal(line.get("received")).add(BigDecimal.valueOf(quantity)));
-                amount = amount.add(decimal(item.getUnitPrice()).multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP));
+                for (var allocation : item.getAllocations()) {
+                    var original = source.get(allocation.getPurchaseOrderItemId());
+                    line.put("quantities", decimal(line.get("quantities")).add(original == null ? BigDecimal.ZERO : decimal(original.getQuantity())));
+                    int quantity = allocation.getInboundQuantity() == null ? 0 : allocation.getInboundQuantity();
+                    line.put("received", decimal(line.get("received")).add(BigDecimal.valueOf(quantity)));
+                    amount = amount.add(allocation.getAmount() != null
+                            ? decimal(allocation.getAmount())
+                            : decimal(allocation.getUnitPrice()).multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP));
+                }
             }
             var lines = new ArrayList<>(groups.values());
             var v = values("code", o.getInboundOrderNo(), "orderCode", o.getPurchaseOrders().stream().map(InboundPurchaseOrderVO::getPurchaseOrderNo).collect(Collectors.joining("、")),
@@ -163,17 +167,30 @@ public class ListExportService {
         Map<Long, SalesOrderVO> source = allSales().stream().collect(Collectors.toMap(SalesOrderVO::getId, Function.identity()));
         List<OutboundOrderVO> shipments = all((page, size) -> { var q = new OutboundOrderPageDTO(); q.setPageNo(page); q.setPageSize(size); return outbound.pageOutboundOrder(q); });
         return shipments.stream().map(o -> {
-            var order = source.get(o.getSalesOrderId());
-            var shipped = o.getItems().stream().collect(Collectors.groupingBy(OutboundOrderItemVO::getSalesOrderItemId,
-                    Collectors.summingInt(i -> i.getOutboundQuantity() == null ? 0 : i.getOutboundQuantity())));
-            List<Map<String, Object>> lines = order == null ? List.of() : order.getItems().stream().filter(i -> shipped.containsKey(i.getId()))
-                    .map(i -> values("brands", i.getBrand(), "productNames", i.getPartNo(), "models", i.getPackageType(),
-                            "ordered", i.getQuantity(), "pending", shipped.get(i.getId()), "prices", i.getUnitPrice(),
-                            "amounts", i.getAmount(), "pendingShipment", i.getPendingQuantity())).toList();
-            var v = values("code", o.getOutboundOrderNo(), "orderCode", order == null ? "—" : order.getOrderNo(), "customer", o.getCustomerName(),
-                    "customerShortName", fallback(o.getCustomerShortName(), o.getCustomerName()), "purchaseNumber", fallback(o.getCustomerOrderNo(), "—"),
+            Map<Long, SalesOrderItemVO> orderItems = o.getSalesOrders().stream()
+                    .map(so -> source.get(so.getSalesOrderId()))
+                    .filter(Objects::nonNull)
+                    .flatMap(so -> so.getItems().stream())
+                    .collect(Collectors.toMap(SalesOrderItemVO::getId, Function.identity(), (first, second) -> first));
+            var shipped = o.getItems().stream()
+                    .flatMap(item -> item.getAllocations().stream())
+                    .collect(Collectors.groupingBy(OutboundOrderItemAllocVO::getSalesOrderItemId,
+                            Collectors.summingInt(a -> a.getOutboundQuantity() == null ? 0 : a.getOutboundQuantity())));
+            List<Map<String, Object>> lines = orderItems.entrySet().stream().filter(e -> shipped.containsKey(e.getKey()))
+                    .map(e -> {
+                        var i = e.getValue();
+                        return values("brands", i.getBrand(), "productNames", i.getPartNo(), "models", i.getPackageType(),
+                                "ordered", i.getQuantity(), "pending", shipped.get(e.getKey()), "prices", i.getUnitPrice(),
+                                "amounts", i.getAmount(), "pendingShipment", i.getPendingQuantity());
+                    }).toList();
+            String orderCodes = o.getSalesOrders().stream().map(OutboundSalesOrderVO::getSalesOrderNo)
+                    .filter(Objects::nonNull).collect(Collectors.joining("、"));
+            String customerOrderNos = o.getSalesOrders().stream().map(OutboundSalesOrderVO::getCustomerOrderNo)
+                    .filter(Objects::nonNull).collect(Collectors.joining("、"));
+            var v = values("code", o.getOutboundOrderNo(), "orderCode", fallback(orderCodes, "—"), "customer", o.getCustomerName(),
+                    "customerShortName", fallback(o.getCustomerShortName(), o.getCustomerName()), "purchaseNumber", fallback(customerOrderNos, "—"),
                     "shippedAt", fallback(date(o.getOutboundTime()), "—"), "status", o.getStatus() != null && "COMPLETED".equals(o.getStatus().getCode()) ? "已出库" : "待出库",
-                    "tag", "出库", "name", order == null ? "—" : s(order.getCustomerName()) + "销售订单", "total", total(lines, "prices", "pending"));
+                    "tag", "出库", "name", o.getCustomerName() == null ? "—" : s(o.getCustomerName()) + "销售订单", "total", total(lines, "prices", "pending"));
             summarize(v, lines, "\n");
             v.put("quantity", lines.stream().map(l -> decimal(l.get("pending"))).reduce(BigDecimal.ZERO, BigDecimal::add));
             documentSearch(v, lines, false, "pending");

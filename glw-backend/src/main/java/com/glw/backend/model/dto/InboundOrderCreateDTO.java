@@ -17,7 +17,8 @@ public class InboundOrderCreateDTO {
 
     private String inboundTime;
 
+    /** 采购行分配明细；服务端按产品汇总生成入库产品行。 */
     @Valid
     @NotEmpty
-    private List<InboundOrderItemCreateDTO> items;
+    private List<InboundOrderAllocationCreateDTO> allocations;
 }

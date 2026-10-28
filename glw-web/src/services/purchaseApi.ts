@@ -1,5 +1,5 @@
 import { apiRequest } from './api'
-import { receiptOrderIds, type PurchaseOrder, type PurchaseReceipt } from '../domain/purchase'
+import { receiptOrderIds, type PurchaseOrder, type PurchaseReceipt, type ReceiptLine } from '../domain/purchase'
 
 interface PageResponse<T> {
   records: T[]
@@ -39,28 +39,31 @@ interface PurchaseOrderResponse {
   items: PurchaseOrderItemResponse[]
 }
 
-interface InboundOrderBatchItemResponse {
+interface InboundOrderItemAllocResponse {
   id: number
   inboundOrderItemId: number
-  productId: number
+  purchaseOrderId: number
+  purchaseOrderNo: string
+  purchaseOrderItemId: number
   dateCode: string
   lotCode: string
   inboundQuantity: number
+  unitPrice?: string
+  taxIncluded?: number
+  taxRate?: number | null
+  amount?: string
+  currency?: string
 }
 
 interface InboundOrderItemResponse {
+  id: number
+  inboundOrderId: number
   productId: number
   brand?: string
   partNo?: string
   packageType?: string
-  unitPrice?: string
-  id: number
-  inboundOrderId: number
-  purchaseOrderId: number
-  purchaseOrderNo: string
-  purchaseOrderItemId: number
   inboundQuantity: number
-  batches: InboundOrderBatchItemResponse[]
+  allocations: InboundOrderItemAllocResponse[]
 }
 
 interface InboundOrderResponse {
@@ -78,13 +81,11 @@ interface InboundOrderResponse {
 interface InboundOrderCreateRequest {
   purchaseOrderIds: number[]
   inboundTime?: string
-  items: {
+  allocations: {
     purchaseOrderItemId: number
-    batches: {
-      dateCode: string
-      lotCode: string
-      inboundQuantity: number
-    }[]
+    dateCode: string
+    lotCode: string
+    allocatedQuantity: number
   }[]
 }
 
@@ -146,27 +147,35 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
   }
 }
 
-function toPurchaseReceipt(receipt: InboundOrderResponse): PurchaseReceipt {
-  const lines = receipt.items.map(item => {
-    const batches = item.batches?.map(batch => ({
-      id: String(batch.id),
-      dateCode: batch.dateCode || '',
-      lotCode: batch.lotCode || '',
-      quantity: batch.inboundQuantity,
-    })) ?? [{ id: `legacy-${item.id}`, dateCode: '', lotCode: '', quantity: item.inboundQuantity }]
-    return {
-      orderId: String(item.purchaseOrderId),
-      productId: String(item.productId),
-      brand: item.brand,
-      model: item.partNo,
-      packaging: item.packageType,
-      unitPrice: Number(item.unitPrice ?? 0),
-      lineId: String(item.purchaseOrderItemId),
-      arrived: batches.reduce((sum, batch) => sum + batch.quantity, 0),
-      rejected: 0,
-      location: '',
-      batches,
+function toPurchaseReceipt(receipt: InboundOrderResponse, purchaseOrderId?: string): PurchaseReceipt {
+  const lines = receipt.items.flatMap(item => {
+    const byPurchaseItem = new Map<string, ReceiptLine>()
+    for (const alloc of item.allocations) {
+      if (purchaseOrderId && String(alloc.purchaseOrderId) !== purchaseOrderId) continue
+      const lineId = String(alloc.purchaseOrderItemId)
+      const line = byPurchaseItem.get(lineId) ?? {
+        orderId: String(alloc.purchaseOrderId),
+        productId: String(item.productId),
+        brand: item.brand,
+        model: item.partNo,
+        packaging: item.packageType,
+        unitPrice: Number(alloc.unitPrice ?? 0),
+        lineId,
+        arrived: 0,
+        rejected: 0,
+        location: '',
+        batches: [],
+      }
+      line.batches.push({
+        id: String(alloc.id),
+        dateCode: alloc.dateCode || '',
+        lotCode: alloc.lotCode || '',
+        quantity: alloc.inboundQuantity,
+      })
+      line.arrived += alloc.inboundQuantity
+      byPurchaseItem.set(lineId, line)
     }
+    return [...byPurchaseItem.values()]
   })
   return {
     id: String(receipt.id),
@@ -194,7 +203,7 @@ export async function fetchPurchaseOrders() {
 }
 
 export async function fetchInboundOrders() {
-  return (await allRecords<InboundOrderResponse>('/inbound-order/list')).map(toPurchaseReceipt)
+  return (await allRecords<InboundOrderResponse>('/inbound-order/list')).map(receipt => toPurchaseReceipt(receipt))
 }
 
 export async function fetchInboundDetail(id: string, orderId?: string) {
@@ -206,28 +215,25 @@ export async function fetchPurchaseInboundHistory(orderId: string) {
   return receipts.map(receipt => toPurchaseReceipt({
     ...receipt,
     purchaseOrders: receipt.purchaseOrders.filter(order => String(order.purchaseOrderId) === orderId),
-    items: receipt.items.filter(item => String(item.purchaseOrderId) === orderId),
-  }))
+  }, orderId))
 }
 
 export async function createInboundOrder(receipt: PurchaseReceipt) {
-  const items = receipt.lines
-    .map(line => ({
-      purchaseOrderItemId: Number(line.lineId),
-      batches: line.batches
-        .filter(batch => batch.quantity > 0)
-        .map(batch => ({
-          dateCode: batch.dateCode.trim(),
-          lotCode: batch.lotCode.trim(),
-          inboundQuantity: batch.quantity,
-        })),
-    }))
-    .filter(item => item.batches.length > 0)
-  if (!items.length) throw Error('请填写至少一个入库批次')
+  const allocations = receipt.lines.flatMap(line =>
+    line.batches
+      .filter(batch => batch.quantity > 0)
+      .map(batch => ({
+        purchaseOrderItemId: Number(line.lineId),
+        dateCode: batch.dateCode.trim(),
+        lotCode: batch.lotCode.trim(),
+        allocatedQuantity: batch.quantity,
+      })),
+  )
+  if (!allocations.length) throw Error('请填写至少一个入库批次')
   const request: InboundOrderCreateRequest = {
     purchaseOrderIds: receiptOrderIds(receipt).map(Number),
     inboundTime: receipt.receivedAt ? (receipt.receivedAt.length === 10 ? `${receipt.receivedAt}T00:00:00` : receipt.receivedAt.replace(' ', 'T')) : undefined,
-    items,
+    allocations,
   }
   await apiRequest<unknown>('/inbound-order', {
     method: 'POST',

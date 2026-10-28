@@ -40,11 +40,7 @@ public class Inventory {
     @TableField("inbound_order_item_id")
     private Long inboundOrderItemId;
 
-    /** 来源入库批次明细id。 */
-    @TableField("inbound_order_batch_item_id")
-    private Long inboundOrderBatchItemId;
-
-    /** 批次单位成本。 */
+    /** 批次含税单位成本，保留四位小数。 */
     @TableField("unit_cost")
     private BigDecimal unitCost;
 

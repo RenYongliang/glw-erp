@@ -7,6 +7,8 @@ import {
   validateOrder,
   validateShipment,
   returnableQuantity,
+  shipmentMatchesOrder,
+  shipmentOrderIds,
   margin,
   type SalesState,
   type SalesOrder,
@@ -15,7 +17,7 @@ import {
   type SalesReturn,
   type Product,
 } from '../domain/sales'
-import { fetchSalesOrders, fetchOutboundOrders } from '../services/salesApi'
+import { createOutboundOrder, fetchSalesOrders, fetchOutboundOrders } from '../services/salesApi'
 
 function initial(): SalesState {
   return { orders: [], shipments: [], payments: [], returns: [], logs: [] }
@@ -60,7 +62,7 @@ export const useSalesStore = defineStore('sales', () => {
     const index = next.orders.findIndex((o) => o.id === order.id)
     if (
       index >= 0 &&
-      (next.shipments.some((r) => r.orderId === order.id) ||
+      (next.shipments.some((r) => shipmentMatchesOrder(r, order.id)) ||
         next.payments.some((p) => p.orderId === order.id) ||
         next.returns.some((r) => r.orderId === order.id))
     )
@@ -96,12 +98,17 @@ export const useSalesStore = defineStore('sales', () => {
     order.approvedAt = new Date().toLocaleString('sv-SE')
     commit(next, passed ? '审批通过' : '审批不通过', order.code)
   }
-  function saveShipment(input: SalesShipment) {
+  async function saveShipment(input: SalesShipment) {
     const next = snapshot(),
       shipment: SalesShipment = JSON.parse(JSON.stringify(input)),
       error = validateShipment(shipment, next)
     if (error) throw Error(error)
     const index = next.shipments.findIndex((r) => r.id === shipment.id)
+    if (index < 0 && shipment.confirmed) {
+      await createOutboundOrder(shipment)
+      await load()
+      return shipment
+    }
     if (index >= 0 && next.shipments[index]!.confirmed) {
       const previous = next.shipments[index]!
       if (
@@ -110,9 +117,16 @@ export const useSalesStore = defineStore('sales', () => {
       )
         throw Error('已确认出库单仅允许补充客户收货确认')
     }
-    if (index >= 0 && next.shipments[index]!.orderId !== shipment.orderId)
+    if (
+      index >= 0 &&
+      JSON.stringify(shipmentOrderIds(next.shipments[index]!).slice().sort()) !==
+        JSON.stringify(shipmentOrderIds(shipment).slice().sort())
+    )
       throw Error('已保存的出库单不能更换销售订单')
-    if (index >= 0 && next.returns.some((r) => r.orderId === shipment.orderId))
+    if (
+      index >= 0 &&
+      next.returns.some((r) => shipmentMatchesOrder(shipment, r.orderId))
+    )
       throw Error('该订单已有退货记录，不能再修改出库记录')
     if (index < 0) {
       shipment.code = nextSalesCode('OUT', next.shipments, shipment.shippedAt || undefined)
@@ -127,7 +141,7 @@ export const useSalesStore = defineStore('sales', () => {
       kind === 'orders' &&
       ids.some(
         (id) =>
-          next.shipments.some((r) => r.orderId === id) ||
+          next.shipments.some((r) => shipmentMatchesOrder(r, id)) ||
           next.payments.some((p) => p.orderId === id) ||
           next.returns.some((r) => r.orderId === id),
       )
@@ -136,7 +150,7 @@ export const useSalesStore = defineStore('sales', () => {
     if (
       kind === 'shipments' &&
       next.shipments.some(
-        (r) => ids.includes(r.id) && next.returns.some((t) => t.orderId === r.orderId),
+        (r) => ids.includes(r.id) && next.returns.some((t) => shipmentMatchesOrder(r, t.orderId)),
       )
     )
       throw Error('关联订单已有退货记录，不能删除出库单')

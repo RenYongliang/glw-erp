@@ -8,7 +8,6 @@
         <result column="lot_code" property="lotCode" jdbcType="VARCHAR"/>
         <result column="batch_no" property="batchNo" jdbcType="VARCHAR"/>
         <result column="inbound_order_item_id" property="inboundOrderItemId" jdbcType="BIGINT"/>
-        <result column="inbound_order_batch_item_id" property="inboundOrderBatchItemId" jdbcType="BIGINT"/>
         <result column="unit_cost" property="unitCost" jdbcType="DECIMAL"/>
         <result column="initial_quantity" property="initialQuantity" jdbcType="INTEGER"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
@@ -21,7 +20,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `product_id`, `date_code`, `lot_code`, `batch_no`, `inbound_order_item_id`, `inbound_order_batch_item_id`, `unit_cost`, `initial_quantity`, `quantity`, `reserved_quantity`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `product_id`, `date_code`, `lot_code`, `batch_no`, `inbound_order_item_id`, `unit_cost`, `initial_quantity`, `quantity`, `reserved_quantity`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
     <sql id="AvailableQuantity">GREATEST(i.quantity - COALESCE(i.reserved_quantity, 0), 0)</sql>
 

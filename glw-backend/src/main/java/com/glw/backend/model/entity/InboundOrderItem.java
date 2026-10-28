@@ -10,7 +10,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 入库商品表（inbound_order_item）。 */
+/** 入库产品行（inbound_order_item）。 */
 @Data
 @TableName(
         value = "inbound_order_item",
@@ -24,19 +24,23 @@ public class InboundOrderItem {
     @TableField("inbound_order_id")
     private Long inboundOrderId;
 
-    /** 采购单id。 */
-    @TableField("purchase_order_id")
-    private Long purchaseOrderId;
+    /** 产品id。 */
+    @TableField("product_id")
+    private Long productId;
 
-    /** 采购单编号。 */
-    @TableField("purchase_order_no")
-    private String purchaseOrderNo;
+    /** 品牌快照。 */
+    @TableField("brand")
+    private String brand;
 
-    /** 采购商品表id。 */
-    @TableField("purchase_order_item_id")
-    private Long purchaseOrderItemId;
+    /** 型号快照。 */
+    @TableField("part_no")
+    private String partNo;
 
-    /** 入库数量。 */
+    /** 封装快照。 */
+    @TableField("package_type")
+    private String packageType;
+
+    /** 产品入库总数量。 */
     @TableField("inbound_quantity")
     private Integer inboundQuantity;
 

@@ -1,5 +1,5 @@
 import type { Product, SalesOrder, SalesShipment } from './sales'
-import { salesLineProduct } from './sales.ts'
+import { salesLineProduct, shipmentMatchesOrder } from './sales.ts'
 
 export type FulfillmentStatus = '待发货' | '部分发货' | '已完成' | '剩余未交取消'
 export type NumberRange = [number | null, number | null]
@@ -24,7 +24,7 @@ export function salesFulfillmentStatus(order: SalesOrder, shipments: SalesShipme
     return order.status as FulfillmentStatus
   const delivered = new Map<string, number>()
   for (const shipment of shipments) {
-    if (shipment.orderId !== order.id || !shipment.confirmed || shipment.tag !== '出库') continue
+    if (!shipmentMatchesOrder(shipment, order.id) || !shipment.confirmed || shipment.tag !== '出库') continue
     for (const line of shipment.lines) delivered.set(line.lineId, (delivered.get(line.lineId) || 0) + Math.max(0, line.arrived || 0))
   }
   if (order.lines.length && order.lines.every(l => (delivered.get(l.id) || 0) >= l.quantity)) return '已完成'

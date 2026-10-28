@@ -3,6 +3,7 @@ import {
   customers,
   orderCustomerName,
   products,
+  shipmentMatchesOrder,
   today,
   type SalesOrder,
   type SalesShipment,
@@ -38,11 +39,14 @@ export function createDeliveryNote(
   const suffix = shipment.code
     ? shipment.code.replace(/^(?:OUT|XSCK)/, '')
     : shipment.id.replace(/-/g, '').slice(0, 8).toUpperCase()
+  const shipmentLines = shipment.lines.filter((line) =>
+    order.lines.some((item) => item.id === line.lineId),
+  )
   if (
-    shipment.orderId !== order.id ||
-    new Set(shipment.lines.map((l) => l.lineId)).size !==
-      shipment.lines.length ||
-    shipment.lines.some((l) => {
+    !shipmentMatchesOrder(shipment, order.id) ||
+    new Set(shipmentLines.map((l) => l.lineId)).size !==
+      shipmentLines.length ||
+    shipmentLines.some((l) => {
       const source = order.lines.find((item) => item.id === l.lineId)
       return (
         !source ||
@@ -53,7 +57,7 @@ export function createDeliveryNote(
     })
   )
     throw Error('请核对发货产品及数量，不能超过订单数量')
-  const lines = shipment.lines
+  const lines = shipmentLines
     .filter((line) => line.arrived > 0)
     .map((line) => {
       const orderLine = order.lines.find((l) => l.id === line.lineId)

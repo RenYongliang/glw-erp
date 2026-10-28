@@ -4,8 +4,6 @@
     <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.OutboundOrder">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="outbound_order_no" property="outboundOrderNo" jdbcType="VARCHAR"/>
-        <result column="sales_order_id" property="salesOrderId" jdbcType="BIGINT"/>
-        <result column="customer_order_no" property="customerOrderNo" jdbcType="VARCHAR"/>
         <result column="customer_id" property="customerId" jdbcType="BIGINT"/>
         <result column="customer_name" property="customerName" jdbcType="VARCHAR"/>
         <result column="outbound_type" property="outboundType" javaType="com.glw.backend.model.enums.OutboundType" jdbcType="VARCHAR"/>
@@ -19,6 +17,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `outbound_order_no`, `sales_order_id`, `customer_order_no`, `customer_id`, `customer_name`, `outbound_type`, `status`, `outbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `outbound_order_no`, `customer_id`, `customer_name`, `outbound_type`, `status`, `outbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

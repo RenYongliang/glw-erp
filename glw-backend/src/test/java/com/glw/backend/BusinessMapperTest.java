@@ -68,7 +68,7 @@ class BusinessMapperTest {
             if (table.equals("sys_user")) continue;
             tests.add(DynamicTest.dynamicTest(table, () -> verifyTable(table, body)));
         }
-        assertThat(tests).hasSize(18);
+        assertThat(tests).hasSize(20);
         return tests.stream();
     }
 

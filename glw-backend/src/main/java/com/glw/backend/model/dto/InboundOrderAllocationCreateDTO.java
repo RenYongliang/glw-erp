@@ -8,8 +8,12 @@ import jakarta.validation.constraints.Size;
 
 import lombok.Data;
 
+/** 入库分配明细：采购行 × 外部批次（Date Code + Lot Code）。 */
 @Data
-public class InboundOrderBatchCreateDTO {
+public class InboundOrderAllocationCreateDTO {
+    @NotNull
+    private Long purchaseOrderItemId;
+
     @NotBlank
     @Size(max = 32)
     private String dateCode;
@@ -21,5 +25,5 @@ public class InboundOrderBatchCreateDTO {
     @NotNull
     @Min(1)
     @Max(100000000)
-    private Integer inboundQuantity;
+    private Integer allocatedQuantity;
 }

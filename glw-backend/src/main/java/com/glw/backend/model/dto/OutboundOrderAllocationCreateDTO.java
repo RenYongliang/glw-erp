@@ -9,11 +9,11 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class InboundOrderItemCreateDTO {
+public class OutboundOrderAllocationCreateDTO {
     @NotNull
-    private Long purchaseOrderItemId;
+    private Long salesOrderItemId;
 
     @Valid
     @NotEmpty
-    private List<InboundOrderBatchCreateDTO> batches;
+    private List<OutboundOrderBatchCreateDTO> batches;
 }

@@ -1,6 +1,7 @@
 package com.glw.backend.model.vo;
 
 import lombok.Data;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,9 +9,10 @@ import java.util.List;
 public class OutboundOrderItemVO {
     private Long id;
     private Long outboundOrderId;
-    private Long salesOrderId;
-    private String customerOrderNo;
-    private Long salesOrderItemId;
+    private Long productId;
+    private String brand;
+    private String partNo;
+    private String packageType;
     private Integer outboundQuantity;
-    private List<OutboundOrderBatchItemVO> batches = new ArrayList<>();
+    private List<OutboundOrderItemAllocVO> allocations = new ArrayList<>();
 }

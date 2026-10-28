@@ -11,19 +11,23 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 出库商品批次表（outbound_order_batch_item）。 */
+/** 出库分配行批次（outbound_order_item_batch）。 */
 @Data
 @TableName(
-        value = "outbound_order_batch_item",
-        resultMap = "com.glw.backend.mapper.OutboundOrderBatchItemMapper.BaseResultMap")
-public class OutboundOrderBatchItem {
+        value = "outbound_order_item_batch",
+        resultMap = "com.glw.backend.mapper.OutboundOrderItemBatchMapper.BaseResultMap")
+public class OutboundOrderItemBatch {
     /** 主键ID。 */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    /** 出库订单明细id。 */
-    @TableField("outbound_order_item_id")
-    private Long outboundOrderItemId;
+    /** 出库单id。 */
+    @TableField("outbound_order_id")
+    private Long outboundOrderId;
+
+    /** 出库分配行id。 */
+    @TableField("alloc_id")
+    private Long allocId;
 
     /** 库存批次id。 */
     @TableField("inventory_id")

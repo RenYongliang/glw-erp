@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.glw.backend.mapper.OutboundOrderBatchItemMapper">
-    <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.OutboundOrderBatchItem">
+<mapper namespace="com.glw.backend.mapper.OutboundOrderItemBatchMapper">
+    <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.OutboundOrderItemBatch">
         <id column="id" property="id" jdbcType="BIGINT"/>
-        <result column="outbound_order_item_id" property="outboundOrderItemId" jdbcType="BIGINT"/>
+        <result column="outbound_order_id" property="outboundOrderId" jdbcType="BIGINT"/>
+        <result column="alloc_id" property="allocId" jdbcType="BIGINT"/>
         <result column="inventory_id" property="inventoryId" jdbcType="BIGINT"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
         <result column="unit_cost" property="unitCost" jdbcType="DECIMAL"/>
@@ -14,6 +15,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `outbound_order_item_id`, `inventory_id`, `quantity`, `unit_cost`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `outbound_order_id`, `alloc_id`, `inventory_id`, `quantity`, `unit_cost`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

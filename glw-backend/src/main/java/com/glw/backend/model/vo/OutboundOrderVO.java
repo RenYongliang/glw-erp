@@ -10,8 +10,6 @@ import java.util.List;
 public class OutboundOrderVO {
     private Long id;
     private String outboundOrderNo;
-    private Long salesOrderId;
-    private String customerOrderNo;
     private Long customerId;
     private String customerName;
     private String customerShortName;
@@ -19,5 +17,6 @@ public class OutboundOrderVO {
     private OutboundStatus status;
     private String outboundTime;
     private Integer version;
+    private List<OutboundSalesOrderVO> salesOrders = new ArrayList<>();
     private List<OutboundOrderItemVO> items = new ArrayList<>();
 }

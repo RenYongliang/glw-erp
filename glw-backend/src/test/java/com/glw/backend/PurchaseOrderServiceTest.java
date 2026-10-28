@@ -7,7 +7,7 @@ import static org.mockito.Mockito.*;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.glw.backend.converter.PurchaseOrderConverter;
-import com.glw.backend.mapper.InboundOrderItemMapper;
+import com.glw.backend.mapper.InboundOrderItemAllocMapper;
 import com.glw.backend.mapper.SupplierMapper;
 import com.glw.backend.model.entity.Supplier;
 import com.glw.backend.model.dto.PurchaseOrderPageDTO;
@@ -26,7 +26,7 @@ class PurchaseOrderServiceTest {
     @SuppressWarnings("unchecked")
     void pendingDeliveryUsesCompletedReceiptTotalsForEachPurchaseItem() {
         var itemService = mock(PurchaseOrderItemService.class);
-        var inboundMapper = mock(InboundOrderItemMapper.class);
+        var inboundMapper = mock(InboundOrderItemAllocMapper.class);
         var supplierMapper = mock(SupplierMapper.class);
         var service = spy(new PurchaseOrderServiceImpl(itemService,
                 Mappers.getMapper(PurchaseOrderConverter.class), inboundMapper, supplierMapper,
@@ -54,8 +54,8 @@ class PurchaseOrderServiceTest {
         when(orderQuery.page(any())).thenReturn(page);
         when(itemQuery.list()).thenReturn(List.of(item(11L, 100), item(12L, 40), item(13L, 10)));
         when(inboundMapper.sumCompletedByPurchaseOrderIds(List.of(1L))).thenReturn(List.of(
-                new InboundOrderItemMapper.ReceivedQuantity(11L, 35L),
-                new InboundOrderItemMapper.ReceivedQuantity(13L, 20L)));
+                new InboundOrderItemAllocMapper.ReceivedQuantity(11L, 35L),
+                new InboundOrderItemAllocMapper.ReceivedQuantity(13L, 20L)));
 
         var request = new PurchaseOrderPageDTO();
         request.setPageNo(1L);

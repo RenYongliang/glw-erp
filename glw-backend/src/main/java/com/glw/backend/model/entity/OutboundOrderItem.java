@@ -10,7 +10,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 出库商品表（outbound_order_item）。 */
+/** 出库产品行（outbound_order_item）。 */
 @Data
 @TableName(
         value = "outbound_order_item",
@@ -24,19 +24,23 @@ public class OutboundOrderItem {
     @TableField("outbound_order_id")
     private Long outboundOrderId;
 
-    /** 销售单id。 */
-    @TableField("sales_order_id")
-    private Long salesOrderId;
+    /** 产品id。 */
+    @TableField("product_id")
+    private Long productId;
 
-    /** 客户采购单编号。 */
-    @TableField("customer_order_no")
-    private String customerOrderNo;
+    /** 品牌快照。 */
+    @TableField("brand")
+    private String brand;
 
-    /** 销售商品表id。 */
-    @TableField("sales_order_item_id")
-    private Long salesOrderItemId;
+    /** 型号快照。 */
+    @TableField("part_no")
+    private String partNo;
 
-    /** 出库数量。 */
+    /** 封装快照。 */
+    @TableField("package_type")
+    private String packageType;
+
+    /** 产品出库总数量。 */
     @TableField("outbound_quantity")
     private Integer outboundQuantity;
 
