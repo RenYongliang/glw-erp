@@ -8,7 +8,7 @@ import java.math.RoundingMode;
 /** Shared currency rounding and financial error checks. */
 public final class FinanceSupport {
     private FinanceSupport() {}
-    public static BigDecimal money(BigDecimal value) { return value.setScale(2, RoundingMode.HALF_UP); }
+    public static BigDecimal money(BigDecimal value) { return value.setScale(4, RoundingMode.HALF_UP); }
 
     public static BusinessException bad(String message) { return new BusinessException(ErrorCode.BAD_REQUEST, message); }
 

@@ -72,7 +72,7 @@ public final class FinanceModels {
         @NotNull @Pattern(regexp = "AR|AP") private String direction;
         @NotNull @Positive private Long partnerId;
         @NotNull private LocalDate paymentDate;
-        @NotNull @DecimalMin("0.01") @Digits(integer = 16, fraction = 2) private BigDecimal amount;
+        @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 4) private BigDecimal amount;
         @NotNull @Size(max = 128) private String bankReference = "";
         @NotNull @Size(max = 500) private String remark = "";
     }
@@ -80,7 +80,7 @@ public final class FinanceModels {
         @NotBlank @Size(max = 64) private String requestKey;
         @NotNull @Positive private Long paymentId;
         @NotNull @Positive private Long openItemId;
-        @NotNull @DecimalMin("0.01") @Digits(integer = 16, fraction = 2) private BigDecimal amount;
+        @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 4) private BigDecimal amount;
     }
     public record TaxInput(@NotNull @Min(0) @Max(100) Integer taxRate) {}
     public record Summary(BigDecimal grossAmount, BigDecimal settledAmount, BigDecimal outstandingAmount,

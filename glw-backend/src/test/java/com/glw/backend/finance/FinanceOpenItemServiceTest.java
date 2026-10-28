@@ -28,7 +28,7 @@ class FinanceOpenItemServiceTest extends FinanceTestFixture {
         assertThat(o.getGrossAmount()).isNull(); assertThat(o.getReconcileStatus()).isEqualTo("PENDING_TAX");
         assertThat(o.getNetAmount()).isEqualByComparingTo("113.00");
         o.setTaxRate(13); o.setGrossAmount(new BigDecimal("100.0050")); FinanceOpenItemServiceImpl.prepare(o, null);
-        assertThat(o.getNetAmount()).isEqualByComparingTo("100.01"); assertThat(o.getGrossAmount()).isEqualByComparingTo("113.01");
+        assertThat(o.getNetAmount()).isEqualByComparingTo("100.0050"); assertThat(o.getGrossAmount()).isEqualByComparingTo("113.0057");
     }
 
     @Test void historicalRebuildOnlyInsertsMissingSnapshots() {

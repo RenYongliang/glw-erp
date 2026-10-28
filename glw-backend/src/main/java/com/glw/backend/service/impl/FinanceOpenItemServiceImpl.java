@@ -77,7 +77,7 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
         } else {
             item.setGrossAmount(money(amount));
             if (rate != null) {
-                item.setNetAmount(item.getGrossAmount().divide(BigDecimal.ONE.add(BigDecimal.valueOf(rate).movePointLeft(2)), 2, RoundingMode.HALF_UP));
+                item.setNetAmount(item.getGrossAmount().divide(BigDecimal.ONE.add(BigDecimal.valueOf(rate).movePointLeft(2)), 4, RoundingMode.HALF_UP));
                 item.setTaxAmount(item.getGrossAmount().subtract(item.getNetAmount()));
             } else {
                 item.setNetAmount(null);

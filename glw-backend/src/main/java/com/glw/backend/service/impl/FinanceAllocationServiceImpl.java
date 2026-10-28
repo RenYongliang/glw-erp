@@ -58,7 +58,7 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
     }
 
     public static void validateAllocation(Payment p, OpenItem o, BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0 || amount.stripTrailingZeros().scale() > 2) throw bad("核销金额须大于零且最多两位小数");
+        if (amount == null || amount.signum() <= 0 || amount.stripTrailingZeros().scale() > 4) throw bad("核销金额须大于零且最多四位小数");
         if ("VOID".equals(p.getStatus())) throw bad("已作废收付款不能核销");
         if (!Objects.equals(p.getDirection(), o.getDirection()) || !Objects.equals(p.getPartnerId(), o.getPartnerId()) || !Objects.equals(p.getCurrency(), o.getCurrency()))
             throw bad("只能核销同方向、同往来单位、同币种的记录");
