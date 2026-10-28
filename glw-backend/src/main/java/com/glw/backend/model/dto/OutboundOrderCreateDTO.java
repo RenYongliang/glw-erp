@@ -17,6 +17,9 @@ public class OutboundOrderCreateDTO {
 
     private String outboundTime;
 
+    @Valid
+    private OutboundShippingDTO shipping;
+
     /** 销售行分配明细；服务端按产品汇总生成出库产品行。 */
     @Valid
     @NotEmpty

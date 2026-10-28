@@ -177,6 +177,13 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
             throw new BusinessException(ErrorCode.NOT_FOUND, "库存批次不存在");
         Map<Long, Inventory> inventoryMap = inventories.stream()
                 .collect(Collectors.toMap(Inventory::getId, inventory -> inventory));
+        for (OutboundOrderAllocationCreateDTO allocation : createDTO.getAllocations()) {
+            Long productId = salesItemMap.get(allocation.getSalesOrderItemId()).getProductId();
+            for (OutboundOrderBatchCreateDTO batch : allocation.getBatches()) {
+                if (!Objects.equals(productId, inventoryMap.get(batch.getInventoryId()).getProductId()))
+                    throw new BusinessException(ErrorCode.BAD_REQUEST, "所选库存批次不属于该销售产品");
+            }
+        }
         for (var entry : requestedByInventory.entrySet()) {
             Inventory inventory = inventoryMap.get(entry.getKey());
             int available = availableQuantity(inventory);
@@ -194,6 +201,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         outboundOrder.setOutboundType(OutboundType.SALE);
         outboundOrder.setStatus(OutboundStatus.COMPLETED);
         outboundOrder.setOutboundTime(outboundTime);
+        converter.applyShipping(createDTO.getShipping(), outboundOrder);
         outboundOrder.setVersion(0);
         outboundOrder.setOutboundOrderNo(documentNumberService.next(
                 DocumentNumberService.Kind.OUTBOUND, outboundTime));

@@ -9,6 +9,16 @@
         <result column="outbound_type" property="outboundType" javaType="com.glw.backend.model.enums.OutboundType" jdbcType="VARCHAR"/>
         <result column="status" property="status" javaType="com.glw.backend.model.enums.OutboundStatus" jdbcType="VARCHAR"/>
         <result column="outbound_time" property="outboundTime" jdbcType="TIMESTAMP"/>
+        <result column="shipping_address" property="shippingAddress" jdbcType="VARCHAR"/>
+        <result column="shipping_recipient" property="shippingRecipient" jdbcType="VARCHAR"/>
+        <result column="shipping_phone" property="shippingPhone" jdbcType="VARCHAR"/>
+        <result column="shipping_sender" property="shippingSender" jdbcType="VARCHAR"/>
+        <result column="shipping_sender_phone" property="shippingSenderPhone" jdbcType="VARCHAR"/>
+        <result column="shipping_method" property="shippingMethod" jdbcType="VARCHAR"/>
+        <result column="shipping_carrier" property="shippingCarrier" jdbcType="VARCHAR"/>
+        <result column="shipping_tracking_number" property="shippingTrackingNumber" jdbcType="VARCHAR"/>
+        <result column="shipping_purchase_number" property="shippingPurchaseNumber" jdbcType="VARCHAR"/>
+        <result column="shipping_remark" property="shippingRemark" jdbcType="VARCHAR"/>
         <result column="version" property="version" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
@@ -17,6 +27,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `outbound_order_no`, `customer_id`, `customer_name`, `outbound_type`, `status`, `outbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `outbound_order_no`, `customer_id`, `customer_name`, `outbound_type`, `status`, `outbound_time`, `shipping_address`, `shipping_recipient`, `shipping_phone`, `shipping_sender`, `shipping_sender_phone`, `shipping_method`, `shipping_carrier`, `shipping_tracking_number`, `shipping_purchase_number`, `shipping_remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

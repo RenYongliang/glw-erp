@@ -34,7 +34,7 @@
         ORDER BY p.id
     </select>
     <select id="selectCostBatches" resultType="com.glw.backend.model.vo.ProductCostBatchVO">
-        SELECT id AS inventory_id, batch_no, quantity, unit_cost
+        SELECT id AS inventory_id, batch_no, date_code, lot_code, quantity, unit_cost
         FROM inventory
         WHERE product_id = #{productId} AND quantity > 0
         ORDER BY batch_no, id

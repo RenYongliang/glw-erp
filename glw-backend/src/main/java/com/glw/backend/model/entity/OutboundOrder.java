@@ -47,6 +47,27 @@ public class OutboundOrder {
     @TableField("outbound_time")
     private LocalDateTime outboundTime;
 
+    @TableField("shipping_address")
+    private String shippingAddress;
+    @TableField("shipping_recipient")
+    private String shippingRecipient;
+    @TableField("shipping_phone")
+    private String shippingPhone;
+    @TableField("shipping_sender")
+    private String shippingSender;
+    @TableField("shipping_sender_phone")
+    private String shippingSenderPhone;
+    @TableField("shipping_method")
+    private String shippingMethod;
+    @TableField("shipping_carrier")
+    private String shippingCarrier;
+    @TableField("shipping_tracking_number")
+    private String shippingTrackingNumber;
+    @TableField("shipping_purchase_number")
+    private String shippingPurchaseNumber;
+    @TableField("shipping_remark")
+    private String shippingRemark;
+
     /** 乐观锁版本号；新增默认 0，更新时携带查询得到的版本。 */
     @Version
     @TableField("version")

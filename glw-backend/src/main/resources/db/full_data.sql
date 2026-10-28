@@ -3,6 +3,7 @@
 -- Confirmed workbook SHA256: cb0e641271f8972e25d1ef5a50f518c3f8db6f689f699d89ce2e583983e19401
 -- Includes all referenced supplier/product rows and local login users. No prior data import is needed.
 -- Document numbers: SO / GL / IN / OUT + yyyyMMdd + 3-digit daily sequence.
+-- Historical shipping details were not recorded in the workbook; outbound shipping snapshots remain NULL.
 -- Initialization order: glw.sql, then full_data.sql. No other SQL scripts are required.
 SET NAMES utf8mb4;
 SET @fd_old_sql_mode = @@SESSION.sql_mode;

@@ -3,6 +3,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Delete, FullScreen } from "@element-plus/icons-vue";
 import DeliveryNoteActions from "./DeliveryNoteActions.vue";
+import ShipmentShippingForm from "./ShipmentShippingForm.vue";
 import ShipmentBatchPicker from "./ShipmentBatchPicker.vue";
 import { validateBatchSelection, type ShipmentBatch } from "../../domain/shipmentBatches";
 import { useSalesStore } from "../../stores/sales";
@@ -1238,15 +1239,8 @@ function quickFill() {
       </template>
       <template v-else>
         <h3 class="purchase-section">发货信息</h3>
-        <el-form label-position="top" class="purchase-form-grid shipping-info-form" size="default" :disabled="view || !!props.shipment?.confirmed">
-          <el-form-item label="收货人" :required="shipment.confirmed"><el-input v-model="shippingInfo.recipient" aria-label="收货人" maxlength="80" placeholder="填写本次收货人" /></el-form-item>
-          <el-form-item label="收货联系电话" :required="shipment.confirmed"><el-input v-model="shippingInfo.phone" aria-label="收货联系电话" maxlength="40" placeholder="手机或固定电话" /></el-form-item>
-          <el-form-item label="收货地址" :required="shipment.confirmed" style="grid-column: 1 / -1"><el-input v-model="shippingInfo.address" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }" aria-label="收货地址" maxlength="300" placeholder="省 / 市 / 区、街道及详细地址；自提请填写提货地点" /></el-form-item>
-          <el-form-item label="物流公司"><el-input v-model="shippingInfo.carrier" aria-label="物流公司" maxlength="80" placeholder="如顺丰、德邦" /></el-form-item>
-          <el-form-item label="物流单号"><el-input v-model="shippingInfo.trackingNumber" aria-label="物流单号" maxlength="100" /></el-form-item>
-          <el-form-item label="发货备注" style="grid-column: 1 / -1"><el-input v-model="shippingInfo.remark" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }" aria-label="发货备注" maxlength="200" placeholder="送货时间要求、包装或签收注意事项" /></el-form-item>
-        </el-form>
-        <DeliveryNoteActions :order="linkedOrder" :shipment="printableShipment" />
+        <ShipmentShippingForm v-model="shippingInfo" :required="shipment.confirmed" :disabled="view || !!props.shipment?.confirmed" @change="dirty = true" />
+        <DeliveryNoteActions :order="linkedOrder" :orders="linkedOrders" :shipment="printableShipment" />
         <h3 class="purchase-section">出库确认</h3>
         <el-form
           label-position="top"

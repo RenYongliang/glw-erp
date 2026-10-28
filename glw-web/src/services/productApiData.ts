@@ -20,12 +20,15 @@ export interface SalesProductOption extends Product {
 export interface ProductCostBatchResponse {
   inventoryId: number | string
   batchNo: string
+  dateCode?: string
+  lotCode?: string
   quantity: number
   unitCost: number | string
 }
 
 export function toProductCostBatch(row: ProductCostBatchResponse) {
   return { inventoryId: String(row.inventoryId), batchNo: row.batchNo,
+    dateCode: row.dateCode ?? '', lotCode: row.lotCode ?? '',
     quantity: Number(row.quantity), unitCost: Number(row.unitCost) }
 }
 export type ProductCostBatch = ReturnType<typeof toProductCostBatch>

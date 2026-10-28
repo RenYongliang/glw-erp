@@ -7,7 +7,7 @@ import {
   today,
   type SalesOrder,
   type SalesShipment,
-} from './sales'
+} from './sales.ts'
 
 export interface DeliveryNoteLine {
   code: string
@@ -33,21 +33,25 @@ export interface DeliveryNote {
 export function createDeliveryNote(
   order: SalesOrder,
   shipment: SalesShipment,
+  orders: SalesOrder[] = [order],
 ): DeliveryNote {
   const customer = customers.find((c) => c.id === order.customerId)
   const date = shipment.shippedAt.slice(0, 10) || today()
   const suffix = shipment.code
     ? shipment.code.replace(/^(?:OUT|XSCK)/, '')
     : shipment.id.replace(/-/g, '').slice(0, 8).toUpperCase()
-  const shipmentLines = shipment.lines.filter((line) =>
-    order.lines.some((item) => item.id === line.lineId),
-  )
+  const sources = orders.length ? orders : [order]
+  if (sources.some(source => source.customerId !== order.customerId || !shipmentMatchesOrder(shipment, source.id)))
+    throw Error('同一发货单只能包含同一客户的销售订单')
+  const sourceFor = (line: SalesShipment['lines'][number]) => sources.find(source =>
+    (!line.orderId || line.orderId === source.id) && source.lines.some(item => item.id === line.lineId))
+  const shipmentLines = shipment.lines
   if (
     !shipmentMatchesOrder(shipment, order.id) ||
     new Set(shipmentLines.map((l) => l.lineId)).size !==
       shipmentLines.length ||
     shipmentLines.some((l) => {
-      const source = order.lines.find((item) => item.id === l.lineId)
+      const source = sourceFor(l)?.lines.find((item) => item.id === l.lineId)
       return (
         !source ||
         !Number.isSafeInteger(l.arrived) ||
@@ -60,17 +64,19 @@ export function createDeliveryNote(
   const lines = shipmentLines
     .filter((line) => line.arrived > 0)
     .map((line) => {
-      const orderLine = order.lines.find((l) => l.id === line.lineId)
+      const sourceOrder = sourceFor(line)!
+      const orderLine = sourceOrder.lines.find((l) => l.id === line.lineId)!
       const product = products.find((p) => p.id === orderLine?.productId)
-      if (!product || !Number.isSafeInteger(line.arrived))
+      const model = orderLine.model || product?.name
+      if (!model || !Number.isSafeInteger(line.arrived))
         throw Error('请填写有效的本次发货数量')
       return {
-        code: product.code,
-        name: catalog.find((p) => p.code === product.code)?.type || '集成电路',
-        model: product.name,
+        code: product?.code || orderLine.productId,
+        name: catalog.find((p) => p.code === product?.code)?.type || '集成电路',
+        model,
         unit: 'pcs',
         quantity: line.arrived,
-        remark: line.remark || '',
+        remark: [sources.length > 1 ? sourceOrder.purchaseNumber || sourceOrder.code : '', line.remark].filter(Boolean).join(' · '),
       }
     })
   if (!lines.length) throw Error('请先添加产品并填写本次发货数量')
@@ -83,8 +89,8 @@ export function createDeliveryNote(
     address: shipment.shipping?.address ?? order.address ?? '',
     phone: shipment.shipping?.phone ?? customer?.phone ?? '',
     contact: shipment.shipping?.recipient ?? customer?.contact ?? '',
-    purchaseNumber: order.purchaseNumber || '',
-    handler: order.owner,
+    purchaseNumber: shipment.shipping?.purchaseNumber || [...new Set(sources.map(source => source.purchaseNumber).filter(Boolean))].join(' / '),
+    handler: shipment.shipping?.sender || shipment.keeper || order.owner,
     shippingSummary: [shipment.shipping?.carrier, shipment.shipping?.trackingNumber && `运单号：${shipment.shipping.trackingNumber}`, shipment.shipping?.remark && `备注：${shipment.shipping.remark}`].filter(Boolean).join('；'),
     lines,
   }

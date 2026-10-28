@@ -38,13 +38,15 @@ test('real sales rows retain snapshots, precise prices, cancellation and collect
 
 test('outbound rows retain actual quantities and multiple batch costs without doubling quantities', () => {
   const order = toSalesOrder(source())
-  const shipment = toSalesShipment({ id: 21, outboundOrderNo: 'OUT20261018002', salesOrderId: 1, customerId: 9,
-    customerName: '真实客户', customerShortName: '简称', customerOrderNo: 'CO-real', status: 'COMPLETED',
-    outboundTime: '2026-10-18T11:00:00', items: [{ id: 31, salesOrderItemId: 11,
+  const shipment = toSalesShipment({ id: 21, outboundOrderNo: 'OUT20261018002', customerId: 9,
+    customerName: '真实客户', customerShortName: '简称', status: 'COMPLETED',
+    salesOrders: [{ salesOrderId: 1, salesOrderNo: order.code, customerOrderNo: 'CO-real' }],
+    outboundTime: '2026-10-18T11:00:00', items: [{ id: 31, productId: 17, outboundQuantity: 400,
+      allocations: [{ id: 51, outboundOrderItemId: 31, salesOrderId: 1, salesOrderItemId: 11,
       outboundQuantity: 400, batches: [
         { id: 41, inventoryId: 51, quantity: 100, unitCost: '0.0250' },
         { id: 42, inventoryId: 52, quantity: 300, unitCost: '0.0350' },
-      ] }] })
+      ] }] }] })
   assert.equal(shipment.confirmed, true)
   assert.equal(shipment.code, 'OUT20261018002')
   assert.equal(shipment.customerShortName, '简称')

@@ -10,27 +10,27 @@ import {
 } from '../../domain/deliveryNote'
 import type { SalesOrder, SalesShipment } from '../../domain/sales'
 
-const props = defineProps<{ order?: SalesOrder; shipment: SalesShipment }>()
+const props = defineProps<{ order?: SalesOrder; orders?: SalesOrder[]; shipment: SalesShipment }>()
 const preview = ref(false),
   busy = ref(false),
   pages = ref<string[]>([]),
   documentNumber = ref('')
 const currentNote = computed(() => {
   if (!props.order) return undefined
-  try { return createDeliveryNote(props.order, props.shipment) } catch { return undefined }
+  try { return createDeliveryNote(props.order, props.shipment, props.orders) } catch { return undefined }
 })
 const previewHtml = computed(() => currentNote.value ? deliveryNoteHtml(currentNote.value) : '')
 const pageCount = computed(() => Math.ceil((currentNote.value?.lines.length || 0) / 6))
 async function generate() {
   if (!props.order) throw Error('请先选择销售订单')
-  const note = createDeliveryNote(props.order, props.shipment)
+  const note = createDeliveryNote(props.order, props.shipment, props.orders)
   pages.value = await renderDeliveryNote(note)
   documentNumber.value = note.number
 }
 async function showPrint() {
   try {
     if (!props.order) throw Error('请先选择销售订单')
-    createDeliveryNote(props.order, props.shipment)
+    createDeliveryNote(props.order, props.shipment, props.orders)
     preview.value = true
   } catch (e) {
     ElMessage.error((e as Error).message)

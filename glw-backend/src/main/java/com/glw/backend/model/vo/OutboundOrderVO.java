@@ -16,6 +16,7 @@ public class OutboundOrderVO {
     private OutboundType outboundType;
     private OutboundStatus status;
     private String outboundTime;
+    private com.glw.backend.model.dto.OutboundShippingDTO shipping;
     private Integer version;
     private List<OutboundSalesOrderVO> salesOrders = new ArrayList<>();
     private List<OutboundOrderItemVO> items = new ArrayList<>();

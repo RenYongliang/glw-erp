@@ -19,6 +19,7 @@ import {
 } from "@element-plus/icons-vue";
 import { emptySalesOrderFilters, salesFulfillmentStatus, salesOrderMonth, salesFilterCount, matchesSalesOrderFilters, type FulfillmentStatus } from "../domain/salesOrderFilters";
 import SalesRecordDialog from "../components/sales/SalesRecordDialog.vue";
+import MultiOrderOutboundDialog from "../components/sales/MultiOrderOutboundDialog.vue";
 import { useSalesStore } from "../stores/sales";
 import {
   customers,
@@ -94,6 +95,7 @@ function changeGrouping(mode: 'month' | 'customer' | 'none') {
   grouped.value = mode !== 'none';
   collapsed.value = [];
 }
+const multiOutbound = ref(false);
 const editor = ref(false),
   editorKind = ref<SalesKind>(props.kind),
   editingOrder = ref<SalesOrder>(),
@@ -390,6 +392,10 @@ function display(row: TableRow, key: string) {
   return typeof value === "number" && key !== "quantity" ? money(value) : value;
 }
 function open(row?: TableRow, read = false) {
+  if (!isOrder && !row) {
+    multiOutbound.value = true;
+    return;
+  }
   editorKind.value = props.kind;
   editingOrder.value = isOrder ? row?.order : undefined;
   editingShipment.value = isOrder ? undefined : row?.shipment;
@@ -409,6 +415,7 @@ function ship(order: SalesOrder) {
   editor.value = true;
 }
 function saved() {
+  multiOutbound.value = false;
   editor.value = false;
   selected.value = [];
 }
@@ -1036,6 +1043,7 @@ function confirmImport() {
     </el-form>
     <template #footer><el-button @click="draftFilters = emptySalesOrderFilters()">重置条件</el-button><el-button @click="orderFilterOpen = false">取消</el-button><el-button type="primary" @click="applyOrderFilters">应用筛选</el-button></template>
   </el-dialog>
+  <MultiOrderOutboundDialog v-if="multiOutbound" @close="multiOutbound = false" @saved="saved" />
   <SalesRecordDialog
     v-if="editor"
     :key="editorVersion"

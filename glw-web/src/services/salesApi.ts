@@ -1,5 +1,5 @@
 import { apiRequest } from './api'
-import { shipmentOrderIds, type SalesShipment } from '../domain/sales'
+import { shipmentOrderIds, type SalesShipment, type ShippingInfo } from '../domain/sales'
 import { fetchAllPages, toSalesOrder, toSalesShipment,
   type PageResponse, type SalesOrderResponse, type OutboundOrderResponse } from './salesApiData'
 
@@ -20,6 +20,7 @@ export async function fetchOutboundOrders() {
 interface OutboundOrderCreateRequest {
   salesOrderIds: number[]
   outboundTime?: string
+  shipping?: ShippingInfo
   allocations: {
     salesOrderItemId: number
     batches: { inventoryId: number; quantity: number }[]
@@ -46,6 +47,7 @@ export async function createOutboundOrder(shipment: SalesShipment) {
       ? (shipment.shippedAt.length === 10 ? `${shipment.shippedAt}T00:00:00` : shipment.shippedAt.replace(' ', 'T'))
       : undefined,
     allocations,
+    shipping: shipment.shipping,
   }
   await apiRequest<unknown>('/outbound-order', { method: 'POST', body: JSON.stringify(request) })
 }

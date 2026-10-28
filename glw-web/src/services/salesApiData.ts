@@ -1,4 +1,4 @@
-import type { SalesOrder, SalesShipment } from '../domain/sales'
+import type { SalesOrder, SalesShipment, ShippingInfo } from '../domain/sales'
 
 export interface PageResponse<T> {
   records: T[]
@@ -62,6 +62,7 @@ export interface OutboundOrderResponse {
   customerShortName?: string | null
   status: string
   outboundTime?: string | null
+  shipping?: Partial<Record<keyof ShippingInfo, string | null>> | null
   salesOrders: OutboundSalesOrderResponse[]
   items: {
     id: number
@@ -113,6 +114,12 @@ export function toSalesShipment(order: OutboundOrderResponse): SalesShipment {
     customerName: order.customerName,
     customerShortName: order.customerShortName?.trim() || undefined,
     purchaseNumber: salesOrders[0]?.customerOrderNo || '', warehouse: '',
+    shipping: order.shipping && Object.values(order.shipping).some(value => !!value)
+      ? { address: order.shipping.address ?? '', recipient: order.shipping.recipient ?? '', phone: order.shipping.phone ?? '',
+        sender: order.shipping.sender ?? '', senderPhone: order.shipping.senderPhone ?? '', method: order.shipping.method ?? '',
+        carrier: order.shipping.carrier ?? '', trackingNumber: order.shipping.trackingNumber ?? '',
+        purchaseNumber: order.shipping.purchaseNumber ?? '', remark: order.shipping.remark ?? '' }
+      : undefined,
     tag: '出库', confirmed: order.status === 'COMPLETED', shippedAt: date(order.outboundTime),
     keeper: '', department: '', photos: [], customerConfirmed: false, customerReceivedAt: '',
     lines: allocations.map(alloc => ({
