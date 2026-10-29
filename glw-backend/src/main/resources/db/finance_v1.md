@@ -1,5 +1,7 @@
 # 财务第一版
 
+日常页面操作步骤见 [财务模块操作手册](../../../../docs/finance-user-guide.md)。
+
 ## 代码分层
 
 财务表分别提供 `model/entity/Fin*`、`mapper/Fin*Mapper`、对应 XML，以及 `service/Finance*Service` 接口和 `service/impl/Finance*ServiceImpl` 实现，沿用 MyBatis-Plus 的 `BaseMapper`、`IService`、`ServiceImpl`。
