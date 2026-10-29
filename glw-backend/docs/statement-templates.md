@@ -126,15 +126,18 @@ fin_statement_template：doc_type + direction + partner_id + layout_json + versi
 - 公司与往来单位：`company.name/taxNo/bankName/bankAccount/phone/contact`、
   `partner.name/contact/phone/address`
 - 通用单据：`header.title/no/dateLabel/partnerLabel/orderNo/paymentTerms/deliveryDate/deliveryPlace/remark`
+- 送货单：`header.purchaseNo`（采购单号）、`header.handler`（经办人）、`header.shippingSummary`（承运信息）
 - 对账单：`header.statementNo/periodLabel/statementDateLabel/currencyLabel/taxRateLabel/status`
 - 合计：`totals.totalQuantity/totalAmount/totalGross/totalNet/totalTax`
 
-明细字段（`item.*`）：`seq`、`productName`、`spec`、`partNo`、`packageType`、`brand`、
+明细字段（`item.*`）：`seq`、`code`、`productName`、`spec`、`partNo`、`packageType`、`brand`、
 `bizDateText`、`sourceNo`、`orderNo`、`partnerOrderNo`、`quantity`、`unit`、`unitPrice`、
 `amountGross`、`amountNet`、`taxAmount`、`remark`。
 
-对账单沿用原有明细字段；合同/送货单主要使用 `productName`、`spec`、`packageType`、
-`quantity`、`unit`、`unitPrice`、`amountGross`。
+对账单沿用原有明细字段；合同/送货单主要使用 `productName`、`spec`、`partNo`、`packageType`、
+`quantity`、`unit`、`unitPrice`、`amountGross`。送货单默认模板与销售订单的「发货单打印」
+同一版式：A4 横向，三行表头信息（客户/日期、地址/采购单号、联系方式/联系人）+ 七列明细
+（序号、物料编码、品名、产品型号、单位、数量、备注）+ 经办人/收货人签名 + 收货注意事项。
 
 布局 JSON 示例：
 

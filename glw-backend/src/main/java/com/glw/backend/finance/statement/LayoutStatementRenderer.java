@@ -53,10 +53,11 @@ public class LayoutStatementRenderer {
             // 通用单据字段：对账单、合同、送货单共用同一套设计器。
             "header.title", "header.no", "header.dateLabel", "header.partnerLabel",
             "header.paymentTerms", "header.deliveryDate", "header.deliveryPlace", "header.orderNo",
+            "header.purchaseNo", "header.handler", "header.shippingSummary",
             "totals.totalQuantity", "totals.totalGross", "totals.totalNet", "totals.totalTax",
             "totals.totalAmount");
     private static final Set<String> ITEM_FIELDS = Set.of(
-            "seq", "bizDate", "bizDateText", "dueDate", "dueDateText", "sourceNo", "orderNo",
+            "seq", "code", "bizDate", "bizDateText", "dueDate", "dueDateText", "sourceNo", "orderNo",
             "partnerOrderNo", "brand", "partNo", "packageType", "quantity", "unit", "unitPrice",
             "unitPriceNet", "taxIncluded", "taxRate", "amountGross", "amountNet", "taxAmount", "remark",
             "productName", "spec");
@@ -404,6 +405,9 @@ public class LayoutStatementRenderer {
         put(values, "header.deliveryDate", "");
         put(values, "header.deliveryPlace", "");
         put(values, "header.orderNo", "");
+        put(values, "header.purchaseNo", "");
+        put(values, "header.handler", "");
+        put(values, "header.shippingSummary", "");
         put(values, "totals.totalQuantity", model.totals().totalQuantity());
         put(values, "totals.totalGross", model.totals().totalGross());
         put(values, "totals.totalNet", model.totals().totalNet());

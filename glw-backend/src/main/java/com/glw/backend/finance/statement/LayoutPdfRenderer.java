@@ -176,24 +176,29 @@ public class LayoutPdfRenderer {
                          StatementLayout.Component table, double tableEnd,
                          Map<String, Object> scalars) throws IOException {
         double pageBottom = canvas.page.heightMm() - canvas.page.margin();
+        // 表格按真实行数撑开/收缩后，表格下方整体平移同样的距离，保持同一行上的组件仍然并排。
+        double shift = tableEnd - (table.y() + table.h());
         double cursor = tableEnd;
-        double declaredBottom = table.y() + table.h();
-        for (StatementLayout.Component component : components) {
-            double gap = Math.max(0, component.y() - declaredBottom);
-            double y = cursor + gap;
-            if (y + component.h() > pageBottom) {
-                double pinned = pageBottom - component.h();
+        for (int index = 0; index < components.size(); ) {
+            int end = index + 1;
+            while (end < components.size()
+                    && Math.abs(components.get(end).y() - components.get(index).y()) <= 0.5) end++;
+            List<StatementLayout.Component> row = components.subList(index, end);
+            double height = row.stream().mapToDouble(StatementLayout.Component::h).max().orElse(0);
+            double y = Math.max(cursor, row.get(0).y() + shift);
+            if (y + height > pageBottom) {
+                double pinned = pageBottom - height;
                 if (pinned >= cursor) y = pinned;
-                else if (component.h() <= pageBottom - canvas.page.margin()) {
+                else if (height <= pageBottom - canvas.page.margin()) {
                     canvas.next();
-                    y = pageBottom - component.h();
+                    y = Math.max(canvas.page.margin(), pageBottom - height);
                 } else {
                     y = Math.max(canvas.page.margin(), pinned);
                 }
             }
-            component(canvas, font, component, y, scalars);
-            cursor = y + component.h();
-            declaredBottom = component.y() + component.h();
+            for (StatementLayout.Component component : row) component(canvas, font, component, y, scalars);
+            cursor = y + height;
+            index = end;
         }
         return cursor;
     }

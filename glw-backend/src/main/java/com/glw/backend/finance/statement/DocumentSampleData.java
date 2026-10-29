@@ -47,6 +47,9 @@ public final class DocumentSampleData {
         put(values, "header.deliveryDate", "2026年11月15日前");
         put(values, "header.deliveryPlace", "深圳市宝安区光联微电子仓库");
         put(values, "header.orderNo", "SO202610001");
+        put(values, "header.purchaseNo", "PO202610001");
+        put(values, "header.handler", "王师傅");
+        put(values, "header.shippingSummary", "承运：顺丰速运；运单号：SF1234567890");
         put(values, "totals.totalQuantity", 20800);
         put(values, "totals.totalGross", new BigDecimal("21710.00"));
         put(values, "totals.totalNet", new BigDecimal("19212.39"));
@@ -62,22 +65,23 @@ public final class DocumentSampleData {
                     .toList();
         }
         List<Map<String, Object>> rows = new ArrayList<>();
-        rows.add(row(1, "运算放大器", "SOP-8", "LM358DR", "SOP-8", 5000,
+        rows.add(row(1, "IC-LM358", "运算放大器", "SOP-8", "LM358DR", "SOP-8", 5000,
                 new BigDecimal("1.2500"), new BigDecimal("6250.0000"), "SO202610001"));
-        rows.add(row(2, "移位寄存器", "SOP-16", "SN74HC595DR", "SOP-16", 3000,
+        rows.add(row(2, "IC-74HC595", "移位寄存器", "SOP-16", "SN74HC595DR", "SOP-16", 3000,
                 new BigDecimal("0.8600"), new BigDecimal("2580.0000"), "SO202610001"));
-        rows.add(row(3, "线性稳压器", "SOT-223", "AMS1117-3.3", "SOT-223", 12000,
+        rows.add(row(3, "IC-AMS1117", "线性稳压器", "SOT-223", "AMS1117-3.3", "SOT-223", 12000,
                 new BigDecimal("0.4200"), new BigDecimal("5040.0000"), "SO202610002"));
-        rows.add(row(4, "微控制器", "LQFP-48", "STM32F103C8T6", "LQFP-48", 800,
+        rows.add(row(4, "IC-STM32F103", "微控制器", "LQFP-48", "STM32F103C8T6", "LQFP-48", 800,
                 new BigDecimal("9.8000"), new BigDecimal("7840.0000"), "SO202610002"));
         return rows;
     }
 
-    private static Map<String, Object> row(int seq, String productName, String spec, String partNo,
-                                           String packageType, int quantity, BigDecimal unitPrice,
-                                           BigDecimal amount, String orderNo) {
+    private static Map<String, Object> row(int seq, String code, String productName, String spec,
+                                           String partNo, String packageType, int quantity,
+                                           BigDecimal unitPrice, BigDecimal amount, String orderNo) {
         Map<String, Object> values = new LinkedHashMap<>();
         put(values, "seq", seq);
+        put(values, "code", code);
         put(values, "productName", productName);
         put(values, "spec", spec);
         put(values, "partNo", partNo);

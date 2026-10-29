@@ -115,10 +115,10 @@ const statementItems: SampleRow[] = [
   { seq: 4, bizDateText: '2026/10/3', sourceNo: 'XM202609004', partnerOrderNo: 'MT-PO-260918', partNo: 'STM32F103C8T6', quantity: 800, unit: 'pcs', unitPrice: '9.80', amountGross: '7,840.00' },
 ]
 const documentItems: SampleRow[] = [
-  { seq: 1, productName: '运算放大器', spec: 'SOP-8', partNo: 'LM358DR', packageType: 'SOP-8', quantity: 5000, unit: 'pcs', unitPrice: '1.25', amountGross: '6,250.00', remark: '' },
-  { seq: 2, productName: '移位寄存器', spec: 'SOP-16', partNo: 'SN74HC595DR', packageType: 'SOP-16', quantity: 3000, unit: 'pcs', unitPrice: '0.86', amountGross: '2,580.00', remark: '' },
-  { seq: 3, productName: '线性稳压器', spec: 'SOT-223', partNo: 'AMS1117-3.3', packageType: 'SOT-223', quantity: 12000, unit: 'pcs', unitPrice: '0.42', amountGross: '5,040.00', remark: '' },
-  { seq: 4, productName: '微控制器', spec: 'LQFP-48', partNo: 'STM32F103C8T6', packageType: 'LQFP-48', quantity: 800, unit: 'pcs', unitPrice: '9.80', amountGross: '7,840.00', remark: '' },
+  { seq: 1, code: 'IC-LM358', productName: '运算放大器', spec: 'SOP-8', partNo: 'LM358DR', packageType: 'SOP-8', quantity: 5000, unit: 'pcs', unitPrice: '1.25', amountGross: '6,250.00', remark: '' },
+  { seq: 2, code: 'IC-74HC595', productName: '移位寄存器', spec: 'SOP-16', partNo: 'SN74HC595DR', packageType: 'SOP-16', quantity: 3000, unit: 'pcs', unitPrice: '0.86', amountGross: '2,580.00', remark: '' },
+  { seq: 3, code: 'IC-AMS1117', productName: '线性稳压器', spec: 'SOT-223', partNo: 'AMS1117-3.3', packageType: 'SOT-223', quantity: 12000, unit: 'pcs', unitPrice: '0.42', amountGross: '5,040.00', remark: '' },
+  { seq: 4, code: 'IC-STM32F103', productName: '微控制器', spec: 'LQFP-48', partNo: 'STM32F103C8T6', packageType: 'LQFP-48', quantity: 800, unit: 'pcs', unitPrice: '9.80', amountGross: '7,840.00', remark: '' },
 ]
 const sampleItems = computed(() => (docType.value === 'STATEMENT' ? statementItems : documentItems))
 
@@ -187,6 +187,9 @@ const sampleValues = computed<Record<string, string | number>>(() => {
     'header.deliveryDate': '2026年11月15日前',
     'header.deliveryPlace': '深圳市宝安区光联微电子仓库',
     'header.orderNo': 'SO202610001',
+    'header.purchaseNo': 'PO202610001',
+    'header.handler': '王师傅',
+    'header.shippingSummary': '承运：顺丰速运；运单号：SF1234567890',
     'totals.totalQuantity': 20800,
     'totals.totalGross': '21,710.00',
     'totals.totalNet': '19,212.39',
@@ -242,6 +245,9 @@ const documentScalarGroups = [
       { value: 'header.no', label: '单据编号' },
       { value: 'header.dateLabel', label: '单据日期' },
       { value: 'header.orderNo', label: '关联订单号' },
+      { value: 'header.purchaseNo', label: '采购单号' },
+      { value: 'header.handler', label: '经办人' },
+      { value: 'header.shippingSummary', label: '运输信息' },
       { value: 'header.paymentTerms', label: '付款方式' },
       { value: 'header.deliveryDate', label: '交货日期' },
       { value: 'header.deliveryPlace', label: '交货地点' },
@@ -279,6 +285,7 @@ const statementItemFields: ItemField[] = [
 ]
 const documentItemFields: ItemField[] = [
   { value: 'item.seq', label: '序号', width: 12, align: 'center' },
+  { value: 'item.code', label: '物料编码', width: 25, align: 'left' },
   { value: 'item.productName', label: '产品名称', width: 40, align: 'left' },
   { value: 'item.spec', label: '规格型号', width: 35, align: 'left' },
   { value: 'item.partNo', label: '型号', width: 30, align: 'left' },
@@ -336,34 +343,48 @@ function blankLayout(): StatementLayout {
     }
   }
   if (docType.value === 'DELIVERY_NOTE') {
+    // 与销售订单「发货单打印」同版式：A4 横向，三行表头信息 + 七列明细 + 签收与收货须知。
+    const label = (x: number, y: number, w: number, h: number, text: string) =>
+      ({ id: uid(), type: 'text' as const, x, y, w, h, text, ...base, bold: true, align: 'center' as const, border: true })
+    const value = (x: number, y: number, w: number, h: number, field: string, align: 'left' | 'center' = 'left') =>
+      ({ id: uid(), type: 'field' as const, x, y, w, h, field, ...base, align, border: true })
     return {
-      page,
+      page: { ...page, orientation: 'LANDSCAPE' },
       components: [
-        { id: uid(), type: 'text', x: 15, y: 10, w: 180, h: 12, text: '{{header.title}}', fontSize: 20, bold: true, align: 'center' },
-        { id: uid(), type: 'field', x: 15, y: 24, w: 100, h: 7, field: 'company.name', ...base, bold: true },
-        { id: uid(), type: 'field', x: 120, y: 24, w: 75, h: 7, label: '送货单号：', field: 'header.no', ...base, align: 'right' },
-        { id: uid(), type: 'field', x: 15, y: 33, w: 110, h: 7, label: '客户：', field: 'partner.name', ...base },
-        { id: uid(), type: 'field', x: 125, y: 33, w: 70, h: 7, label: '送货日期：', field: 'header.dateLabel', ...base, align: 'right' },
-        { id: uid(), type: 'field', x: 15, y: 41, w: 110, h: 7, label: '收货地址：', field: 'partner.address', ...base },
-        { id: uid(), type: 'field', x: 125, y: 41, w: 70, h: 7, label: '关联订单：', field: 'header.orderNo', ...base, align: 'right' },
+        { id: uid(), type: 'text', x: 10, y: 6, w: 277, h: 9, text: '{{company.name}}', fontSize: 16, bold: true, align: 'center' },
+        { id: uid(), type: 'text', x: 10, y: 15, w: 277, h: 11, text: '{{header.title}}', fontSize: 20, bold: true, align: 'center' },
+        { id: uid(), type: 'text', x: 177, y: 27, w: 110, h: 7, text: '编号：{{header.no}}', fontSize: 11, align: 'right' },
+        label(10, 35, 39, 10, '客户名称：'),
+        value(49, 35, 144, 10, 'partner.name'),
+        label(193, 35, 39, 10, '日期：'),
+        value(232, 35, 55, 10, 'header.dateLabel', 'center'),
+        label(10, 45, 39, 12, '收货地址：'),
+        value(49, 45, 144, 12, 'partner.address'),
+        label(193, 45, 39, 12, '采购单号：'),
+        value(232, 45, 55, 12, 'header.purchaseNo', 'center'),
+        label(10, 57, 39, 10, '联系方式：'),
+        value(49, 57, 144, 10, 'partner.phone'),
+        label(193, 57, 39, 10, '联系人：'),
+        value(232, 57, 55, 10, 'partner.contact', 'center'),
         {
-          id: uid(), type: 'table', x: 15, y: 52, w: 180, h: 72,
-          headerHeight: 8, rowHeight: 7, fontSize: 9, headerBold: true, border: true,
+          id: uid(), type: 'table', x: 10, y: 67, w: 277, h: 49,
+          headerHeight: 9, rowHeight: 10, fontSize: 10, headerBold: true, border: true,
           columns: [
-            { title: '序号', field: 'item.seq', width: 12, align: 'center' },
-            { title: '产品名称', field: 'item.productName', width: 45 },
-            { title: '规格型号', field: 'item.spec', width: 35 },
-            { title: '封装', field: 'item.packageType', width: 20 },
-            { title: '数量', field: 'item.quantity', width: 18, align: 'right' },
-            { title: '单位', field: 'item.unit', width: 15, align: 'center' },
-            { title: '备注', field: 'item.remark', width: 35 },
+            { title: '序号', field: 'item.seq', width: 14, align: 'center' },
+            { title: '物料编码', field: 'item.code', width: 61, align: 'center' },
+            { title: '品名', field: 'item.productName', width: 44, align: 'center' },
+            { title: '产品型号', field: 'item.partNo', width: 44, align: 'center' },
+            { title: '单位', field: 'item.unit', width: 19, align: 'center' },
+            { title: '数量', field: 'item.quantity', width: 39, align: 'center' },
+            { title: '备注', field: 'item.remark', width: 56, align: 'center' },
           ],
         },
-        { id: uid(), type: 'field', x: 15, y: 130, w: 60, h: 7, label: '合计数量：', field: 'totals.totalQuantity', ...base },
-        { id: uid(), type: 'field', x: 105, y: 130, w: 90, h: 7, label: '合计金额：', field: 'totals.totalAmount', ...base, align: 'right', bold: true },
-        { id: uid(), type: 'text', x: 15, y: 200, w: 80, h: 12, text: '收货人签字：', ...base, border: true },
-        { id: uid(), type: 'text', x: 115, y: 200, w: 80, h: 12, text: '送货人签字：', ...base, border: true },
-        { id: uid(), type: 'signature', x: 15, y: 220, w: 180, h: 26, text: '客户签收（盖章）：                              公司盖章：', ...base, border: true },
+        { id: uid(), type: 'signature', x: 10, y: 118, w: 166, h: 11, text: '经办人：{{header.handler}}', ...base },
+        { id: uid(), type: 'signature', x: 176, y: 118, w: 111, h: 11, text: '收货人签名：', ...base },
+        { id: uid(), type: 'text', x: 10, y: 132, w: 277, h: 6, text: '收货注意事项：', ...base },
+        { id: uid(), type: 'text', x: 10, y: 138, w: 277, h: 6, text: '1. 为了您的利益，请仔细检查外观并点数，核对完毕后再签收；', ...base },
+        { id: uid(), type: 'text', x: 10, y: 144, w: 277, h: 6, text: '2. 包装箱外观损坏严重的情况下请拒收货物，包装箱破损较轻时请开箱查验后签收。', ...base },
+        { id: uid(), type: 'text', x: 10, y: 152, w: 277, h: 6, text: '{{header.shippingSummary}}', ...base, fontSize: 9 },
       ],
     }
   }
