@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS fin_audit;
 DROP TABLE IF EXISTS fin_allocation;
 DROP TABLE IF EXISTS fin_statement_item;
 DROP TABLE IF EXISTS fin_statement;
+DROP TABLE IF EXISTS fin_statement_template;
 DROP TABLE IF EXISTS fin_payment;
 DROP TABLE IF EXISTS fin_open_item;
 DROP TABLE IF EXISTS fin_profile;
@@ -75,11 +76,36 @@ CREATE TABLE fin_statement (
  status varchar(20) NOT NULL DEFAULT 'DRAFT',
  gross_amount decimal(12,4) NOT NULL,
  remark varchar(500) NOT NULL DEFAULT '',
+ template_id bigint NULL COMMENT '出单时绑定的对账单模板，模板改版后旧单仍按旧版重导',
+ template_version int NULL,
  sent_at datetime NULL,
  confirmed_at datetime NULL,
  created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
  UNIQUE KEY uk_no (statement_no),
  KEY idx_list (direction, partner_id, period, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE fin_statement_template (
+ id bigint PRIMARY KEY AUTO_INCREMENT,
+ direction varchar(2) NOT NULL,
+ doc_type varchar(32) NOT NULL DEFAULT 'STATEMENT' COMMENT 'STATEMENT/SALES_CONTRACT/PURCHASE_CONTRACT/DELIVERY_NOTE',
+ partner_id bigint NOT NULL DEFAULT 0 COMMENT '0 表示全局默认模板',
+ format varchar(10) NOT NULL COMMENT 'XLSX / PDF',
+ name varchar(128) NOT NULL,
+ version int NOT NULL DEFAULT 1,
+ file_key varchar(255) NOT NULL COMMENT '模板目录下的文件键，classpath: 前缀表示内置模板',
+ file_name varchar(255) NOT NULL,
+ layout_json longtext NULL COMMENT '可视化设计器布局，NULL 表示传统 Excel 文件模板',
+ is_default tinyint NOT NULL DEFAULT 0,
+ enabled tinyint NOT NULL DEFAULT 1,
+ deleted tinyint NOT NULL DEFAULT 0 COMMENT '软删除标记',
+ created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ KEY idx_resolve (direction, partner_id, format, is_default, enabled),
+ KEY idx_doc (doc_type, direction, partner_id, format, deleted),
+ CHECK (direction IN ('AR','AP')),
+ CHECK (format IN ('XLSX','PDF')),
+ CHECK (partner_id >= 0),
+ CHECK (version >= 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE fin_statement_item (

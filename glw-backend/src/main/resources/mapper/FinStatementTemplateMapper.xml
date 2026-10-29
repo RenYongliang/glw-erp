@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.FinStatementTemplateMapper">
+  <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.FinStatementTemplate">
+    <id column="id" property="id" jdbcType="BIGINT"/>
+    <result column="direction" property="direction" jdbcType="VARCHAR"/>
+    <result column="doc_type" property="docType" jdbcType="VARCHAR"/>
+    <result column="partner_id" property="partnerId" jdbcType="BIGINT"/>
+    <result column="format" property="format" jdbcType="VARCHAR"/>
+    <result column="name" property="name" jdbcType="VARCHAR"/>
+    <result column="version" property="version" jdbcType="INTEGER"/>
+    <result column="file_key" property="fileKey" jdbcType="VARCHAR"/>
+    <result column="file_name" property="fileName" jdbcType="VARCHAR"/>
+    <result column="layout_json" property="layoutJson" jdbcType="LONGVARCHAR"/>
+    <result column="is_default" property="isDefault" jdbcType="INTEGER"/>
+    <result column="enabled" property="enabled" jdbcType="INTEGER"/>
+    <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+    <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+  </resultMap>
+  <sql id="Base_Column_List">id, direction, doc_type, partner_id, format, name, version, file_key, file_name, layout_json, is_default, enabled, deleted, created_at</sql>
+  <select id="resolve" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List"/> FROM fin_statement_template
+    WHERE doc_type=#{docType} AND direction=#{direction} AND format=#{format}
+      AND enabled=1 AND deleted=0 AND partner_id IN (#{partnerId},0)
+    ORDER BY CASE WHEN partner_id=#{partnerId} THEN 0 ELSE 1 END, is_default DESC, version DESC
+    LIMIT 1
+  </select>
+  <select id="resolveAny" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List"/> FROM fin_statement_template
+    WHERE doc_type=#{docType} AND direction=#{direction} AND enabled=1 AND deleted=0
+      AND partner_id IN (#{partnerId},0)
+    ORDER BY CASE WHEN partner_id=#{partnerId} THEN 0 ELSE 1 END,
+             is_default DESC,
+             CASE format WHEN 'XLSX' THEN 0 WHEN 'PDF' THEN 1 ELSE 2 END,
+             version DESC
+    LIMIT 1
+  </select>
+  <select id="template" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List"/> FROM fin_statement_template WHERE id=#{id} AND deleted=0
+  </select>
+  <select id="templateVersion" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List"/> FROM fin_statement_template
+    WHERE id=#{id} AND version=#{version} AND deleted=0
+  </select>
+  <select id="templates" resultType="com.glw.backend.finance.FinanceModels$StatementTemplate">
+    SELECT id, partner_id, doc_type, direction, format, name, file_name, version, is_default, enabled, created_at,
+           CASE WHEN layout_json IS NULL OR layout_json='' THEN 0 ELSE 1 END AS has_layout
+    FROM fin_statement_template
+    WHERE doc_type=#{docType} AND direction=#{direction} AND deleted=0
+    <if test="partnerId != null">AND partner_id=#{partnerId}</if>
+    ORDER BY partner_id, format, version DESC
+  </select>
+  <select id="nextVersion" resultType="int">
+    SELECT COALESCE(MAX(version),0)+1 FROM fin_statement_template
+    WHERE doc_type=#{docType} AND direction=#{direction} AND partner_id=#{partnerId} AND format=#{format}
+  </select>
+  <select id="layout" resultType="string">
+    SELECT layout_json FROM fin_statement_template WHERE id=#{id} AND deleted=0
+  </select>
+  <update id="clearDefault">
+    UPDATE fin_statement_template SET is_default=0
+    WHERE doc_type=#{docType} AND direction=#{direction} AND partner_id=#{partnerId}
+      AND is_default=1 AND deleted=0
+  </update>
+</mapper>

@@ -13,6 +13,18 @@ const router = createRouter({
       component: () => import('../views/FinanceView.vue'), props: { kind }, meta: { title },
     })),
     {
+      path: '/finance/templates',
+      name: 'finance-templates',
+      component: () => import('../views/StatementTemplateView.vue'),
+      meta: { title: '文档模板' },
+    },
+    {
+      path: '/finance/templates/designer',
+      name: 'finance-template-designer',
+      component: () => import('../views/StatementDesignerView.vue'),
+      meta: { title: '文档模板设计器' },
+    },
+    {
       path: '/inventory/list',
       name: 'inventory-list',
       component: () => import('../views/InventoryListView.vue'),

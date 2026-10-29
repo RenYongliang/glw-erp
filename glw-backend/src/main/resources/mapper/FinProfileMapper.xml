@@ -22,4 +22,9 @@
   <select id="partners" resultType="com.glw.backend.finance.FinanceModels$Partner">
     SELECT id,name,short_name FROM customer WHERE #{direction}='AR' UNION ALL SELECT id,name,short_name FROM supplier WHERE #{direction}='AP' ORDER BY id
   </select>
+  <select id="partnerInfo" resultType="com.glw.backend.finance.FinanceModels$PartnerInfo">
+    SELECT id,name,contact,contact_phone phone FROM customer WHERE #{direction}='AR' AND id=#{partnerId}
+    UNION ALL
+    SELECT id,name,contact,contact_phone phone FROM supplier WHERE #{direction}='AP' AND id=#{partnerId}
+  </select>
 </mapper>

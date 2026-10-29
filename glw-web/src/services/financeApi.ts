@@ -1,4 +1,5 @@
 import { apiRequest, authClient } from './api'
+import type { DownloadFile } from './authClient'
 import type { PageResponse } from './salesApiData'
 
 export type Direction = 'AR' | 'AP'
@@ -145,12 +146,118 @@ export const financeApi = {
     apiRequest<Profile[]>(`/fin/profile/list?direction=${direction}`),
   saveProfile: (input: Profile) => post<void>('profile/save', input),
 }
+export type StatementFormat = 'XLSX' | 'PDF'
+export type DocumentTypeCode =
+  | 'STATEMENT'
+  | 'SALES_CONTRACT'
+  | 'PURCHASE_CONTRACT'
+  | 'DELIVERY_NOTE'
+export interface DocumentTypeOption {
+  code: DocumentTypeCode
+  label: string
+  directional: boolean
+  directions: Direction[]
+}
+export interface StatementTemplate {
+  id: number
+  partnerId: number
+  docType: DocumentTypeCode
+  direction: Direction
+  format: StatementFormat
+  name: string
+  fileName: string
+  version: number
+  isDefault: number
+  enabled: number
+  /** 可视化设计器创建的模板，可继续在设计器中编辑。 */
+  hasLayout?: boolean
+  createdAt: string
+}
+export interface LayoutColumn {
+  title: string
+  field: string
+  width: number
+  align?: 'left' | 'center' | 'right'
+}
+export interface LayoutComponent {
+  id: string
+  type: 'text' | 'field' | 'table' | 'signature'
+  x: number
+  y: number
+  w: number
+  h: number
+  text?: string
+  label?: string
+  field?: string
+  fontSize?: number
+  bold?: boolean
+  align?: 'left' | 'center' | 'right'
+  border?: boolean
+  headerHeight?: number
+  rowHeight?: number
+  headerBold?: boolean
+  columns?: LayoutColumn[]
+}
+export interface StatementLayout {
+  page: {
+    size: 'A4'
+    orientation: 'PORTRAIT' | 'LANDSCAPE'
+    marginMm: number
+    gridMm: number
+  }
+  components: LayoutComponent[]
+}
+export interface StatementLayoutDetail {
+  template: StatementTemplate
+  layout: StatementLayout
+}
+export const statementTemplateApi = {
+  docTypes: () => apiRequest<DocumentTypeOption[]>('/fin/statement/template/doc-types'),
+  list: (docType: DocumentTypeCode, direction: Direction, partnerId?: number) =>
+    apiRequest<StatementTemplate[]>(
+      `/fin/statement/template/list?docType=${docType}&direction=${direction}${
+        partnerId === undefined ? '' : `&partnerId=${partnerId}`
+      }`,
+    ),
+  setDefault: (id: number) =>
+    apiRequest<StatementTemplate>(`/fin/statement/template/${id}/default`, { method: 'POST' }),
+  delete: (id: number) =>
+    apiRequest<StatementTemplate>(`/fin/statement/template/${id}/delete`, { method: 'POST' }),
+  layout: (id: number) =>
+    apiRequest<StatementLayoutDetail>(`/fin/statement/template/${id}/layout`),
+  saveLayout: (input: {
+    docType: DocumentTypeCode
+    direction: Direction
+    partnerId: number
+    name: string
+    isDefault?: boolean
+    format: StatementFormat
+    layout: StatementLayout
+  }) => post<StatementTemplate>('statement/template/layout', input),
+  previewLayout: (
+    layout: StatementLayout,
+    format: StatementFormat,
+    docType: DocumentTypeCode,
+    direction: Direction,
+  ) =>
+    authClient.request<DownloadFile>(
+      `/fin/statement/template/layout/preview?format=${format}&docType=${docType}&direction=${direction}`,
+      { method: 'POST', body: JSON.stringify(layout) },
+      false,
+      'download',
+    ),
+}
 export async function exportStatement(id: number, name: string) {
-  const blob = await authClient.request<Blob>(`/fin/statement/${id}/export`, {}, false, true)
-  const url = URL.createObjectURL(blob)
+  const file = await authClient.request<DownloadFile>(
+    `/fin/statement/${id}/export`,
+    {},
+    false,
+    'download',
+  )
+  const url = URL.createObjectURL(file.blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${name}.csv`
+  a.download = file.fileName || `${name}.csv`
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

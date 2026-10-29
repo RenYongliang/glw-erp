@@ -1,7 +1,6 @@
 package com.glw.backend.service.impl;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
-import com.glw.backend.common.CsvExport;
 import com.glw.backend.finance.FinanceModels.Query;
 import com.glw.backend.finance.FinanceModels.Page;
 import com.glw.backend.finance.FinanceModels.OpenItem;
@@ -13,8 +12,10 @@ import com.glw.backend.mapper.FinStatementMapper;
 import com.glw.backend.mapper.FinStatementItemMapper;
 import com.glw.backend.mapper.FinAllocationMapper;
 import com.glw.backend.model.entity.FinStatement;
+import com.glw.backend.model.entity.FinStatementTemplate;
 import com.glw.backend.service.FinanceOpenItemService;
 import com.glw.backend.service.FinanceStatementService;
+import com.glw.backend.service.FinanceStatementTemplateService;
 import com.glw.backend.service.FinanceAuditService;
 import com.glw.backend.service.FinanceLockService;
 import com.glw.backend.service.DocumentNumberService;
@@ -27,8 +28,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.Objects;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Locale;
 import static com.glw.backend.finance.FinanceSupport.*;
 
@@ -45,6 +44,7 @@ public class FinanceStatementServiceImpl extends ServiceImpl<FinStatementMapper,
     private final FinanceLockService lockService;
     private final FinanceAuditService auditService;
     private final FinanceOpenItemService openItemService;
+    private final FinanceStatementTemplateService templateService;
     private final DocumentNumberService numbers;
 
     @Transactional
@@ -66,6 +66,11 @@ public class FinanceStatementServiceImpl extends ServiceImpl<FinStatementMapper,
         statement.setPartnerName(first.getPartnerName()); statement.setPeriod(first.getPeriod()); statement.setCurrency(first.getCurrency());
         statement.setGrossAmount(items.stream().map(OpenItem::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         statement.setRemark(input.getRemark() == null ? "" : input.getRemark());
+        FinStatementTemplate template = templateService.snapshotFor(first.getDirection(), first.getPartnerId());
+        if (template != null) {
+            statement.setTemplateId(template.getId());
+            statement.setTemplateVersion(template.getVersion());
+        }
         statement.setStatementNo(numbers.next("AR".equals(first.getDirection()) ? DocumentNumberService.Kind.STATEMENT_AR : DocumentNumberService.Kind.STATEMENT_AP, LocalDate.now().atStartOfDay()));
         finStatementMapper.insertStatement(statement);
         for (OpenItem item : items) {
@@ -109,16 +114,6 @@ public class FinanceStatementServiceImpl extends ServiceImpl<FinStatementMapper,
         }
         auditService.record("STATEMENT", id, action.toUpperCase(Locale.ROOT), "");
         return statement(id);
-    }
-
-    @Override
-    public byte[] exportStatement(Long id) {
-        StatementDetail detail = statement(id);
-        List<List<?>> rows = new ArrayList<>();
-        rows.add(List.of("对账单号", "方向", "往来单位", "对账月份", "币种", "状态", "业务日期", "出入库单号", "订单号", "客户采购单号", "品牌", "型号", "封装", "数量", "单价", "含税", "税率", "未税金额", "税额", "价税合计", "到期日"));
-        Statement s = detail.statement();
-        for (OpenItem o : detail.items()) rows.add(Arrays.asList(s.getStatementNo(), s.getDirection(), s.getPartnerName(), s.getPeriod(), s.getCurrency(), s.getStatus(), o.getBizDate(), o.getSourceNo(), o.getOrderNo(), o.getPartnerOrderNo(), o.getBrand(), o.getPartNo(), o.getPackageType(), o.getQuantity(), o.getUnitPrice(), o.getTaxIncluded(), o.getTaxRate(), o.getNetAmount(), o.getTaxAmount(), o.getGrossAmount(), o.getDueDate()));
-        return CsvExport.encode(rows);
     }
 
     private Statement requireStatement(Long id) { Statement row = finStatementMapper.statement(id); if (row == null) throw missing(); return row; }

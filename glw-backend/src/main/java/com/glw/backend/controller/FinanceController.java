@@ -1,6 +1,7 @@
 package com.glw.backend.controller;
 
 import com.glw.backend.common.ApiResponse;
+import com.glw.backend.finance.FinanceModels.StatementTemplate;
 import com.glw.backend.finance.FinanceModels.Query;
 import com.glw.backend.finance.FinanceModels.Page;
 import com.glw.backend.finance.FinanceModels.OpenItem;
@@ -15,19 +16,27 @@ import com.glw.backend.finance.FinanceModels.TaxInput;
 import com.glw.backend.finance.FinanceModels.Summary;
 import com.glw.backend.finance.FinanceModels.StatementDetail;
 import com.glw.backend.finance.FinanceModels.PaymentDetail;
+import com.glw.backend.finance.statement.StatementFile;
+import com.glw.backend.finance.statement.StatementLayoutDetail;
+import com.glw.backend.finance.statement.StatementTemplateLayoutInput;
 import com.glw.backend.service.FinanceOpenItemService;
+import com.glw.backend.service.FinanceStatementExportService;
 import com.glw.backend.service.FinanceStatementService;
+import com.glw.backend.service.FinanceStatementTemplateService;
 import com.glw.backend.service.FinancePaymentService;
 import com.glw.backend.service.FinanceAllocationService;
 import com.glw.backend.service.FinanceProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.JsonNode;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -37,6 +46,8 @@ import java.util.List;
 public class FinanceController {
     private final FinanceOpenItemService financeOpenItemService;
     private final FinanceStatementService financeStatementService;
+    private final FinanceStatementExportService financeStatementExportService;
+    private final FinanceStatementTemplateService financeStatementTemplateService;
     private final FinancePaymentService financePaymentService;
     private final FinanceAllocationService financeAllocationService;
     private final FinanceProfileService financeProfileService;
@@ -50,9 +61,58 @@ public class FinanceController {
     @PostMapping("/statement/list") public ApiResponse<Page<Statement>> statements(@Valid @RequestBody Query q) { return ApiResponse.ok(financeStatementService.statements(q)); }
     @GetMapping("/statement/{id}") public ApiResponse<StatementDetail> statement(@PathVariable Long id) { return ApiResponse.ok(financeStatementService.statement(id)); }
     @PostMapping("/statement/{id}/{action:send|confirm|void}") public ApiResponse<StatementDetail> transition(@PathVariable Long id, @PathVariable String action) { return ApiResponse.ok(financeStatementService.transition(id, action)); }
-    @GetMapping("/statement/{id}/export") public ResponseEntity<byte[]> export(@PathVariable Long id) {
-        return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=statement-" + id + ".csv")
-            .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8")).body(financeStatementService.exportStatement(id));
+    @GetMapping("/statement/{id}/export")
+    public ResponseEntity<byte[]> export(@PathVariable Long id,
+                                         @RequestParam(required = false) String format) {
+        StatementFile file = financeStatementExportService.export(id, format);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(file.fileName(), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .body(file.content());
+    }
+    @GetMapping("/statement/template/doc-types")
+    public ApiResponse<List<com.glw.backend.finance.statement.DocumentType.Option>> templateDocTypes() {
+        return ApiResponse.ok(financeStatementTemplateService.documentTypes());
+    }
+    @GetMapping("/statement/template/list")
+    public ApiResponse<List<StatementTemplate>> templates(
+            @RequestParam(required = false) String docType,
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) Long partnerId) {
+        return ApiResponse.ok(financeStatementTemplateService.templates(docType, direction, partnerId));
+    }
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/statement/template/layout")
+    public ApiResponse<StatementTemplate> saveLayout(@Valid @RequestBody StatementTemplateLayoutInput input) {
+        return ApiResponse.ok(financeStatementTemplateService.saveLayout(input));
+    }
+    @GetMapping("/statement/template/{id}/layout")
+    public ApiResponse<StatementLayoutDetail> layout(@PathVariable Long id) {
+        return ApiResponse.ok(financeStatementTemplateService.layout(id));
+    }
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/statement/template/layout/preview")
+    public ResponseEntity<byte[]> previewLayout(@RequestBody JsonNode layout,
+                                                @RequestParam(defaultValue = "XLSX") String format,
+                                                @RequestParam(required = false) String docType,
+                                                @RequestParam(required = false) String direction) {
+        StatementFile file = financeStatementTemplateService.previewLayout(layout, format, docType, direction);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(file.fileName(), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .body(file.content());
+    }
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/statement/template/{id}/default")
+    public ApiResponse<StatementTemplate> defaultTemplate(@PathVariable Long id) {
+        return ApiResponse.ok(financeStatementTemplateService.setDefault(id));
+    }
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/statement/template/{id}/delete")
+    public ApiResponse<StatementTemplate> deleteTemplate(@PathVariable Long id) {
+        return ApiResponse.ok(financeStatementTemplateService.delete(id));
     }
     @PostMapping("/payment/create") public ApiResponse<PaymentDetail> payment(@Valid @RequestBody PaymentInput input) { return ApiResponse.ok(financePaymentService.createPayment(input)); }
     @PostMapping("/payment/list") public ApiResponse<Page<Payment>> payments(@Valid @RequestBody Query q) { return ApiResponse.ok(financePaymentService.payments(q)); }

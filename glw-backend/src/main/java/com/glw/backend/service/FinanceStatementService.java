@@ -14,5 +14,4 @@ public interface FinanceStatementService extends IService<FinStatement> {
     Page<Statement> statements(Query q);
     StatementDetail statement(Long id);
     StatementDetail transition(Long id, String action);
-    byte[] exportStatement(Long id);
 }

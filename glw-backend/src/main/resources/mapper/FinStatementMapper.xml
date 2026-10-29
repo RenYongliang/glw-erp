@@ -12,11 +12,13 @@
     <result column="status" property="status" jdbcType="VARCHAR"/>
     <result column="gross_amount" property="grossAmount" jdbcType="DECIMAL"/>
     <result column="remark" property="remark" jdbcType="VARCHAR"/>
+    <result column="template_id" property="templateId" jdbcType="BIGINT"/>
+    <result column="template_version" property="templateVersion" jdbcType="INTEGER"/>
     <result column="sent_at" property="sentAt" jdbcType="TIMESTAMP"/>
     <result column="confirmed_at" property="confirmedAt" jdbcType="TIMESTAMP"/>
     <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
   </resultMap>
-  <sql id="Base_Column_List">id, statement_no, direction, partner_id, partner_name, period, currency, status, gross_amount, remark, sent_at, confirmed_at, created_at</sql>
+  <sql id="Base_Column_List">id, statement_no, direction, partner_id, partner_name, period, currency, status, gross_amount, remark, template_id, template_version, sent_at, confirmed_at, created_at</sql>
   <sql id="statementFilter">
     s.direction=#{q.direction}
     <if test="q.partnerId != null">AND s.partner_id=#{q.partnerId}</if>
@@ -25,8 +27,8 @@
     <if test="q.keyword != null and q.keyword != ''">AND (LOCATE(#{q.keyword},s.partner_name)>0 OR LOCATE(#{q.keyword},s.statement_no)>0)</if>
   </sql>
   <insert id="insertStatement" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO fin_statement (statement_no,direction,partner_id,partner_name,period,currency,gross_amount,remark)
-    VALUES (#{statementNo},#{direction},#{partnerId},#{partnerName},#{period},#{currency},#{grossAmount},#{remark})
+    INSERT INTO fin_statement (statement_no,direction,partner_id,partner_name,period,currency,gross_amount,remark,template_id,template_version)
+    VALUES (#{statementNo},#{direction},#{partnerId},#{partnerName},#{period},#{currency},#{grossAmount},#{remark},#{templateId},#{templateVersion})
   </insert>
   <select id="statements" resultType="com.glw.backend.finance.FinanceModels$Statement">
     SELECT s.*,(SELECT COALESCE(SUM(o.settled_amount),0) FROM fin_open_item o WHERE o.statement_id=s.id) settled_amount

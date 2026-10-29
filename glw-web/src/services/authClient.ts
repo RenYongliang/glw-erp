@@ -8,6 +8,22 @@ import {
   type TokenResponse,
 } from '../domain/authSession.ts'
 import { encryptLogin, type LoginKey } from './loginEncryption.ts'
+export interface DownloadFile {
+  blob: Blob
+  fileName: string
+}
+function downloadFileName(response: Response): string {
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1]
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded)
+    } catch {
+      /* Fall back to the plain filename. */
+    }
+  }
+  return /filename="?([^";]+)"?/i.exec(disposition)?.[1] || ''
+}
 export class ApiError extends Error {
   status: number
   code: number
@@ -90,7 +106,12 @@ export class AuthClient {
     }
     this.notify()
   }
-  private async send<T>(path: string, init: RequestInit = {}, token?: string, binary = false): Promise<T> {
+  private async send<T>(
+    path: string,
+    init: RequestInit = {},
+    token?: string,
+    binary: boolean | 'download' = false,
+  ): Promise<T> {
     if (
       !path.startsWith('/') ||
       path.startsWith('//') ||
@@ -112,8 +133,11 @@ export class AuthClient {
         ? AbortSignal.any([init.signal, AbortSignal.timeout(binary ? 120000 : 15000)])
         : AbortSignal.timeout(binary ? 120000 : 15000),
     })
-    if (binary && response.ok && response.headers.get('Content-Type')?.includes('text/csv'))
-      return await response.blob() as T
+    if (binary && response.ok) {
+      const blob = await response.blob()
+      if (binary === 'download') return { blob, fileName: downloadFileName(response) } as T
+      return blob as T
+    }
     let envelope: { code: number; message: string; data: T }
     try {
       envelope = await response.json()
@@ -188,7 +212,12 @@ export class AuthClient {
     if (!session) return null
     return session.expiresAt <= Date.now() + 30000 ? this.refresh() : session
   }
-  async request<T>(path: string, init: RequestInit = {}, anonymous = false, binary = false): Promise<T> {
+  async request<T>(
+    path: string,
+    init: RequestInit = {},
+    anonymous = false,
+    binary: boolean | 'download' = false,
+  ): Promise<T> {
     if (anonymous) return this.send<T>(path, init, undefined, binary)
     const session = await this.ensureSession()
     if (!session) {

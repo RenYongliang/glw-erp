@@ -33,7 +33,8 @@ public final class FinanceModels {
         private LocalDateTime createdAt;
     }
     @Data public static class Statement {
-        private Long id, partnerId;
+        private Long id, partnerId, templateId;
+        private Integer templateVersion;
         private String statementNo, direction, partnerName, period, currency, status, remark;
         private BigDecimal grossAmount, settledAmount;
         private LocalDateTime createdAt, sentAt, confirmedAt;
@@ -63,6 +64,19 @@ public final class FinanceModels {
         private Long id;
         private String name, shortName;
     }
+    @Data public static class PartnerInfo {
+        private Long id;
+        private String name, contact, phone;
+    }
+    @Data public static class StatementTemplate {
+        private Long id, partnerId;
+        private String docType, direction, format, name, fileName;
+        private Integer version, isDefault, enabled;
+        /** 是否可视化布局模板（可在设计器中继续编辑）。 */
+        private Boolean hasLayout;
+        private LocalDateTime createdAt;
+    }
+    public record BuiltinTemplate(String key, String name, String description, String format) {}
     @Data public static class Generate {
         @NotEmpty @Size(max = 1000) private List<@NotNull @Positive Long> openItemIds;
         @Size(max = 500) private String remark = "";

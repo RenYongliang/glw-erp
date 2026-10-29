@@ -13,6 +13,7 @@ import com.glw.backend.mapper.FinAuditMapper;
 import com.glw.backend.service.FinanceAuditService;
 import com.glw.backend.service.FinanceLockService;
 import com.glw.backend.service.DocumentNumberService;
+import com.glw.backend.service.FinanceStatementTemplateService;
 import com.glw.backend.service.impl.FinanceOpenItemServiceImpl;
 import com.glw.backend.service.impl.FinanceStatementServiceImpl;
 import com.glw.backend.service.impl.FinancePaymentServiceImpl;
@@ -34,9 +35,10 @@ abstract class FinanceTestFixture {
     final FinanceLockService lock = mock(FinanceLockService.class);
     final FinanceAuditService audit = mock(FinanceAuditService.class);
     final DocumentNumberService numbers = mock(DocumentNumberService.class);
+    final FinanceStatementTemplateService statementTemplates = mock(FinanceStatementTemplateService.class);
     final FinanceProfileServiceImpl profile = new FinanceProfileServiceImpl(finProfile, lock, audit);
     final FinanceOpenItemServiceImpl open = new FinanceOpenItemServiceImpl(finOpenItem, finProfile, lock, audit);
-    final FinanceStatementServiceImpl statements = new FinanceStatementServiceImpl(finStatement, finOpenItem, finStatementItem, finAllocation, lock, audit, open, numbers);
+    final FinanceStatementServiceImpl statements = new FinanceStatementServiceImpl(finStatement, finOpenItem, finStatementItem, finAllocation, lock, audit, open, statementTemplates, numbers);
     final FinancePaymentServiceImpl cash = new FinancePaymentServiceImpl(finPayment, finAllocation, lock, audit, profile, numbers);
     final FinanceAllocationServiceImpl clearing = new FinanceAllocationServiceImpl(finAllocation, finPayment, finOpenItem, lock, audit, open, cash);
     OpenItem item() {

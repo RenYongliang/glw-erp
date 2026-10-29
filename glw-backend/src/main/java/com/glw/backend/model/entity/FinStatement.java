@@ -43,6 +43,12 @@ public class FinStatement {
     @TableField("remark")
     private String remark;
 
+    @TableField("template_id")
+    private Long templateId;
+
+    @TableField("template_version")
+    private Integer templateVersion;
+
     @TableField("sent_at")
     private LocalDateTime sentAt;
 

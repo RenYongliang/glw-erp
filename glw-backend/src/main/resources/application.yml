@@ -66,6 +66,20 @@ app:
         path: /api/users/refresh-token
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  finance:
+    # 对账单模板文件目录；模板文件不存库，库里只存 file_key。
+    template-dir: ${STATEMENT_TEMPLATE_DIR:${user.home}/glw/statement-templates}
+    default-unit: ${STATEMENT_DEFAULT_UNIT:pcs}
+    # 可视化 PDF 模板使用的中文字体；留空时自动查找系统字体。
+    pdf-font: ${STATEMENT_PDF_FONT:}
+    # 我方抬头，所有模板共用，避免每家模板重复维护。
+    company:
+      name: ${COMPANY_NAME:深圳光联微电子有限公司}
+      tax-no: ${COMPANY_TAX_NO:91440300349827035R}
+      bank-name: ${COMPANY_BANK_NAME:中国工商银行股份有限公司深圳深圳湾支行}
+      bank-account: ${COMPANY_BANK_ACCOUNT:4000027709200986297}
+      phone: ${COMPANY_PHONE:13713956403}
+      contact: ${COMPANY_CONTACT:}
 logging:
   level:
     root: INFO
