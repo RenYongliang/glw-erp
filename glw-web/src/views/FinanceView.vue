@@ -62,13 +62,10 @@ const eligible = ref<OpenItem[]>([]),
 const allocating = ref<OpenItem>(),
   allocationAmount = ref<number>(),
   allocationKey = ref('')
-const taxItem = ref<OpenItem>(),
-  taxRate = ref<number>()
 let generation = 0,
   eligibleGeneration = 0,
   timer: ReturnType<typeof setTimeout> | undefined
 const statusLabels: Record<string, string> = {
-  PENDING_TAX: '税率待确认',
   OPEN: '待对账',
   IN_STATEMENT: '对账中',
   RECONCILED: '已确认',
@@ -84,7 +81,7 @@ const statusLabels: Record<string, string> = {
 }
 const statuses = computed(() =>
   props.kind === 'open-items'
-    ? ['PENDING_TAX', 'OPEN', 'IN_STATEMENT', 'RECONCILED']
+    ? ['OPEN', 'IN_STATEMENT', 'RECONCILED']
     : props.kind === 'statements'
       ? ['DRAFT', 'SENT', 'CONFIRMED', 'VOID']
       : ['RECEIVED', 'PARTIAL_ALLOCATED', 'ALLOCATED', 'VOID'],
@@ -426,18 +423,6 @@ function saveProfile() {
     await load()
   })
 }
-function editTax(row: OpenItem) {
-  taxItem.value = row
-  taxRate.value = undefined
-}
-function saveTax() {
-  void action(async () => {
-    if (!taxItem.value || taxRate.value == null) throw Error('请填写已确认的税率')
-    await api.resolveTax(taxItem.value.id, taxRate.value)
-    taxItem.value = undefined
-    await load()
-  })
-}
 watch(page, load)
 watch(
   () => [
@@ -595,14 +580,6 @@ onBeforeUnmount(() => {
     </div>
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <el-alert
-      v-if="kind === 'open-items' && summary?.pendingTaxCount"
-      :title="`${summary.pendingTaxCount} 条未税交易的税率待确认，尚未计入价税合计及未结金额汇总。`"
-      type="warning"
-      show-icon
-      :closable="false"
-      class="finance-notice"
-    />
-    <el-alert
       v-if="kind === 'open-items' && summary && Number(summary.settledAmount) === 0"
       title="当前未结金额为财务账未核销余额；历史已收付款需按真实凭据补齐，不能据此直接认定实际欠款。"
       type="info"
@@ -625,13 +602,6 @@ onBeforeUnmount(() => {
             :disabled="busy"
             @click="showStatement(row.statementId)"
             >对账单</el-button
-          ><el-button
-            v-if="row.reconcileStatus === 'PENDING_TAX'"
-            link
-            type="warning"
-            :disabled="busy"
-            @click="editTax(row)"
-            >确认税率</el-button
           ></template
         ></el-table-column
       ></FinanceItemTable
@@ -1094,27 +1064,6 @@ onBeforeUnmount(() => {
       ><template #footer
         ><el-button :disabled="busy" @click="profileOpen = false">取消</el-button
         ><el-button type="primary" :loading="busy" @click="saveProfile">保存</el-button></template
-      ></el-dialog
-    >
-    <el-dialog
-      :model-value="!!taxItem"
-      title="确认交易税率"
-      width="min(440px,96vw)"
-      top="8vh"
-      :close-on-click-modal="false"
-      @update:model-value="!$event && (taxItem = undefined)"
-      ><p>{{ taxItem?.sourceNo }} · {{ taxItem?.partNo }}</p>
-      <p>未税金额 {{ money(taxItem?.netAmount) }}</p>
-      <el-form label-position="top"
-        ><el-form-item label="税率（%）" required
-          ><el-input-number
-            v-model="taxRate"
-            :min="0"
-            :max="100"
-            :precision="0" /></el-form-item></el-form
-      ><template #footer
-        ><el-button :disabled="busy" @click="taxItem = undefined">取消</el-button
-        ><el-button type="primary" :loading="busy" @click="saveTax">确认</el-button></template
       ></el-dialog
     >
   </section>

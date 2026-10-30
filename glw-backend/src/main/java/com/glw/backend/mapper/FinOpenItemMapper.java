@@ -18,7 +18,6 @@ public interface FinOpenItemMapper extends BaseMapper<FinOpenItem> {
     List<OpenItem> openItemsBySource(@Param("type") String type, @Param("sourceId") Long sourceId);
     /** 可参与出单的记录：已签收/已入库、未对账、未进入任何对账单。 */
     List<OpenItem> statementCandidates(@Param("direction") String direction, @Param("partnerId") Long partnerId);
-    int resolveTax(OpenItem item);
     OpenItem bySource(@Param("type") String type, @Param("lineId") Long lineId);
     int updateBilling(OpenItem item);
     /** 出单时把行到期日对齐到账单到期日，保证对账单内口径一致。 */

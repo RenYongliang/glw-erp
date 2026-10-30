@@ -12,7 +12,6 @@ import com.glw.backend.finance.FinanceModels.Partner;
 import com.glw.backend.finance.FinanceModels.Generate;
 import com.glw.backend.finance.FinanceModels.PaymentInput;
 import com.glw.backend.finance.FinanceModels.Allocate;
-import com.glw.backend.finance.FinanceModels.TaxInput;
 import com.glw.backend.finance.FinanceModels.Summary;
 import com.glw.backend.finance.FinanceModels.StatementDetail;
 import com.glw.backend.finance.FinanceModels.PaymentDetail;
@@ -53,7 +52,6 @@ public class FinanceController {
     private final FinanceProfileService financeProfileService;
     @PostMapping("/open-item/list") public ApiResponse<Page<OpenItem>> openItems(@Valid @RequestBody Query q) { return ApiResponse.ok(financeOpenItemService.openItems(q)); }
     @PostMapping("/open-item/summary") public ApiResponse<Summary> summary(@Valid @RequestBody Query q) { return ApiResponse.ok(financeOpenItemService.summary(q)); }
-    @PostMapping("/open-item/{id}/tax-rate") public ApiResponse<OpenItem> taxRate(@PathVariable Long id, @Valid @RequestBody TaxInput input) { return ApiResponse.ok(financeOpenItemService.resolveTax(id, input)); }
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/open-item/rebuild") public ApiResponse<Integer> rebuild() { return ApiResponse.ok(financeOpenItemService.rebuild()); }
     @PostMapping("/statement/preview") public ApiResponse<List<OpenItem>> preview(@Valid @RequestBody Query q) { return ApiResponse.ok(financeOpenItemService.preview(q)); }

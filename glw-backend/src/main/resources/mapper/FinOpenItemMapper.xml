@@ -97,8 +97,7 @@
       COALESCE(SUM(CASE WHEN due_date &lt; CURRENT_DATE THEN gross_amount-settled_amount ELSE 0 END),0) overdue_amount,
       (SELECT COALESCE(SUM(amount-allocated_amount),0) FROM fin_payment WHERE direction=#{q.direction} AND status!='VOID'
        <if test="q.partnerId != null">AND partner_id=#{q.partnerId}</if>
-       <if test="q.period != null and q.period != ''">AND DATE_FORMAT(payment_date,'%Y-%m')=#{q.period}</if>) unallocated_amount,
-      COALESCE(SUM(CASE WHEN reconcile_status='PENDING_TAX' THEN 1 ELSE 0 END),0) pending_tax_count
+       <if test="q.period != null and q.period != ''">AND DATE_FORMAT(payment_date,'%Y-%m')=#{q.period}</if>) unallocated_amount
     FROM fin_open_item WHERE <include refid="openFilter"/>
   </select>
   <select id="openItem" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
@@ -113,9 +112,6 @@
       AND reconcile_status='OPEN' AND statement_id IS NULL
     ORDER BY basis_date,id
   </select>
-  <update id="resolveTax">
-    UPDATE fin_open_item SET tax_rate=#{taxRate},tax_amount=#{taxAmount},gross_amount=#{grossAmount},reconcile_status='OPEN' WHERE id=#{id} AND reconcile_status='PENDING_TAX' AND statement_id IS NULL
-  </update>
   <select id="bySource" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
     SELECT * FROM fin_open_item WHERE source_type=#{type} AND source_line_id=#{lineId}
   </select>
@@ -125,7 +121,7 @@
   <update id="updateBilling">
     UPDATE fin_open_item SET basis_date=#{basisDate},basis_ready=#{basisReady},period=#{period},
       period_start=#{periodStart},period_end=#{periodEnd},settle_month=#{settleMonth},due_date=#{dueDate}
-    WHERE id=#{id} AND statement_id IS NULL AND reconcile_status IN ('OPEN','PENDING_TAX')
+    WHERE id=#{id} AND statement_id IS NULL AND reconcile_status='OPEN'
   </update>
   <update id="setDueDate">
     UPDATE fin_open_item SET due_date=#{dueDate} WHERE id=#{id} AND statement_id IS NULL

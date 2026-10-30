@@ -141,7 +141,6 @@ export interface Summary {
   outstandingAmount: Money
   overdueAmount: Money
   unallocatedAmount: Money
-  pendingTaxCount: number
 }
 export interface PaymentInput {
   requestKey: string
@@ -159,8 +158,6 @@ export const financeApi = {
   preview: (q: FinanceQuery) => post<OpenItem[]>('statement/preview', q),
   summary: (q: FinanceQuery) => post<Summary>('open-item/summary', q),
   rebuild: () => post<number>('open-item/rebuild'),
-  resolveTax: (id: number, taxRate: number) =>
-    post<OpenItem>(`open-item/${id}/tax-rate`, { taxRate }),
   /** 按客户账单周期分组，跨周期选择会生成多张对账单。 */
   generate: (ids: number[], remark: string) =>
     post<Statement[]>('statement/generate', { openItemIds: ids, remark }),

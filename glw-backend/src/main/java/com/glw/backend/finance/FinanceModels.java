@@ -121,9 +121,8 @@ public final class FinanceModels {
         @NotNull @Positive private Long openItemId;
         @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 4) private BigDecimal amount;
     }
-    public record TaxInput(@NotNull @Min(0) @Max(100) Integer taxRate) {}
     public record Summary(BigDecimal grossAmount, BigDecimal settledAmount, BigDecimal outstandingAmount,
-                          BigDecimal overdueAmount, BigDecimal unallocatedAmount, Long pendingTaxCount) {}
+                          BigDecimal overdueAmount, BigDecimal unallocatedAmount) {}
     public record StatementDetail(Statement statement, List<OpenItem> items, List<Allocation> allocations) {}
     public record PaymentDetail(Payment payment, List<Allocation> allocations) {}
 }

@@ -4,10 +4,9 @@ defineProps<{ rows: OpenItem[]; selectable?: boolean; loading?: boolean; height?
 defineEmits<{ selection: [rows: OpenItem[]] }>()
 const money = (v: number | string | null | undefined) =>
   v == null
-    ? '待确认'
+    ? '—'
     : Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const statuses: Record<string, string> = {
-  PENDING_TAX: '税率待确认',
   OPEN: '待对账',
   IN_STATEMENT: '对账中',
   RECONCILED: '已确认',
@@ -41,11 +40,7 @@ const statuses: Record<string, string> = {
     >
     <el-table-column label="未结金额" width="115" align="right"
       ><template #default="{ row }"
-        ><strong>{{
-          row.grossAmount == null
-            ? '待确认'
-            : money(Number(row.grossAmount) - Number(row.settledAmount))
-        }}</strong></template
+        ><strong>{{ money(Number(row.grossAmount) - Number(row.settledAmount)) }}</strong></template
       ></el-table-column
     >
     <el-table-column label="签收/入库日" width="120"

@@ -6,7 +6,6 @@ import com.glw.backend.finance.FinanceModels;
 import com.glw.backend.finance.FinanceModels.Query;
 import com.glw.backend.finance.FinanceModels.Page;
 import com.glw.backend.finance.FinanceModels.OpenItem;
-import com.glw.backend.finance.FinanceModels.TaxInput;
 import com.glw.backend.finance.FinanceModels.Summary;
 import com.glw.backend.mapper.FinProfileMapper;
 import com.glw.backend.mapper.FinOpenItemMapper;
@@ -65,7 +64,7 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
             OpenItem source = fresh.get(existing.getSourceLineId());
             // 已进入对账单或已确认的记录不再回改，避免破坏已出账口径。
             if (source == null || existing.getStatementId() != null
-                    || !("OPEN".equals(existing.getReconcileStatus()) || "PENDING_TAX".equals(existing.getReconcileStatus())))
+                    || !"OPEN".equals(existing.getReconcileStatus()))
                 continue;
             if (Objects.equals(source.getBasisDate(), existing.getBasisDate())
                     && Objects.equals(source.getBasisReady(), existing.getBasisReady())) continue;
@@ -97,7 +96,8 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
         if (Objects.equals(item.getTaxIncluded(), 0)) {
             item.setNetAmount(money(amount));
             if (rate == null) {
-                item.setTaxAmount(null); item.setGrossAmount(null); item.setReconcileStatus("PENDING_TAX");
+                // 未税报价未填税率：客户实付即报价金额，不额外加税，可直接对账。
+                item.setTaxAmount(null); item.setGrossAmount(item.getNetAmount());
             } else {
                 item.setTaxAmount(money(item.getNetAmount().multiply(BigDecimal.valueOf(rate)).movePointLeft(2)));
                 item.setGrossAmount(item.getNetAmount().add(item.getTaxAmount()));
@@ -117,18 +117,6 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
 
     @Override
     public Page<OpenItem> openItems(Query q) { return new Page<>(finOpenItemMapper.openItems(q, true), finOpenItemMapper.countOpen(q)); }
-
-    @Transactional
-    @Override
-    public OpenItem resolveTax(Long id, TaxInput input) {
-        lockService.lock(); OpenItem item = requireOpen(id);
-        if (!"PENDING_TAX".equals(item.getReconcileStatus())) throw conflict("仅税率待确认的记录可以补税率");
-        item.setTaxRate(input.taxRate());
-        item.setTaxAmount(money(item.getNetAmount().multiply(BigDecimal.valueOf(input.taxRate())).movePointLeft(2)));
-        item.setGrossAmount(item.getNetAmount().add(item.getTaxAmount()));
-        changed(finOpenItemMapper.resolveTax(item)); auditService.record("OPEN_ITEM", id, "RESOLVE_TAX", input.taxRate().toString());
-        return requireOpen(id);
-    }
 
     @Override
     public Summary summary(Query q) { return finOpenItemMapper.summary(q); }
