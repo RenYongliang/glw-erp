@@ -182,10 +182,4 @@ app:
 
 ## 数据库升级
 
-已有库依次执行：
-
-- `src/main/resources/db/migrations/20261029_statement_template.sql`
-- `src/main/resources/db/migrations/20261029_statement_layout.sql`
-- `src/main/resources/db/migrations/20261030_document_template.sql`
-
-新库直接执行 `finance.sql`。
+项目尚在开发阶段，不维护增量脚本：模板相关表结构已并入 `glw.sql`（`fin_statement_template`、`fin_statement.template_id/template_version`）。结构有变动时直接改 `glw.sql`，删库后按 `glw.sql` → `full_data.sql` 重建。

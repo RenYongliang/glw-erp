@@ -93,4 +93,4 @@ customer、supplier、product、customer_visit、sample_apply、sales_order、pu
 
 这是表结构和持久层的准备，完整业务接口仍需校验请求版本非空、检查更新影响行数，并在冲突时返回 409。整单保存必须在同一事务中先更新主表版本，再处理明细与库存，失败则回滚；仅修改明细也必须更新主表版本。四张订单明细表暂不加 version。库存条件更新及出入库状态切换需要显式协调版本号，不能只靠 @Version 保证业务并发安全。
 
-开发阶段按 `glw.sql` → `full_data.sql` → `finance.sql` 全量初始化；财务表结构单独维护在 `finance.sql`，不维护增量 SQL。财务历史回填及初始化边界见 [财务第一版](../src/main/resources/db/finance_v1.md)。
+开发阶段只维护两个脚本：`glw.sql`（全部表结构，含财务 `fin_*`）和 `full_data.sql`（全部数据）。初始化按 `glw.sql` → `full_data.sql` 执行，不维护增量 SQL；表结构或数据有变动时直接覆盖这两个文件、删除原库重建。财务记录由应用生成，重建后需执行一次历史回填，边界见 [财务第一版](../src/main/resources/db/finance_v1.md)。
