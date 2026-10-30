@@ -75,6 +75,47 @@ public final class BillingCalendar {
         return base.plusDays(Math.max(0, profile.getCreditDays()));
     }
 
+    /**
+     * 结算档案的规则自检，返回第一条问题，合法时返回 {@code null}。
+     *
+     * <p>关键约束：出单日必须晚于账单期末（自然月、截止 31 日的账单只能次月及以后出单；
+     * 截止 1–30 日时当月出单要求出单日在截止日之后）；约定付款日不能早于出单月，
+     * 同一月内还要晚于出单日。
+     */
+    public static String profileProblem(Profile p) {
+        if (p == null) return "结算档案不能为空";
+        int cutoff = p.getCutoffDay() == null ? 0 : p.getCutoffDay();
+        int lag = p.getStatementLagMonths();
+        int day = p.getStatementDay();
+        if (cutoff < 0 || cutoff > 31) return "账单截止日应为 1–31 日，留空按自然月";
+        if (p.getCycleMonths() < 1 || p.getCycleMonths() > 12) return "账单周期应为 1–12 个月";
+        if (lag < 0 || lag > 12) return "出单月偏移应为 0–12 个月";
+        if (day < 1 || day > 31) return "出单日应为 1–31 日";
+        if (lag == 0) {
+            if (cutoff <= 0) return "自然月账单要到月末才结束，出单月请选次月或更晚";
+            if (cutoff >= 31) return "截止日 31 日时账单期末即月末，出单月请选次月或更晚";
+            if (day <= cutoff) return "出单日必须晚于截止日：截止 " + cutoff + " 日时出单日至少 " + (cutoff + 1) + " 日";
+        }
+        String rule = p.getDueRule() == null ? "CREDIT_DAYS" : p.getDueRule();
+        if ("CALENDAR".equals(rule)) {
+            int offset = p.getDueMonthOffset();
+            int dueDay = p.getDueDay();
+            if (offset < 0 || offset > 12) return "约定付款月偏移应为 0–12 个月";
+            if (dueDay < 0 || dueDay > 31) return "约定付款日应为 0–31 日，0 表示月末";
+            if (offset < lag) return "约定付款日不能早于出单月";
+            if (offset == lag && (dueDay <= 0 ? 31 : dueDay) <= day) return "同一月内约定付款日要晚于出单日";
+        } else if ("CREDIT_DAYS".equals(rule)) {
+            int creditDays = p.getCreditDays();
+            if (creditDays < 0 || creditDays > 3650) return "账期天数应为 0–3650 天";
+            if (!java.util.Set.of("PERIOD_END", "ISSUE_DATE", "ISSUE_MONTH_END")
+                    .contains(p.getCreditBasis() == null ? "PERIOD_END" : p.getCreditBasis()))
+                return "账期起算方式不正确";
+        } else {
+            return "到期规则不正确";
+        }
+        return null;
+    }
+
     /** 对账单期间标签：单月为 {@code 2026-09}，跨月为 {@code 2026-08~2026-09}。 */
     public static String periodLabel(YearMonth start, YearMonth end) {
         return start.equals(end) ? end.toString() : start + "~" + end;

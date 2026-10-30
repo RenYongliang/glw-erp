@@ -75,6 +75,26 @@ class BillingCalendarTest {
         assertThat(cycles.get(1).periodEnd()).isEqualTo(LocalDate.of(2026, 7, 25));
     }
 
+    @Test void profileRejectsIssueDateBeforePeriodEnd() {
+        assertThat(BillingCalendar.profileProblem(profile(null, 1, 0, 1))).contains("自然月");
+        assertThat(BillingCalendar.profileProblem(profile(31, 1, 0, 1))).contains("31");
+        assertThat(BillingCalendar.profileProblem(profile(25, 1, 0, 20))).contains("晚于截止日");
+        assertThat(BillingCalendar.profileProblem(profile(25, 1, 0, 26))).isNull();
+        assertThat(BillingCalendar.profileProblem(profile(25, 1, 1, 1))).isNull();
+    }
+
+    @Test void profileRejectsDueDateBeforeIssue() {
+        var p = profile(null, 1, 1, 1);
+        p.setDueRule("CALENDAR"); p.setDueMonthOffset(1); p.setDueDay(1);
+        assertThat(BillingCalendar.profileProblem(p)).contains("晚于出单日");
+        p.setDueDay(15);
+        assertThat(BillingCalendar.profileProblem(p)).isNull();
+        p.setDueMonthOffset(0);
+        assertThat(BillingCalendar.profileProblem(p)).contains("不能早于出单月");
+        p.setDueMonthOffset(1); p.setDueDay(0);
+        assertThat(BillingCalendar.profileProblem(p)).isNull();
+    }
+
     @Test void pendingSignatureItemsCarryNoBillingPeriod() {
         var o = item(1, null);
         BillingCalendar.applyItem(o, profile(25, 1, 1, 1));

@@ -35,7 +35,10 @@ public class FinanceProfileServiceImpl extends ServiceImpl<FinProfileMapper, Fin
     @Transactional
     @Override
     public void saveProfile(FinanceModels.Profile input) {
-        lockService.lock(); partner(input.getDirection(), input.getPartnerId()); finProfileMapper.saveProfile(input);
+        lockService.lock(); partner(input.getDirection(), input.getPartnerId());
+        String problem = com.glw.backend.finance.BillingCalendar.profileProblem(input);
+        if (problem != null) throw bad(problem);
+        finProfileMapper.saveProfile(input);
         String rule = input.getDueRule() == null ? "CREDIT_DAYS" : input.getDueRule();
         auditService.record("PROFILE", input.getPartnerId(), "SAVE", input.getDirection() + ":" + rule
                 + ":" + ("CALENDAR".equals(rule)

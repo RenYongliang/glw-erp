@@ -89,19 +89,88 @@ const statuses = computed(() =>
 const money = (value: unknown) =>
   Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const label = (value: string) => statusLabels[value] || value
-/** 把“账单结束月 + N 个月”写成“当月 / 次月 / 后第 N 个月”，比 +N 月直白。 */
-const monthAfterBill = (offset: number) =>
-  offset === 0 ? '当月' : offset === 1 ? '次月' : `后第 ${offset} 个月`
-const monthOffsets = Array.from({ length: 13 }, (_, n) => ({ value: n, label: monthAfterBill(n) }))
+/** 把“账单结束月 + N 个月”写成“当月 / 次月 / 后第 N 个月”；多个月一结时“当月”指账单最后一个月。 */
+const monthAfterBill = (offset: number, cycleMonths = 1) =>
+  offset === 0
+    ? cycleMonths > 1
+      ? '末月'
+      : '当月'
+    : offset === 1
+      ? '次月'
+      : `后第 ${offset} 个月`
+const monthOffsets = computed(() =>
+  Array.from({ length: 13 }, (_, n) => ({
+    value: n,
+    label: monthAfterBill(n, profileInput.value.cycleMonths),
+  })),
+)
+/** 出单必须晚于账单期末：自然月、截止 31 日都只能次月及以后；截止 1–30 日时才允许当月出单（出单日自动取截止日之后）。 */
+const issueMonthOptions = computed(() =>
+  monthOffsets.value.filter((option) => {
+    const cutoff = profileInput.value.cutoffDay ?? 0
+    return option.value > 0 || (cutoff > 0 && cutoff < 31)
+  }),
+)
+/** 约定付款日不能早于出单月，因此从出单月往后给选项。 */
+const dueMonthOptions = computed(() =>
+  monthOffsets.value.filter((option) => option.value >= profileInput.value.statementLagMonths),
+)
+const issueDayMin = computed(() =>
+  profileInput.value.statementLagMonths === 0
+    ? Math.min(31, (profileInput.value.cutoffDay ?? 0) + 1)
+    : 1,
+)
+/** 把弹窗里必然无效的组合自动纠正到最近的合法值，避免出现“当月 1 日出单、25 日才截止”这类设置。 */
+function normalizeProfile() {
+  const p = profileInput.value
+  const cutoff = p.cutoffDay ?? 0
+  if (p.statementLagMonths === 0 && (cutoff <= 0 || cutoff >= 31)) p.statementLagMonths = 1
+  if (p.statementLagMonths === 0 && p.statementDay <= cutoff) p.statementDay = cutoff + 1
+  if (p.dueMonthOffset < p.statementLagMonths) p.dueMonthOffset = p.statementLagMonths
+}
+const issueError = computed(() => {
+  const p = profileInput.value
+  if (p.statementLagMonths > 0) return ''
+  const cutoff = p.cutoffDay ?? 0
+  if (cutoff <= 0) return '自然月账单要到月末才结束，出单月请选“次月”或更晚'
+  if (cutoff >= 31) return '截止日是 31 日时账单期末就是月末，出单月请选“次月”或更晚'
+  return p.statementDay <= cutoff
+    ? `出单日必须晚于截止日：${cutoff} 日截止时，出单日至少 ${cutoff + 1} 日`
+    : ''
+})
+const dueError = computed(() => {
+  const p = profileInput.value
+  if (p.dueRule !== 'CALENDAR') return ''
+  if (p.dueMonthOffset < p.statementLagMonths) return '约定付款日不能早于出单月'
+  if (p.dueMonthOffset > p.statementLagMonths) return ''
+  return (p.dueDay === 0 ? 31 : p.dueDay) <= p.statementDay
+    ? `同一月内到期日要晚于出单日：出单 ${p.statementDay} 日，到期 ${p.dueDay === 0 ? '月末' : `${p.dueDay} 日`}`
+    : ''
+})
+const profileProblem = computed(() => issueError.value || dueError.value)
+watch(
+  () => [
+    profileInput.value.cutoffDay,
+    profileInput.value.statementLagMonths,
+    profileInput.value.dueRule,
+  ],
+  normalizeProfile,
+)
 const statementText = (row: Profile) =>
-  `账单${monthAfterBill(row.statementLagMonths)} · ${row.statementDay} 日`
+  `账单${monthAfterBill(row.statementLagMonths, row.cycleMonths)} · ${row.statementDay} 日`
 const dueText = (row: Profile) => {
   if (row.dueRule === 'CALENDAR')
-    return `账单${monthAfterBill(row.dueMonthOffset)} · ${row.dueDay ? `${row.dueDay} 日` : '月末'}`
+    return row.dueDay
+      ? `账单${monthAfterBill(row.dueMonthOffset, row.cycleMonths)} · ${row.dueDay} 日`
+      : `账单${monthAfterBill(row.dueMonthOffset, row.cycleMonths)}的最后一天`
   const from =
     row.creditBasis === 'PERIOD_END' ? '账单期末' : row.creditBasis === 'ISSUE_DATE' ? '出单' : '出单月末'
-  return `${from}后 ${row.creditDays} 天`
+  return row.creditDays ? `${from}后 ${row.creditDays} 天` : from
 }
+/** 29–31 日这类日期遇到短月份会截到月末，悬停时给一句说明。 */
+const dayTip = (day?: number | null) => (day && day > 28 ? '该月没有这一天时取月末' : '')
+const dueTip = (row: Profile) =>
+  row.dueRule !== 'CALENDAR' ? '' : row.dueDay ? dayTip(row.dueDay) : '0 表示该月最后一天'
 function query(): FinanceQuery {
   return {
     direction: direction.value,
@@ -426,11 +495,13 @@ function voidPayment() {
 }
 function editProfile(row?: Profile) {
   profileInput.value = row ? { ...row } : newProfile()
+  normalizeProfile()
   profileOpen.value = true
 }
 function saveProfile() {
   void action(async () => {
     if (!profileInput.value.partnerId) throw Error('请选择往来单位')
+    if (profileProblem.value) throw Error(profileProblem.value)
     await api.saveProfile(profileInput.value)
     profileOpen.value = false
     await load()
@@ -717,16 +788,22 @@ onBeforeUnmount(() => {
         show-overflow-tooltip
       /><el-table-column
         label="截止日"
-        width="95"
-        ><template #default="{ row }">{{
-          row.cutoffDay ? `每月 ${row.cutoffDay} 日` : '自然月'
-        }}</template></el-table-column
+        width="105"
+        ><template #default="{ row }"
+          ><span :title="dayTip(row.cutoffDay)">{{
+            row.cutoffDay ? `每月 ${row.cutoffDay} 日` : '按自然月'
+          }}</span></template
+        ></el-table-column
       ><el-table-column label="账单周期" width="105"
         ><template #default="{ row }">{{ row.cycleMonths }} 个月</template></el-table-column
-      ><el-table-column label="出单日" width="175"
-        ><template #default="{ row }">{{ statementText(row) }}</template></el-table-column
-      ><el-table-column label="到期日" min-width="180"
-        ><template #default="{ row }">{{ dueText(row) }}</template></el-table-column
+      ><el-table-column label="出单日" width="185"
+        ><template #default="{ row }"
+          ><span :title="dayTip(row.statementDay)">{{ statementText(row) }}</span></template
+        ></el-table-column
+      ><el-table-column label="到期日" min-width="190"
+        ><template #default="{ row }"
+          ><span :title="dueTip(row)">{{ dueText(row) }}</span></template
+        ></el-table-column
       ><el-table-column label="自动出单" width="95"
         ><template #default="{ row }">{{ row.autoGenerate ? '是' : '否' }}</template></el-table-column
       ><el-table-column label="操作" width="90"
@@ -984,7 +1061,7 @@ onBeforeUnmount(() => {
     <el-dialog
       v-model="profileOpen"
       title="结算档案"
-      width="min(540px,96vw)"
+      width="min(720px,96vw)"
       top="6vh"
       :close-on-click-modal="false"
       ><el-form label-position="top" :disabled="busy"
@@ -1013,24 +1090,28 @@ onBeforeUnmount(() => {
             :min="1"
             :max="12"
             :precision="0"
-            controls-position="right" /></el-form-item
+            controls-position="right"
+          /><div class="finance-hint">1 = 每月一张，2 = 两个月一张，依次类推。</div></el-form-item
         ><el-form-item label="出单时点" required
           ><div class="finance-inline"
             >账单结束
             <el-select v-model="profileInput.statementLagMonths" style="width: 120px"
               ><el-option
-                v-for="option in monthOffsets"
+                v-for="option in issueMonthOptions"
                 :key="option.value"
                 :label="option.label"
                 :value="option.value" /></el-select
             >的
             <el-input-number
               v-model="profileInput.statementDay"
-              :min="1"
+              :min="issueDayMin"
               :max="31"
               :precision="0"
               controls-position="right" />日</div
-          ></el-form-item
+          ><div v-if="issueError" class="finance-hint finance-hint-error">{{ issueError }}</div
+          ><div class="finance-hint">
+            出单日必须晚于账单截止日；多个月一结时“末月”指账单覆盖的最后一个月，该月没有这一天时取月末。
+          </div></el-form-item
         ><el-form-item label="到期规则" required
           ><el-radio-group v-model="profileInput.dueRule"
             ><el-radio-button value="CREDIT_DAYS">固定天数</el-radio-button
@@ -1050,13 +1131,15 @@ onBeforeUnmount(() => {
               :max="3650"
               :precision="0"
               controls-position="right" />天</div
-          ></el-form-item
+          ><div class="finance-hint">
+            按自然日累加，不受月份长短影响；填 0 天表示到期日就是起算日当天。
+          </div></el-form-item
         ><el-form-item v-else label="约定付款日" required
           ><div class="finance-inline"
             >账单结束
             <el-select v-model="profileInput.dueMonthOffset" style="width: 120px"
               ><el-option
-                v-for="option in monthOffsets"
+                v-for="option in dueMonthOptions"
                 :key="option.value"
                 :label="option.label"
                 :value="option.value" /></el-select
@@ -1068,8 +1151,11 @@ onBeforeUnmount(() => {
               :precision="0"
               placeholder="0 表示月末"
               controls-position="right" />日</div
-          ></el-form-item
-        ><el-form-item label="自动生成对账单"
+          ><div v-if="dueError" class="finance-hint finance-hint-error">{{ dueError }}</div
+          ><div class="finance-hint">
+            填 0 表示该月最后一天；填 29–31 日时，该月没有这一天则取月末。
+          </div></el-form-item>
+        <el-form-item label="自动生成对账单"
           ><el-switch v-model="profileInput.autoGenerate" /></el-form-item
         ><el-alert
           title="账单月按截止日切分：截止日（含）前的业务归当月，之后的归下月；未填截止日按自然月。自动出单只处理已签收、未对账且在已结束账单期间内的记录。"
@@ -1077,7 +1163,9 @@ onBeforeUnmount(() => {
           :closable="false" /></el-form
       ><template #footer
         ><el-button :disabled="busy" @click="profileOpen = false">取消</el-button
-        ><el-button type="primary" :loading="busy" @click="saveProfile">保存</el-button></template
+        ><el-button type="primary" :loading="busy" :disabled="!!profileProblem" @click="saveProfile"
+          >保存</el-button
+        ></template
       ></el-dialog
     >
   </section>
@@ -1178,6 +1266,18 @@ onBeforeUnmount(() => {
 .finance-inline :deep(.el-input-number) {
   /* 步进按钮固定在右侧，宽度要容得下两位数字（如 15 日、31 日） */
   width: 96px;
+}
+/* 表单内容区是 flex 容器，提示文字单独占一行，避免和输入框挤在一起 */
+.finance-hint {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 12px;
+  color: #8a94a6;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.finance-hint-error {
+  color: #d03050;
 }
 .finance-tag-gap {
   margin-left: 6px;
