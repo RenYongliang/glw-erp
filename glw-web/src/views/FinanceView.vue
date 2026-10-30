@@ -89,6 +89,19 @@ const statuses = computed(() =>
 const money = (value: unknown) =>
   Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const label = (value: string) => statusLabels[value] || value
+/** 把“账单结束月 + N 个月”写成“当月 / 次月 / 后第 N 个月”，比 +N 月直白。 */
+const monthAfterBill = (offset: number) =>
+  offset === 0 ? '当月' : offset === 1 ? '次月' : `后第 ${offset} 个月`
+const monthOffsets = Array.from({ length: 13 }, (_, n) => ({ value: n, label: monthAfterBill(n) }))
+const statementText = (row: Profile) =>
+  `账单${monthAfterBill(row.statementLagMonths)} · ${row.statementDay} 日`
+const dueText = (row: Profile) => {
+  if (row.dueRule === 'CALENDAR')
+    return `账单${monthAfterBill(row.dueMonthOffset)} · ${row.dueDay ? `${row.dueDay} 日` : '月末'}`
+  const from =
+    row.creditBasis === 'PERIOD_END' ? '账单期末' : row.creditBasis === 'ISSUE_DATE' ? '出单' : '出单月末'
+  return `${from}后 ${row.creditDays} 天`
+}
 function query(): FinanceQuery {
   return {
     direction: direction.value,
@@ -697,7 +710,12 @@ onBeforeUnmount(() => {
       border
       height="calc(100vh - 285px)"
       empty-text="暂无结算档案"
-      ><el-table-column prop="partnerName" label="往来单位" min-width="180" /><el-table-column
+      ><el-table-column
+        prop="partnerName"
+        label="往来单位"
+        min-width="130"
+        show-overflow-tooltip
+      /><el-table-column
         label="截止日"
         width="95"
         ><template #default="{ row }">{{
@@ -705,16 +723,10 @@ onBeforeUnmount(() => {
         }}</template></el-table-column
       ><el-table-column label="账单周期" width="105"
         ><template #default="{ row }">{{ row.cycleMonths }} 个月</template></el-table-column
-      ><el-table-column label="出单" width="135"
-        ><template #default="{ row }"
-          >结束月 +{{ row.statementLagMonths }} 月 · {{ row.statementDay }} 日</template
-        ></el-table-column
-      ><el-table-column label="到期" min-width="150"
-        ><template #default="{ row }">{{
-          row.dueRule === 'CALENDAR'
-            ? `结束月 +${row.dueMonthOffset} 月 ${row.dueDay ? row.dueDay + ' 日' : '月末'}`
-            : `${row.creditBasis === 'PERIOD_END' ? '账单期末' : row.creditBasis === 'ISSUE_DATE' ? '出单日' : '出单月末'} + ${row.creditDays} 天`
-        }}</template></el-table-column
+      ><el-table-column label="出单日" width="175"
+        ><template #default="{ row }">{{ statementText(row) }}</template></el-table-column
+      ><el-table-column label="到期日" min-width="180"
+        ><template #default="{ row }">{{ dueText(row) }}</template></el-table-column
       ><el-table-column label="自动出单" width="95"
         ><template #default="{ row }">{{ row.autoGenerate ? '是' : '否' }}</template></el-table-column
       ><el-table-column label="操作" width="90"
@@ -1004,13 +1016,14 @@ onBeforeUnmount(() => {
             controls-position="right" /></el-form-item
         ><el-form-item label="出单时点" required
           ><div class="finance-inline"
-            >账单结束月后
-            <el-input-number
-              v-model="profileInput.statementLagMonths"
-              :min="0"
-              :max="12"
-              :precision="0"
-              controls-position="right" />月的
+            >账单结束
+            <el-select v-model="profileInput.statementLagMonths" style="width: 120px"
+              ><el-option
+                v-for="option in monthOffsets"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value" /></el-select
+            >的
             <el-input-number
               v-model="profileInput.statementDay"
               :min="1"
@@ -1031,7 +1044,7 @@ onBeforeUnmount(() => {
                 value="ISSUE_DATE" /><el-option
                 label="出单月末"
                 value="ISSUE_MONTH_END" /></el-select
-            >+<el-input-number
+            >后<el-input-number
               v-model="profileInput.creditDays"
               :min="0"
               :max="3650"
@@ -1040,13 +1053,14 @@ onBeforeUnmount(() => {
           ></el-form-item
         ><el-form-item v-else label="约定付款日" required
           ><div class="finance-inline"
-            >账单结束月后
-            <el-input-number
-              v-model="profileInput.dueMonthOffset"
-              :min="0"
-              :max="12"
-              :precision="0"
-              controls-position="right" />月的
+            >账单结束
+            <el-select v-model="profileInput.dueMonthOffset" style="width: 120px"
+              ><el-option
+                v-for="option in monthOffsets"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value" /></el-select
+            >的
             <el-input-number
               v-model="profileInput.dueDay"
               :min="0"
