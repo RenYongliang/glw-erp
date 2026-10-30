@@ -36,7 +36,11 @@ public class FinanceProfileServiceImpl extends ServiceImpl<FinProfileMapper, Fin
     @Override
     public void saveProfile(FinanceModels.Profile input) {
         lockService.lock(); partner(input.getDirection(), input.getPartnerId()); finProfileMapper.saveProfile(input);
-        auditService.record("PROFILE", input.getPartnerId(), "SAVE", input.getDirection() + ":" + input.getTermBasis() + ":" + input.getTermDays());
+        String rule = input.getDueRule() == null ? "CREDIT_DAYS" : input.getDueRule();
+        auditService.record("PROFILE", input.getPartnerId(), "SAVE", input.getDirection() + ":" + rule
+                + ":" + ("CALENDAR".equals(rule)
+                        ? input.getDueMonthOffset() + "m" + input.getDueDay() + "d"
+                        : input.getCreditBasis() + "+" + input.getCreditDays() + "d"));
     }
 
     @Override

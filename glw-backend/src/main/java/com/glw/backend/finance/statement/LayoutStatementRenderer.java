@@ -48,6 +48,7 @@ public class LayoutStatementRenderer {
             "company.phone", "company.contact",
             "partner.name", "partner.contact", "partner.phone", "partner.address",
             "header.statementNo", "header.direction", "header.period", "header.periodLabel",
+            "header.periodStart", "header.periodEnd", "header.dueDate", "header.dueDateLabel",
             "header.statementDate", "header.statementDateLabel", "header.currency",
             "header.currencyLabel", "header.taxRateLabel", "header.status", "header.remark",
             // 通用单据字段：对账单、合同、送货单共用同一套设计器。
@@ -387,6 +388,10 @@ public class LayoutStatementRenderer {
         put(values, "header.direction", model.header().direction());
         put(values, "header.period", model.header().period());
         put(values, "header.periodLabel", model.header().periodLabel());
+        put(values, "header.periodStart", model.header().periodStart());
+        put(values, "header.periodEnd", model.header().periodEnd());
+        put(values, "header.dueDate", model.header().dueDate());
+        put(values, "header.dueDateLabel", model.header().dueDateLabel());
         put(values, "header.statementDate", model.header().statementDate());
         put(values, "header.statementDateLabel", model.header().statementDateLabel());
         put(values, "header.currency", model.header().currency());

@@ -30,7 +30,10 @@ public final class StatementSampleData {
                         "招商银行深圳分行", "7559 1234 5678 901", "0755-8888 6666", "张经理"),
                 new StatementRenderModel.Partner("深圳市铭泰电子信息科技有限公司", "李小姐", "0755-2666 8899"),
                 new StatementRenderModel.Header("AR202609001", "AR", "2026-09", "2026年9月",
-                        LocalDate.of(2026, 10, 8), "10月8日", "CNY", "RMB", "13%", "CONFIRMED", ""),
+                        LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30),
+                        LocalDate.of(2026, 10, 8), "10月8日",
+                        LocalDate.of(2026, 10, 31), "2026/10/31",
+                        "CNY", "RMB", "13%", "CONFIRMED", ""),
                 lines,
                 new StatementRenderModel.Totals(quantity, gross, net, tax));
     }

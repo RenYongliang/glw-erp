@@ -38,13 +38,15 @@ abstract class FinanceTestFixture {
     final FinanceStatementTemplateService statementTemplates = mock(FinanceStatementTemplateService.class);
     final FinanceProfileServiceImpl profile = new FinanceProfileServiceImpl(finProfile, lock, audit);
     final FinanceOpenItemServiceImpl open = new FinanceOpenItemServiceImpl(finOpenItem, finProfile, lock, audit);
-    final FinanceStatementServiceImpl statements = new FinanceStatementServiceImpl(finStatement, finOpenItem, finStatementItem, finAllocation, lock, audit, open, statementTemplates, numbers);
+    final FinanceStatementServiceImpl statements = new FinanceStatementServiceImpl(finStatement, finOpenItem, finStatementItem, finAllocation, lock, audit, open, statementTemplates, finProfile, numbers);
     final FinancePaymentServiceImpl cash = new FinancePaymentServiceImpl(finPayment, finAllocation, lock, audit, profile, numbers);
     final FinanceAllocationServiceImpl clearing = new FinanceAllocationServiceImpl(finAllocation, finPayment, finOpenItem, lock, audit, open, cash);
     OpenItem item() {
         var o = new OpenItem(); o.setId(1L); o.setDirection("AR"); o.setPartnerId(6L); o.setCurrency("CNY");
         o.setSourceType("OUTBOUND"); o.setSourceLineId(10L); o.setSourceNo("OUT20261028001");
         o.setPeriod("2026-10"); o.setBizDate(LocalDate.of(2026,10,10)); o.setQuantity(100);
+        o.setBasisDate(LocalDate.of(2026,10,10)); o.setBasisReady(1); o.setSettleMonth("2026-10");
+        o.setPeriodStart(LocalDate.of(2026,10,1)); o.setPeriodEnd(LocalDate.of(2026,10,31));
         o.setUnitPrice(new BigDecimal("1.1300")); o.setGrossAmount(new BigDecimal("113.00"));
         o.setTaxIncluded(1); o.setReconcileStatus("RECONCILED"); o.setSettledAmount(BigDecimal.ZERO);
         return o;

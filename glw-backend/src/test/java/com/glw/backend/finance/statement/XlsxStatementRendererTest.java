@@ -115,7 +115,10 @@ class XlsxStatementRendererTest {
                 "中国工商银行深圳深圳湾支行", "4000027709200986297", "13713956403", "黄宇");
         var partner = new StatementRenderModel.Partner("深圳市勤泰智能信息技术有限公司", "张三", "0755-23283548");
         var header = new StatementRenderModel.Header("AR202609001", "AR", "2026-09", "2026年9月",
-                LocalDate.of(2026, 10, 26), "10月26日", "CNY", "RMB", "13%", "DRAFT", "");
+                LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30),
+                LocalDate.of(2026, 10, 26), "10月26日",
+                LocalDate.of(2026, 10, 31), "2026/10/31",
+                "CNY", "RMB", "13%", "DRAFT", "");
         List<StatementRenderModel.Line> lines = IntStream.range(0, count).mapToObj(i ->
                 new StatementRenderModel.Line(i + 1, LocalDate.of(2026, 9, 7), "2026/9/7",
                         LocalDate.of(2026, 10, 31), "2026/10/31", "GL" + i, "SO" + i, "QT" + i,

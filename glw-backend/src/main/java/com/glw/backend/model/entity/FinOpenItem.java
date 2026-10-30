@@ -86,8 +86,25 @@ public class FinOpenItem {
     @TableField("biz_date")
     private LocalDate bizDate;
 
+    /** 结算基准日：应收取客户签收日，应付取入库日。 */
+    @TableField("basis_date")
+    private LocalDate basisDate;
+
+    /** 基准是否就绪，0=待签收。 */
+    @TableField("basis_ready")
+    private Integer basisReady;
+
     @TableField("period")
     private String period;
+
+    @TableField("period_start")
+    private LocalDate periodStart;
+
+    @TableField("period_end")
+    private LocalDate periodEnd;
+
+    @TableField("settle_month")
+    private String settleMonth;
 
     @TableField("due_date")
     private LocalDate dueDate;

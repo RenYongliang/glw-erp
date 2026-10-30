@@ -51,3 +51,11 @@ export async function createOutboundOrder(shipment: SalesShipment) {
   }
   await apiRequest<unknown>('/outbound-order', { method: 'POST', body: JSON.stringify(request) })
 }
+
+/** 登记客户签收日期，应收记录据此归入账单月。 */
+export async function signOutboundOrder(id: string, signTime: string) {
+  await apiRequest<unknown>('/outbound-order/sign', {
+    method: 'POST',
+    body: JSON.stringify({ orderIds: [Number(id)], signTime }),
+  })
+}

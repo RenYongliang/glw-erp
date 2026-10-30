@@ -183,6 +183,7 @@ CREATE TABLE `outbound_order`  (
   `outbound_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'SALE' COMMENT '出库类型, SALE:销售出库',
   `status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '状态, PENDING:待出库; COMPLETED:已出库;',
   `outbound_time` timestamp(0) NULL DEFAULT NULL COMMENT '出库时间',
+  `sign_time` timestamp(0) NULL DEFAULT NULL COMMENT '客户签收日期',
   `shipping_address` varchar(300) NULL DEFAULT NULL COMMENT '本次收货地址快照',
   `shipping_recipient` varchar(80) NULL DEFAULT NULL COMMENT '本次收货人快照',
   `shipping_phone` varchar(40) NULL DEFAULT NULL COMMENT '收货联系电话快照',

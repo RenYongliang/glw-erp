@@ -47,6 +47,10 @@ public class OutboundOrder {
     @TableField("outbound_time")
     private LocalDateTime outboundTime;
 
+    /** 客户签收日期，用于计算应收的账单归属与账期。 */
+    @TableField("sign_time")
+    private LocalDateTime signTime;
+
     @TableField("shipping_address")
     private String shippingAddress;
     @TableField("shipping_recipient")

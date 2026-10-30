@@ -27,7 +27,7 @@ const statuses: Record<string, string> = {
       v-if="selectable"
       type="selection"
       width="42"
-      :selectable="(row: OpenItem) => row.reconcileStatus === 'OPEN'"
+      :selectable="(row: OpenItem) => row.reconcileStatus === 'OPEN' && row.basisReady !== 0"
     />
     <el-table-column label="往来单位" min-width="145" prop="partnerName" show-overflow-tooltip />
     <el-table-column label="出入库单号" width="155" prop="sourceNo" show-overflow-tooltip />
@@ -48,10 +48,17 @@ const statuses: Record<string, string> = {
         }}</strong></template
       ></el-table-column
     >
+    <el-table-column label="签收/入库日" width="120"
+      ><template #default="{ row }">{{
+        row.basisDate || (row.basisReady === 0 ? '待签收' : '')
+      }}</template></el-table-column
+    >
+    <el-table-column label="账单月" width="95" prop="settleMonth" />
     <el-table-column label="到期日" width="110" prop="dueDate" />
     <el-table-column label="对账状态" width="100"
       ><template #default="{ row }"
-        ><el-tag
+        ><el-tag v-if="row.basisReady === 0" type="danger" effect="plain">待签收</el-tag>
+        <el-tag
           :type="
             row.reconcileStatus === 'RECONCILED'
               ? 'success'

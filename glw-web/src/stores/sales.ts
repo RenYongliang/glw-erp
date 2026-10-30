@@ -17,7 +17,12 @@ import {
   type SalesReturn,
   type Product,
 } from '../domain/sales'
-import { createOutboundOrder, fetchSalesOrders, fetchOutboundOrders } from '../services/salesApi'
+import {
+  createOutboundOrder,
+  fetchSalesOrders,
+  fetchOutboundOrders,
+  signOutboundOrder,
+} from '../services/salesApi'
 
 function initial(): SalesState {
   return { orders: [], shipments: [], payments: [], returns: [], logs: [] }
@@ -106,6 +111,8 @@ export const useSalesStore = defineStore('sales', () => {
     const index = next.shipments.findIndex((r) => r.id === shipment.id)
     if (index < 0 && shipment.confirmed) {
       await createOutboundOrder(shipment)
+      if (shipment.customerConfirmed && shipment.customerReceivedAt)
+        await signOutboundOrder(shipment.id, shipment.customerReceivedAt)
       await load()
       return shipment
     }
@@ -116,6 +123,15 @@ export const useSalesStore = defineStore('sales', () => {
         JSON.stringify({ ...shipment, customerConfirmed: false, customerReceivedAt: '' })
       )
         throw Error('已确认出库单仅允许补充客户收货确认')
+      if (
+        shipment.customerConfirmed &&
+        shipment.customerReceivedAt &&
+        shipment.customerReceivedAt.slice(0, 10) !== previous.customerReceivedAt.slice(0, 10)
+      ) {
+        await signOutboundOrder(previous.id, shipment.customerReceivedAt)
+        await load()
+        return shipment
+      }
     }
     if (
       index >= 0 &&

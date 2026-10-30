@@ -12,6 +12,9 @@ import org.apache.ibatis.annotations.Param;
 public interface FinProfileMapper extends BaseMapper<FinProfile> {
     List<Profile> profiles(String direction);
     Profile profile(@Param("direction") String direction, @Param("partnerId") Long partnerId);
+    /** 已开启自动出单的结算档案，供定时任务按方向遍历。 */
+    List<Profile> autoProfiles(@Param("direction") String direction);
+    List<String> autoProfileDirections();
     void saveProfile(Profile profile);
     List<Partner> partners(String direction);
     PartnerInfo partnerInfo(@Param("direction") String direction, @Param("partnerId") Long partnerId);

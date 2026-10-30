@@ -12,6 +12,8 @@ import java.util.List;
 /** Receivable/payable snapshots and tax confirmation. */
 public interface FinanceOpenItemService extends IService<FinOpenItem> {
     int project(String direction, Long sourceId);
+    /** 签收等结算基准变化后，重算来源单据对应的应收/应付账单归属。 */
+    int refreshBasis(String direction, Long sourceId);
     int rebuild();
     Page<OpenItem> openItems(Query q);
     OpenItem resolveTax(Long id, TaxInput input);

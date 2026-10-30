@@ -57,7 +57,9 @@ public class FinanceController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/open-item/rebuild") public ApiResponse<Integer> rebuild() { return ApiResponse.ok(financeOpenItemService.rebuild()); }
     @PostMapping("/statement/preview") public ApiResponse<List<OpenItem>> preview(@Valid @RequestBody Query q) { return ApiResponse.ok(financeOpenItemService.preview(q)); }
-    @PostMapping("/statement/generate") public ApiResponse<StatementDetail> generate(@Valid @RequestBody Generate input) { return ApiResponse.ok(financeStatementService.generate(input)); }
+    @PostMapping("/statement/generate") public ApiResponse<List<Statement>> generate(@Valid @RequestBody Generate input) { return ApiResponse.ok(financeStatementService.generate(input)); }
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/statement/auto-generate") public ApiResponse<Integer> autoGenerate() { return ApiResponse.ok(financeStatementService.autoGenerate()); }
     @PostMapping("/statement/list") public ApiResponse<Page<Statement>> statements(@Valid @RequestBody Query q) { return ApiResponse.ok(financeStatementService.statements(q)); }
     @GetMapping("/statement/{id}") public ApiResponse<StatementDetail> statement(@PathVariable Long id) { return ApiResponse.ok(financeStatementService.statement(id)); }
     @PostMapping("/statement/{id}/{action:send|confirm|void}") public ApiResponse<StatementDetail> transition(@PathVariable Long id, @PathVariable String action) { return ApiResponse.ok(financeStatementService.transition(id, action)); }

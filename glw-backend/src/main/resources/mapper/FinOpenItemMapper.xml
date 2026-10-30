@@ -26,19 +26,25 @@
     <result column="gross_amount" property="grossAmount" jdbcType="DECIMAL"/>
     <result column="currency" property="currency" jdbcType="VARCHAR"/>
     <result column="biz_date" property="bizDate" jdbcType="DATE"/>
+    <result column="basis_date" property="basisDate" jdbcType="DATE"/>
+    <result column="basis_ready" property="basisReady" jdbcType="INTEGER"/>
     <result column="period" property="period" jdbcType="VARCHAR"/>
+    <result column="period_start" property="periodStart" jdbcType="DATE"/>
+    <result column="period_end" property="periodEnd" jdbcType="DATE"/>
+    <result column="settle_month" property="settleMonth" jdbcType="VARCHAR"/>
     <result column="due_date" property="dueDate" jdbcType="DATE"/>
     <result column="reconcile_status" property="reconcileStatus" jdbcType="VARCHAR"/>
     <result column="statement_id" property="statementId" jdbcType="BIGINT"/>
     <result column="settled_amount" property="settledAmount" jdbcType="DECIMAL"/>
     <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
   </resultMap>
-  <sql id="Base_Column_List">id, direction, source_type, source_id, source_line_id, source_no, order_id, order_no, partner_order_no, partner_id, partner_name, product_id, brand, part_no, package_type, quantity, unit_price, tax_included, tax_rate, net_amount, tax_amount, gross_amount, currency, biz_date, period, due_date, reconcile_status, statement_id, settled_amount, created_at</sql>
+  <sql id="Base_Column_List">id, direction, source_type, source_id, source_line_id, source_no, order_id, order_no, partner_order_no, partner_id, partner_name, product_id, brand, part_no, package_type, quantity, unit_price, tax_included, tax_rate, net_amount, tax_amount, gross_amount, currency, biz_date, basis_date, basis_ready, period, period_start, period_end, settle_month, due_date, reconcile_status, statement_id, settled_amount, created_at</sql>
   <sql id="openFilter">
     direction=#{q.direction}
     <if test="q.partnerId != null">AND partner_id=#{q.partnerId}</if>
-    <if test="q.period != null and q.period != ''">AND period=#{q.period}</if>
+    <if test="q.period != null and q.period != ''">AND settle_month=#{q.period}</if>
     <if test="q.status != null and q.status != ''">AND reconcile_status=#{q.status}</if>
+    <if test="q.pendingBasisOnly == true">AND basis_ready=0</if>
     <if test="q.unsettledOnly == true">AND settled_amount &lt; gross_amount</if>
     <if test="q.overdueOnly == true">AND due_date &lt; CURRENT_DATE AND settled_amount &lt; gross_amount</if>
     <if test="q.keyword != null and q.keyword != ''">AND (LOCATE(#{q.keyword},partner_name)>0 OR LOCATE(#{q.keyword},source_no)>0 OR LOCATE(#{q.keyword},order_no)>0 OR LOCATE(#{q.keyword},COALESCE(partner_order_no,''))>0 OR LOCATE(#{q.keyword},part_no)>0)</if>
@@ -49,7 +55,8 @@
         SELECT 'AP' direction,'INBOUND' source_type,a.id source_line_id,h.id source_id,h.inbound_order_no source_no,
           a.purchase_order_id order_id,a.purchase_order_no order_no,NULL partner_order_no,
           h.supplier_id partner_id,h.supplier_name partner_name,i.product_id,i.brand,i.part_no,i.package_type,
-          a.allocated_quantity quantity,a.unit_price,a.tax_included,a.tax_rate,a.amount gross_amount,a.currency,DATE(h.inbound_time) biz_date
+          a.allocated_quantity quantity,a.unit_price,a.tax_included,a.tax_rate,a.amount gross_amount,a.currency,
+          DATE(h.inbound_time) biz_date,DATE(h.inbound_time) basis_date,1 basis_ready
         FROM inbound_order_item_alloc a JOIN inbound_order h ON h.id=a.inbound_order_id
           JOIN inbound_order_item i ON i.id=a.inbound_order_item_id
         WHERE h.status='COMPLETED'
@@ -59,7 +66,8 @@
         SELECT 'AR' direction,'OUTBOUND' source_type,a.id source_line_id,h.id source_id,h.outbound_order_no source_no,
           a.sales_order_id order_id,a.sales_order_no order_no,a.customer_order_no partner_order_no,
           h.customer_id partner_id,h.customer_name partner_name,i.product_id,i.brand,i.part_no,i.package_type,
-          a.allocated_quantity quantity,a.unit_price,a.tax_included,a.tax_rate,a.amount gross_amount,a.currency,DATE(h.outbound_time) biz_date
+          a.allocated_quantity quantity,a.unit_price,a.tax_included,a.tax_rate,a.amount gross_amount,a.currency,
+          DATE(h.outbound_time) biz_date,DATE(h.sign_time) basis_date,IF(h.sign_time IS NULL,0,1) basis_ready
         FROM outbound_order_item_alloc a JOIN outbound_order h ON h.id=a.outbound_order_id
           JOIN outbound_order_item i ON i.id=a.outbound_order_item_id
         WHERE h.status='COMPLETED'
@@ -71,13 +79,15 @@
   <insert id="insertOpen" useGeneratedKeys="true" keyProperty="id">
     INSERT INTO fin_open_item (direction,source_type,source_id,source_line_id,source_no,order_id,order_no,
       partner_order_no,partner_id,partner_name,product_id,brand,part_no,package_type,quantity,unit_price,
-      tax_included,tax_rate,net_amount,tax_amount,gross_amount,currency,biz_date,period,due_date,reconcile_status)
+      tax_included,tax_rate,net_amount,tax_amount,gross_amount,currency,biz_date,basis_date,basis_ready,
+      period,period_start,period_end,settle_month,due_date,reconcile_status)
     VALUES (#{direction},#{sourceType},#{sourceId},#{sourceLineId},#{sourceNo},#{orderId},#{orderNo},
       #{partnerOrderNo},#{partnerId},#{partnerName},#{productId},#{brand},#{partNo},#{packageType},#{quantity},#{unitPrice},
-      #{taxIncluded},#{taxRate},#{netAmount},#{taxAmount},#{grossAmount},#{currency},#{bizDate},#{period},#{dueDate},#{reconcileStatus})
+      #{taxIncluded},#{taxRate},#{netAmount},#{taxAmount},#{grossAmount},#{currency},#{bizDate},#{basisDate},#{basisReady},
+      #{period},#{periodStart},#{periodEnd},#{settleMonth},#{dueDate},#{reconcileStatus})
   </insert>
   <select id="openItems" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
-    SELECT * FROM fin_open_item WHERE <include refid="openFilter"/> ORDER BY biz_date DESC,id DESC
+    SELECT * FROM fin_open_item WHERE <include refid="openFilter"/> ORDER BY COALESCE(basis_date,biz_date) DESC,id DESC
     <if test="paged">LIMIT #{q.pageSize} OFFSET #{q.offset}</if>
   </select>
   <select id="countOpen" resultType="long">SELECT COUNT(*) FROM fin_open_item WHERE <include refid="openFilter"/></select>
@@ -94,6 +104,15 @@
   <select id="openItem" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
     SELECT * FROM fin_open_item WHERE id=#{id}
   </select>
+  <select id="openItemsBySource" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
+    SELECT * FROM fin_open_item WHERE source_type=#{type} AND source_id=#{sourceId} ORDER BY id
+  </select>
+  <select id="statementCandidates" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
+    SELECT * FROM fin_open_item
+    WHERE direction=#{direction} AND partner_id=#{partnerId} AND basis_ready=1
+      AND reconcile_status='OPEN' AND statement_id IS NULL
+    ORDER BY basis_date,id
+  </select>
   <update id="resolveTax">
     UPDATE fin_open_item SET tax_rate=#{taxRate},tax_amount=#{taxAmount},gross_amount=#{grossAmount},reconcile_status='OPEN' WHERE id=#{id} AND reconcile_status='PENDING_TAX' AND statement_id IS NULL
   </update>
@@ -102,6 +121,14 @@
   </select>
   <update id="setReconciliation">
     UPDATE fin_open_item SET reconcile_status=#{status}, statement_id=#{statementId} WHERE id=#{id} AND reconcile_status=#{expected}
+  </update>
+  <update id="updateBilling">
+    UPDATE fin_open_item SET basis_date=#{basisDate},basis_ready=#{basisReady},period=#{period},
+      period_start=#{periodStart},period_end=#{periodEnd},settle_month=#{settleMonth},due_date=#{dueDate}
+    WHERE id=#{id} AND statement_id IS NULL AND reconcile_status IN ('OPEN','PENDING_TAX')
+  </update>
+  <update id="setDueDate">
+    UPDATE fin_open_item SET due_date=#{dueDate} WHERE id=#{id} AND statement_id IS NULL
   </update>
   <update id="settle">
     UPDATE fin_open_item SET settled_amount=settled_amount+#{amount} WHERE id=#{id} AND settled_amount+#{amount} BETWEEN 0 AND gross_amount

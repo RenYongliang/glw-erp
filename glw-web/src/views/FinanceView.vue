@@ -30,6 +30,7 @@ const direction = ref<Direction>('AR'),
   status = ref('')
 const unsettled = ref(false),
   overdue = ref(false),
+  pendingBasis = ref(false),
   page = ref(1),
   size = ref(20),
   total = ref(0)
@@ -53,12 +54,7 @@ const statementOpen = ref(false),
 const previewRows = ref<OpenItem[]>([]),
   statementRemark = ref('')
 const paymentInput = ref<PaymentInput>(newPayment())
-const profileInput = ref<Profile>({
-  direction: 'AR',
-  partnerId: 0,
-  termDays: 0,
-  termBasis: 'BIZ_DATE',
-})
+const profileInput = ref<Profile>(newProfile())
 const eligible = ref<OpenItem[]>([]),
   eligiblePage = ref(1),
   eligibleTotal = ref(0),
@@ -105,10 +101,39 @@ function query(): FinanceQuery {
     status: status.value || undefined,
     unsettledOnly: unsettled.value,
     overdueOnly: overdue.value,
+    pendingBasisOnly: pendingBasis.value || undefined,
     pageNo: page.value,
     pageSize: size.value,
   }
 }
+/** 结算档案默认值：当月结上月、自然月、月结 0 天。 */
+function newProfile(): Profile {
+  return {
+    direction: direction.value,
+    cutoffDay: null,
+    cycleMonths: 1,
+    statementLagMonths: 1,
+    statementDay: 1,
+    dueRule: 'CREDIT_DAYS',
+    creditDays: 0,
+    creditBasis: 'PERIOD_END',
+    dueMonthOffset: 0,
+    dueDay: 0,
+    autoGenerate: false,
+    reconcileBasis: direction.value === 'AR' ? 'SIGNED' : 'INBOUND',
+  }
+}
+/** 账单期间展示：2026-09 或 2026-08~2026-09。 */
+function periodText(start?: string | null, end?: string | null) {
+  if (!start || !end) return ''
+  return start.slice(0, 7) === end.slice(0, 7) ? end.slice(0, 7) : `${start.slice(0, 7)}~${end.slice(0, 7)}`
+}
+const previewPeriod = computed(() => {
+  const starts = previewRows.value.map((o) => o.periodStart).filter(Boolean) as string[]
+  const ends = previewRows.value.map((o) => o.periodEnd).filter(Boolean) as string[]
+  if (!starts.length || !ends.length) return ''
+  return periodText(starts.sort()[0], ends.sort().at(-1))
+})
 function newPayment(): PaymentInput {
   const now = new Date(),
     date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -196,6 +221,18 @@ function rebuild() {
     await load()
   })
 }
+function autoGenerate() {
+  void action(async () => {
+    await ElMessageBox.confirm(
+      '按客户档案的账单周期，为账单期间已结束、已签收、未对账的记录自动生成草稿。不会补出漏掉的月份。',
+      '自动出单',
+      { type: 'info', confirmButtonText: '立即出单' },
+    )
+    const count = await api.autoGenerate()
+    ElMessage.success(count ? `已生成 ${count} 张草稿对账单` : '没有符合条件的记录，无需出单')
+    await load()
+  })
+}
 function preview() {
   if (!selected.value.length) {
     if (!partnerId.value || !period.value) return
@@ -218,15 +255,12 @@ function preview() {
   }
   const first = selected.value[0]
   if (!first) return
-  if (
-    selected.value.some(
-      (o) =>
-        o.partnerId !== first.partnerId ||
-        o.period !== first.period ||
-        o.currency !== first.currency,
-    )
-  ) {
-    ElMessage.warning('请选择同往来单位、同月份、同币种的对账项')
+  if (selected.value.some((o) => o.partnerId !== first.partnerId || o.currency !== first.currency)) {
+    ElMessage.warning('请选择同往来单位、同币种的对账项')
+    return
+  }
+  if (selected.value.some((o) => o.basisReady === 0)) {
+    ElMessage.warning('存在待客户签收的记录，签收后才能生成对账单')
     return
   }
   previewRows.value = [...selected.value]
@@ -235,12 +269,17 @@ function preview() {
 }
 function generate() {
   void action(async () => {
-    statementDetail.value = await api.generate(
+    const created = await api.generate(
       previewRows.value.map((o) => o.id),
       statementRemark.value,
     )
     previewOpen.value = false
-    statementOpen.value = true
+    if (created.length === 1 && created[0]) {
+      statementDetail.value = await api.statement(created[0].id)
+      statementOpen.value = true
+    } else {
+      ElMessage.success(`已按账单周期生成 ${created.length} 张对账单`)
+    }
     await load()
   })
 }
@@ -376,9 +415,7 @@ function voidPayment() {
   })
 }
 function editProfile(row?: Profile) {
-  profileInput.value = row
-    ? { ...row }
-    : { direction: direction.value, partnerId: 0, termDays: 0, termBasis: 'BIZ_DATE' }
+  profileInput.value = row ? { ...row } : newProfile()
   profileOpen.value = true
 }
 function saveProfile() {
@@ -412,6 +449,7 @@ watch(
     size.value,
     unsettled.value,
     overdue.value,
+    pendingBasis.value,
   ],
   firstPage,
 )
@@ -485,6 +523,13 @@ onBeforeUnmount(() => {
           >历史回填</el-button
         >
         <el-button
+          v-if="kind === 'open-items' && auth.user?.role === 'ADMIN'"
+          text
+          :disabled="busy || loading"
+          @click="autoGenerate"
+          >自动出单</el-button
+        >
+        <el-button
           v-if="kind === 'payments'"
           type="primary"
           :icon="Plus"
@@ -544,7 +589,9 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="kind === 'open-items'" class="finance-options">
       <el-checkbox v-model="unsettled">仅未结清</el-checkbox
-      ><el-checkbox v-model="overdue">仅逾期</el-checkbox><span>人民币 CNY</span>
+      ><el-checkbox v-model="overdue">仅逾期</el-checkbox
+      ><el-checkbox v-if="direction === 'AR'" v-model="pendingBasis">仅待签收</el-checkbox
+      ><span>人民币 CNY</span>
     </div>
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <el-alert
@@ -609,7 +656,11 @@ onBeforeUnmount(() => {
         label="往来单位"
         min-width="180"
         show-overflow-tooltip
-      /><el-table-column prop="period" label="月份" width="105" /><el-table-column
+      /><el-table-column label="账单期间" width="150"
+        ><template #default="{ row }">{{
+          row.periodStart ? periodText(row.periodStart, row.periodEnd) : row.period
+        }}</template></el-table-column
+      ><el-table-column label="到期日" width="110" prop="dueDate" /><el-table-column
         label="金额"
         width="140"
         align="right"
@@ -624,9 +675,11 @@ onBeforeUnmount(() => {
             "
             effect="plain"
             >{{ label(row.status) }}</el-tag
+          ><el-tag v-if="row.autoGenerated" class="finance-tag-gap" type="info" effect="plain"
+            >自动</el-tag
           ></template
         ></el-table-column
-      ><el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+      ><el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
     </el-table>
     <el-table
       v-if="kind === 'payments'"
@@ -674,15 +727,27 @@ onBeforeUnmount(() => {
       border
       height="calc(100vh - 285px)"
       empty-text="暂无结算档案"
-      ><el-table-column prop="partnerName" label="往来单位" min-width="200" /><el-table-column
-        label="账期起算"
-        min-width="130"
+      ><el-table-column prop="partnerName" label="往来单位" min-width="180" /><el-table-column
+        label="截止日"
+        width="95"
         ><template #default="{ row }">{{
-          row.termBasis === 'MONTH_END' ? '业务当月月底' : '出入库日期'
+          row.cutoffDay ? `每月 ${row.cutoffDay} 日` : '自然月'
         }}</template></el-table-column
-      ><el-table-column prop="termDays" label="账期天数" width="130" /><el-table-column
-        label="操作"
-        width="90"
+      ><el-table-column label="账单周期" width="105"
+        ><template #default="{ row }">{{ row.cycleMonths }} 个月</template></el-table-column
+      ><el-table-column label="出单" width="135"
+        ><template #default="{ row }"
+          >结束月 +{{ row.statementLagMonths }} 月 · {{ row.statementDay }} 日</template
+        ></el-table-column
+      ><el-table-column label="到期" min-width="150"
+        ><template #default="{ row }">{{
+          row.dueRule === 'CALENDAR'
+            ? `结束月 +${row.dueMonthOffset} 月 ${row.dueDay ? row.dueDay + ' 日' : '月末'}`
+            : `${row.creditBasis === 'PERIOD_END' ? '账单期末' : row.creditBasis === 'ISSUE_DATE' ? '出单日' : '出单月末'} + ${row.creditDays} 天`
+        }}</template></el-table-column
+      ><el-table-column label="自动出单" width="95"
+        ><template #default="{ row }">{{ row.autoGenerate ? '是' : '否' }}</template></el-table-column
+      ><el-table-column label="操作" width="90"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="editProfile(row)">编辑</el-button></template
         ></el-table-column
@@ -705,9 +770,15 @@ onBeforeUnmount(() => {
       top="4vh"
       :close-on-click-modal="false"
       ><p class="finance-detail-line">
-        {{ previewRows[0]?.partnerName }} · {{ previewRows[0]?.period }} ·
-        {{ previewRows.length }} 条
+        {{ previewRows[0]?.partnerName }}<span v-if="previewPeriod"> · 账单期间 {{ previewPeriod }}</span>
+        · {{ previewRows.length }} 条
       </p>
+      <el-alert
+        v-if="previewRows.length && previewPeriod"
+        title="生成时按客户结算档案的账单周期分组；跨周期选择会生成多张对账单。"
+        type="info"
+        :closable="false"
+      />
       <FinanceItemTable :rows="previewRows" height="45vh" /><el-input
         v-model="statementRemark"
         class="finance-remark"
@@ -728,8 +799,10 @@ onBeforeUnmount(() => {
       <template v-if="statementDetail"
         ><p class="finance-detail-line">
           <strong>{{ statementDetail.statement.partnerName }}</strong
-          ><span>{{ statementDetail.statement.period }}</span
+          ><span>账单期间 {{ statementDetail.statement.period }}</span
           ><el-tag>{{ label(statementDetail.statement.status) }}</el-tag
+          ><span v-if="statementDetail.statement.dueDate"
+            >到期日 {{ statementDetail.statement.dueDate }}</span
           ><span>合计 {{ money(statementDetail.statement.grossAmount) }}</span
           ><span>已结 {{ money(statementDetail.statement.settledAmount) }}</span>
         </p>
@@ -934,25 +1007,88 @@ onBeforeUnmount(() => {
       :close-on-click-modal="false"
       ><el-form label-position="top" :disabled="busy"
         ><el-form-item label="往来单位" required
-          ><el-select v-model="profileInput.partnerId" filterable :disabled="!!profileInput.id"
+          ><el-select
+            v-model="profileInput.partnerId"
+            filterable
+            placeholder="请选择往来单位"
+            :disabled="!!profileInput.id"
             ><el-option
               v-for="p in partners"
               :key="p.id"
               :label="p.name"
               :value="p.id" /></el-select></el-form-item
-        ><el-form-item label="账期起算" required
-          ><el-radio-group v-model="profileInput.termBasis"
-            ><el-radio-button value="BIZ_DATE">出入库日期</el-radio-button
-            ><el-radio-button value="MONTH_END">业务当月月底</el-radio-button></el-radio-group
-          ></el-form-item
-        ><el-form-item label="账期天数" required
+        ><el-form-item label="账单截止日"
           ><el-input-number
-            v-model="profileInput.termDays"
-            :min="0"
-            :max="3650"
-            :precision="0" /></el-form-item
+            v-model="profileInput.cutoffDay"
+            :min="1"
+            :max="31"
+            :precision="0"
+            placeholder="不填按自然月"
+            controls-position="right" /></el-form-item
+        ><el-form-item label="账单周期（月）" required
+          ><el-input-number
+            v-model="profileInput.cycleMonths"
+            :min="1"
+            :max="12"
+            :precision="0"
+            controls-position="right" /></el-form-item
+        ><el-form-item label="出单时点" required
+          ><div class="finance-inline"
+            >账单结束月后
+            <el-input-number
+              v-model="profileInput.statementLagMonths"
+              :min="0"
+              :max="12"
+              :precision="0"
+              controls-position="right" />月的
+            <el-input-number
+              v-model="profileInput.statementDay"
+              :min="1"
+              :max="31"
+              :precision="0"
+              controls-position="right" />日</div
+          ></el-form-item
+        ><el-form-item label="到期规则" required
+          ><el-radio-group v-model="profileInput.dueRule"
+            ><el-radio-button value="CREDIT_DAYS">固定天数</el-radio-button
+            ><el-radio-button value="CALENDAR">约定日期</el-radio-button></el-radio-group
+          ></el-form-item
+        ><el-form-item v-if="profileInput.dueRule === 'CREDIT_DAYS'" label="账期" required
+          ><div class="finance-inline"
+            ><el-select v-model="profileInput.creditBasis" style="width: 130px"
+              ><el-option label="账单期末" value="PERIOD_END" /><el-option
+                label="出单日"
+                value="ISSUE_DATE" /><el-option
+                label="出单月末"
+                value="ISSUE_MONTH_END" /></el-select
+            >+<el-input-number
+              v-model="profileInput.creditDays"
+              :min="0"
+              :max="3650"
+              :precision="0"
+              controls-position="right" />天</div
+          ></el-form-item
+        ><el-form-item v-else label="约定付款日" required
+          ><div class="finance-inline"
+            >账单结束月后
+            <el-input-number
+              v-model="profileInput.dueMonthOffset"
+              :min="0"
+              :max="12"
+              :precision="0"
+              controls-position="right" />月的
+            <el-input-number
+              v-model="profileInput.dueDay"
+              :min="0"
+              :max="31"
+              :precision="0"
+              placeholder="0 表示月末"
+              controls-position="right" />日</div
+          ></el-form-item
+        ><el-form-item label="自动生成对账单"
+          ><el-switch v-model="profileInput.autoGenerate" /></el-form-item
         ><el-alert
-          title="账期用于后续新增或首次回填的记录；已有到期日保持不变。"
+          title="账单月按截止日切分：截止日（含）前的业务归当月，之后的归下月；未填截止日按自然月。自动出单只处理已签收、未对账且在已结束账单期间内的记录。"
           type="info"
           :closable="false" /></el-form
       ><template #footer
@@ -1069,6 +1205,19 @@ onBeforeUnmount(() => {
 }
 .finance-remark {
   margin-top: 16px;
+}
+.finance-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.finance-inline :deep(.el-input-number) {
+  /* 步进按钮固定在右侧，宽度要容得下两位数字（如 15 日、31 日） */
+  width: 96px;
+}
+.finance-tag-gap {
+  margin-left: 6px;
 }
 .finance-form {
   display: grid;

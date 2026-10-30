@@ -19,7 +19,9 @@ public record StatementRenderModel(Company company, Partner partner, Header head
     public record Partner(String name, String contact, String phone) {}
 
     public record Header(String statementNo, String direction, String period, String periodLabel,
+                         LocalDate periodStart, LocalDate periodEnd,
                          LocalDate statementDate, String statementDateLabel,
+                         LocalDate dueDate, String dueDateLabel,
                          String currency, String currencyLabel, String taxRateLabel,
                          String status, String remark) {}
 

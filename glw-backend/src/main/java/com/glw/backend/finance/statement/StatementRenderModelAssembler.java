@@ -57,7 +57,9 @@ public class StatementRenderModelAssembler {
                 : statement.getCreatedAt() != null ? statement.getCreatedAt().toLocalDate() : LocalDate.now();
         return new StatementRenderModel.Header(statement.getStatementNo(), nz(statement.getDirection()),
                 nz(statement.getPeriod()), periodLabel(statement.getPeriod()),
+                statement.getPeriodStart(), statement.getPeriodEnd(),
                 issueDate, issueDate.format(HEADER_DATE),
+                statement.getDueDate(), dateText(statement.getDueDate()),
                 nz(statement.getCurrency()), currencyLabel(statement.getCurrency()),
                 taxRateLabel(items), nz(statement.getStatus()), nz(statement.getRemark()));
     }
@@ -101,9 +103,22 @@ public class StatementRenderModelAssembler {
         return price;
     }
 
+    /** 单月显示为“2026年9月”，跨月期间显示为“2026年8月~9月”或“2025年12月~2026年2月”。 */
     private static String periodLabel(String period) {
-        if (period == null || !period.matches("\\d{4}-\\d{2}")) return nz(period);
-        String[] parts = period.split("-");
+        if (period == null || period.isBlank()) return "";
+        if (period.matches("\\d{4}-\\d{2}")) return monthLabel(period);
+        String[] range = period.split("~", 2);
+        if (range.length != 2) return period;
+        String start = monthLabel(range[0].trim());
+        String[] end = range[1].trim().split("-", 2);
+        if (end.length != 2) return start + "~" + range[1].trim();
+        boolean sameYear = range[0].trim().startsWith(end[0]);
+        return start + "~" + (sameYear ? Integer.parseInt(end[1]) + "月" : monthLabel(range[1].trim()));
+    }
+
+    private static String monthLabel(String month) {
+        if (!month.matches("\\d{4}-\\d{2}")) return nz(month);
+        String[] parts = month.split("-");
         return parts[0] + "年" + Integer.parseInt(parts[1]) + "月";
     }
 

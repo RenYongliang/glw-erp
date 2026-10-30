@@ -4,7 +4,10 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.glw.backend.common.ApiResponse;
 import com.glw.backend.model.dto.OutboundOrderCreateDTO;
 import com.glw.backend.model.dto.OutboundOrderPageDTO;
+import com.glw.backend.model.dto.OutboundOrderSignDTO;
 import com.glw.backend.model.vo.OutboundOrderVO;
+
+import java.util.List;
 import com.glw.backend.service.OutboundOrderService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -29,5 +32,11 @@ public class OutboundOrderController {
     @PostMapping
     public ApiResponse<OutboundOrderVO> create(@Valid @RequestBody OutboundOrderCreateDTO createDTO) {
         return ApiResponse.ok(outboundOrderService.createOutboundOrder(createDTO));
+    }
+
+    /** 登记客户签收日期；应收记录据此进入对应账单月。 */
+    @PostMapping("/sign")
+    public ApiResponse<List<OutboundOrderVO>> sign(@Valid @RequestBody OutboundOrderSignDTO signDTO) {
+        return ApiResponse.ok(outboundOrderService.signOutboundOrders(signDTO));
     }
 }

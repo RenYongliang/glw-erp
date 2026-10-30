@@ -13,7 +13,7 @@ import static org.mockito.Mockito.*;
 
 class FinanceOpenItemServiceTest extends FinanceTestFixture {
     @Test void unknownTaxDoesNotBecomeZeroTaxAndDueDateUsesSnapshotTerms() {
-        var o = item(); var profile = new Profile(); profile.setTermBasis("MONTH_END"); profile.setTermDays(30);
+        var o = item(); var profile = new Profile(); profile.setCreditBasis("PERIOD_END"); profile.setCreditDays(30);
         FinanceOpenItemServiceImpl.prepare(o, profile);
         assertThat(o.getGrossAmount()).isEqualByComparingTo("113");
         assertThat(o.getTaxAmount()).isNull(); assertThat(o.getNetAmount()).isNull();

@@ -1,6 +1,7 @@
 package com.glw.backend.service.impl;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.glw.backend.finance.BillingCalendar;
 import com.glw.backend.finance.FinanceModels;
 import com.glw.backend.finance.FinanceModels.Query;
 import com.glw.backend.finance.FinanceModels.Page;
@@ -20,10 +21,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import static com.glw.backend.finance.FinanceSupport.*;
 
 /** Receivable/payable snapshots and tax confirmation. */
@@ -50,6 +51,33 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
             added++;
         }
         return added;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    @Override
+    public int refreshBasis(String direction, Long sourceId) {
+        lockService.lock();
+        String sourceType = "AP".equals(direction) ? "INBOUND" : "OUTBOUND";
+        Map<Long, OpenItem> fresh = finOpenItemMapper.sources(direction, sourceId).stream()
+                .collect(Collectors.toMap(OpenItem::getSourceLineId, item -> item));
+        int updated = 0;
+        for (OpenItem existing : finOpenItemMapper.openItemsBySource(sourceType, sourceId)) {
+            OpenItem source = fresh.get(existing.getSourceLineId());
+            // 已进入对账单或已确认的记录不再回改，避免破坏已出账口径。
+            if (source == null || existing.getStatementId() != null
+                    || !("OPEN".equals(existing.getReconcileStatus()) || "PENDING_TAX".equals(existing.getReconcileStatus())))
+                continue;
+            if (Objects.equals(source.getBasisDate(), existing.getBasisDate())
+                    && Objects.equals(source.getBasisReady(), existing.getBasisReady())) continue;
+            existing.setBasisDate(source.getBasisDate());
+            existing.setBasisReady(source.getBasisReady());
+            BillingCalendar.applyItem(existing, finProfileMapper.profile(direction, existing.getPartnerId()));
+            changed(finOpenItemMapper.updateBilling(existing));
+            auditService.record("OPEN_ITEM", existing.getId(), "REFRESH_BASIS",
+                    existing.getBasisDate() == null ? "PENDING" : existing.getBasisDate().toString());
+            updated++;
+        }
+        return updated;
     }
 
     @Transactional
@@ -84,10 +112,7 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
                 item.setTaxAmount(null);
             }
         }
-        item.setPeriod(YearMonth.from(item.getBizDate()).toString());
-        LocalDate base = profile != null && "MONTH_END".equals(profile.getTermBasis())
-                ? YearMonth.from(item.getBizDate()).atEndOfMonth() : item.getBizDate();
-        item.setDueDate(base.plusDays(profile == null ? 0 : profile.getTermDays()));
+        BillingCalendar.applyItem(item, profile);
     }
 
     @Override
@@ -111,7 +136,10 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
     @Override
     public List<OpenItem> preview(Query q) {
         q.setStatus("OPEN");
-        return finOpenItemMapper.openItems(q, false);
+        // 待签收记录尚未确定账单月，不参与出单预览。
+        return finOpenItemMapper.openItems(q, false).stream()
+                .filter(item -> item.getBasisReady() == null || item.getBasisReady() == 1)
+                .toList();
     }
 
     @Override

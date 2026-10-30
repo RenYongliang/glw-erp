@@ -15,6 +15,7 @@ import com.glw.backend.model.dto.OutboundOrderAllocationCreateDTO;
 import com.glw.backend.model.dto.OutboundOrderBatchCreateDTO;
 import com.glw.backend.model.dto.OutboundOrderCreateDTO;
 import com.glw.backend.model.dto.OutboundOrderPageDTO;
+import com.glw.backend.model.dto.OutboundOrderSignDTO;
 import com.glw.backend.model.entity.Customer;
 import com.glw.backend.model.entity.Inventory;
 import com.glw.backend.model.entity.OutboundOrder;
@@ -46,6 +47,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
@@ -283,6 +285,47 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         OutboundOrderVO result = converter.toVO(outboundOrder);
         fillItems(List.of(result));
         return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<OutboundOrderVO> signOutboundOrders(OutboundOrderSignDTO signDTO) {
+        List<Long> ids = signDTO.getOrderIds().stream().distinct().sorted().toList();
+        if (ids.size() != signDTO.getOrderIds().size())
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "出库单不可重复选择");
+        LocalDateTime signTime = parseSignTime(signDTO.getSignTime());
+        List<OutboundOrder> orders = lambdaQuery().in(OutboundOrder::getId, ids)
+                .orderByAsc(OutboundOrder::getId).last("FOR UPDATE").list();
+        if (orders.size() != ids.size())
+            throw new BusinessException(ErrorCode.NOT_FOUND, "出库单不存在");
+        // 先整体校验再落库，避免部分单据登记成功。
+        for (OutboundOrder order : orders) {
+            if (order.getStatus() != OutboundStatus.COMPLETED)
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已完成出库的单据可以登记签收");
+            if (order.getOutboundTime() != null && signTime.isBefore(order.getOutboundTime()))
+                throw new BusinessException(ErrorCode.BAD_REQUEST,
+                        "签收日期不能早于出库时间：" + order.getOutboundOrderNo());
+        }
+        for (OutboundOrder order : orders) {
+            order.setSignTime(signTime);
+            if (!updateById(order))
+                throw new BusinessException(ErrorCode.CONFLICT, "出库单已发生变化，请刷新后重试");
+            financeService.refreshBasis("AR", order.getId());
+        }
+        List<OutboundOrderVO> result = orders.stream().map(converter::toVO).toList();
+        fillItems(result);
+        return result;
+    }
+
+    private LocalDateTime parseSignTime(String value) {
+        if (!StringUtils.hasText(value))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写客户签收日期");
+        String text = value.trim().replace(' ', 'T');
+        try {
+            return text.length() <= 10 ? LocalDate.parse(text).atStartOfDay() : LocalDateTime.parse(text);
+        } catch (DateTimeParseException ex) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "签收日期格式不正确");
+        }
     }
 
     private void validateAllocations(

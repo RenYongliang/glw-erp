@@ -301,6 +301,10 @@ public class XlsxStatementRenderer implements StatementRenderer {
         map.put("header.direction", h.direction());
         map.put("header.period", h.period());
         map.put("header.periodLabel", h.periodLabel());
+        map.put("header.periodStart", h.periodStart());
+        map.put("header.periodEnd", h.periodEnd());
+        map.put("header.dueDate", h.dueDate());
+        map.put("header.dueDateLabel", h.dueDateLabel());
         map.put("header.statementDate", h.statementDate());
         map.put("header.statementDateLabel", h.statementDateLabel());
         map.put("header.currency", h.currency());
