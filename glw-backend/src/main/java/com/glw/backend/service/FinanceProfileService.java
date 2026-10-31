@@ -10,6 +10,6 @@ import java.util.List;
 public interface FinanceProfileService extends IService<FinProfile> {
     List<Partner> partners(String direction);
     List<FinanceModels.Profile> profiles(String direction);
-    void saveProfile(FinanceModels.Profile input);
+    FinanceModels.SaveProfileResult saveProfile(FinanceModels.Profile input);
     Partner partner(String direction, Long id);
 }

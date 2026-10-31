@@ -171,6 +171,27 @@ const dueText = (row: Profile) => {
 const dayTip = (day?: number | null) => (day && day > 28 ? '该月没有这一天时取月末' : '')
 const dueTip = (row: Profile) =>
   row.dueRule !== 'CALENDAR' ? '' : row.dueDay ? dayTip(row.dueDay) : '0 表示该月最后一天'
+const companyProfile = computed(() => profiles.value.find((p) => p.partnerId === 0))
+/** 公司默认方案固定置顶；还没配置时给一行占位，方便从这里进入配置。 */
+const profileRows = computed<Profile[]>(() =>
+  companyProfile.value
+    ? profiles.value
+    : [{ ...newProfile(), partnerId: 0, partnerName: '公司默认（未配置）' }, ...profiles.value],
+)
+/** 沿用公司默认的客户，方案字段只读，只有自动出单开关可以改。 */
+const planLocked = computed(
+  () => profileInput.value.partnerId !== 0 && profileInput.value.planSource === 'DEFAULT',
+)
+const profileTitle = computed(() =>
+  profileInput.value.partnerId === 0
+    ? '公司默认结算方案'
+    : profileInput.value.id
+      ? '编辑结算档案'
+      : '新增结算档案',
+)
+function profileRowClass({ row }: { row: Profile }) {
+  return row.partnerId === 0 ? 'profile-default-row' : ''
+}
 function query(): FinanceQuery {
   return {
     direction: direction.value,
@@ -200,6 +221,7 @@ function newProfile(): Profile {
     dueDay: 0,
     autoGenerate: false,
     reconcileBasis: direction.value === 'AR' ? 'SIGNED' : 'INBOUND',
+    planSource: 'CUSTOM',
   }
 }
 /** 账单期间展示：2026-09 或 2026-08~2026-09。 */
@@ -493,18 +515,53 @@ function voidPayment() {
     await refreshPayment()
   })
 }
+/** 切换到“公司默认”时把默认方案复制到表单，方案字段只读展示。 */
+function applyCompanyPlan() {
+  const base = companyProfile.value
+  if (!base) return
+  const keep = profileInput.value
+  profileInput.value = {
+    ...base,
+    id: keep.id,
+    direction: keep.direction,
+    partnerId: keep.partnerId,
+    partnerName: keep.partnerName,
+    autoGenerate: keep.autoGenerate,
+    planSource: 'DEFAULT',
+  }
+  normalizeProfile()
+}
+watch(
+  () => profileInput.value.planSource,
+  (source) => {
+    if (source === 'DEFAULT') applyCompanyPlan()
+  },
+)
 function editProfile(row?: Profile) {
   profileInput.value = row ? { ...row } : newProfile()
   normalizeProfile()
+  // 沿用默认方案的客户每次都按当前默认值展示，避免默认行改过后看到旧值。
+  if (profileInput.value.planSource === 'DEFAULT') applyCompanyPlan()
   profileOpen.value = true
 }
 function saveProfile() {
   void action(async () => {
-    if (!profileInput.value.partnerId) throw Error('请选择往来单位')
+    if (profileInput.value.partnerId === undefined || profileInput.value.partnerId === null)
+      throw Error('请选择往来单位')
+    if (profileInput.value.planSource === 'DEFAULT' && !companyProfile.value)
+      throw Error('请先在「公司默认」里配置统一的结算方案')
     if (profileProblem.value) throw Error(profileProblem.value)
-    await api.saveProfile(profileInput.value)
+    const company = profileInput.value.partnerId === 0
+    const result = await api.saveProfile(profileInput.value)
     profileOpen.value = false
     await load()
+    if (company && result?.syncedPartners)
+      ElMessage.success(
+        `已同步 ${result.syncedPartners} 个客户的默认方案${
+          result.recalculatedItems ? `，重算 ${result.recalculatedItems} 条未出账记录` : ''
+        }`,
+      )
+    else ElMessage.success('结算档案已保存')
   })
 }
 watch(page, load)
@@ -777,16 +834,24 @@ onBeforeUnmount(() => {
     <el-table
       v-if="kind === 'profiles'"
       v-loading="loading"
-      :data="profiles"
+      :data="profileRows"
+      :row-class-name="profileRowClass"
       border
       height="calc(100vh - 285px)"
       empty-text="暂无结算档案"
       ><el-table-column
         prop="partnerName"
         label="往来单位"
-        min-width="130"
+        min-width="150"
         show-overflow-tooltip
-      /><el-table-column
+      /><el-table-column label="方案来源" width="105"
+        ><template #default="{ row }"
+          ><el-tag v-if="row.partnerId === 0" type="warning" size="small">公司默认</el-tag
+          ><el-tag v-else :type="row.planSource === 'DEFAULT' ? 'info' : 'success'" size="small">{{
+            row.planSource === 'DEFAULT' ? '公司默认' : '自定义'
+          }}</el-tag></template
+        ></el-table-column
+      ><el-table-column
         label="截止日"
         width="105"
         ><template #default="{ row }"
@@ -1060,13 +1125,17 @@ onBeforeUnmount(() => {
     >
     <el-dialog
       v-model="profileOpen"
-      title="结算档案"
+      :title="profileTitle"
       width="min(720px,96vw)"
       top="6vh"
       :close-on-click-modal="false"
       ><el-form label-position="top" :disabled="busy"
         ><el-form-item label="往来单位" required
-          ><el-select
+          ><el-input
+            v-if="profileInput.partnerId === 0"
+            model-value="公司默认（所有未单独定制的客户通用）"
+            disabled /><el-select
+            v-else
             v-model="profileInput.partnerId"
             filterable
             placeholder="请选择往来单位"
@@ -1075,7 +1144,22 @@ onBeforeUnmount(() => {
               v-for="p in partners"
               :key="p.id"
               :label="p.name"
-              :value="p.id" /></el-select></el-form-item
+              :value="p.id" /></el-select
+          ><div v-if="profileInput.partnerId === 0" class="finance-hint">
+            这里配置的方案会复制给选择“公司默认”的客户；自动出单开关仍在各客户档案里单独控制。
+          </div></el-form-item
+        ><el-form-item v-if="profileInput.partnerId !== 0" label="方案来源"
+          ><el-radio-group v-model="profileInput.planSource"
+            ><el-radio-button value="DEFAULT" :disabled="!companyProfile"
+              >公司默认</el-radio-button
+            ><el-radio-button value="CUSTOM">自定义</el-radio-button></el-radio-group
+          ><div class="finance-hint">
+            {{
+              companyProfile
+                ? '沿用公司默认方案：方案字段只读，默认方案调整后自动同步；自动出单开关仍按客户单独控制。'
+                : '还没有配置公司默认方案，请先在列表顶部“公司默认”那一行里配置。'
+            }}
+          </div></el-form-item
         ><el-form-item label="账单截止日"
           ><el-input-number
             v-model="profileInput.cutoffDay"
@@ -1083,6 +1167,7 @@ onBeforeUnmount(() => {
             :max="31"
             :precision="0"
             placeholder="不填按自然月"
+            :disabled="planLocked"
             controls-position="right" /></el-form-item
         ><el-form-item label="账单周期（月）" required
           ><el-input-number
@@ -1090,12 +1175,16 @@ onBeforeUnmount(() => {
             :min="1"
             :max="12"
             :precision="0"
+            :disabled="planLocked"
             controls-position="right"
           /><div class="finance-hint">1 = 每月一张，2 = 两个月一张，依次类推。</div></el-form-item
         ><el-form-item label="出单时点" required
           ><div class="finance-inline"
             >账单结束
-            <el-select v-model="profileInput.statementLagMonths" style="width: 120px"
+            <el-select
+              v-model="profileInput.statementLagMonths"
+              style="width: 120px"
+              :disabled="planLocked"
               ><el-option
                 v-for="option in issueMonthOptions"
                 :key="option.value"
@@ -1107,19 +1196,23 @@ onBeforeUnmount(() => {
               :min="issueDayMin"
               :max="31"
               :precision="0"
+              :disabled="planLocked"
               controls-position="right" />日</div
           ><div v-if="issueError" class="finance-hint finance-hint-error">{{ issueError }}</div
           ><div class="finance-hint">
             出单日必须晚于账单截止日；多个月一结时“末月”指账单覆盖的最后一个月，该月没有这一天时取月末。
           </div></el-form-item
         ><el-form-item label="到期规则" required
-          ><el-radio-group v-model="profileInput.dueRule"
+          ><el-radio-group v-model="profileInput.dueRule" :disabled="planLocked"
             ><el-radio-button value="CREDIT_DAYS">固定天数</el-radio-button
             ><el-radio-button value="CALENDAR">约定日期</el-radio-button></el-radio-group
           ></el-form-item
         ><el-form-item v-if="profileInput.dueRule === 'CREDIT_DAYS'" label="账期" required
           ><div class="finance-inline"
-            ><el-select v-model="profileInput.creditBasis" style="width: 130px"
+            ><el-select
+              v-model="profileInput.creditBasis"
+              style="width: 130px"
+              :disabled="planLocked"
               ><el-option label="账单期末" value="PERIOD_END" /><el-option
                 label="出单日"
                 value="ISSUE_DATE" /><el-option
@@ -1130,6 +1223,7 @@ onBeforeUnmount(() => {
               :min="0"
               :max="3650"
               :precision="0"
+              :disabled="planLocked"
               controls-position="right" />天</div
           ><div class="finance-hint">
             按自然日累加，不受月份长短影响；填 0 天表示到期日就是起算日当天。
@@ -1137,7 +1231,10 @@ onBeforeUnmount(() => {
         ><el-form-item v-else label="约定付款日" required
           ><div class="finance-inline"
             >账单结束
-            <el-select v-model="profileInput.dueMonthOffset" style="width: 120px"
+            <el-select
+              v-model="profileInput.dueMonthOffset"
+              style="width: 120px"
+              :disabled="planLocked"
               ><el-option
                 v-for="option in dueMonthOptions"
                 :key="option.value"
@@ -1150,13 +1247,16 @@ onBeforeUnmount(() => {
               :max="31"
               :precision="0"
               placeholder="0 表示月末"
+              :disabled="planLocked"
               controls-position="right" />日</div
           ><div v-if="dueError" class="finance-hint finance-hint-error">{{ dueError }}</div
           ><div class="finance-hint">
             填 0 表示该月最后一天；填 29–31 日时，该月没有这一天则取月末。
           </div></el-form-item>
-        <el-form-item label="自动生成对账单"
+        <el-form-item v-if="profileInput.partnerId !== 0" label="自动生成对账单"
           ><el-switch v-model="profileInput.autoGenerate" /></el-form-item
+        ><el-form-item v-else label="自动生成对账单"
+          ><span class="finance-hint">公司默认方案本身不出单，由各客户自己的开关控制。</span></el-form-item
         ><el-alert
           title="账单月按截止日切分：截止日（含）前的业务归当月，之后的归下月；未填截止日按自然月。自动出单只处理已签收、未对账且在已结束账单期间内的记录。"
           type="info"
@@ -1297,6 +1397,11 @@ onBeforeUnmount(() => {
 .finance-page :deep(.el-table) {
   font-size: 13px;
   --el-table-header-bg-color: #f5f6fa;
+}
+/* 公司默认方案固定置顶，和客户档案区分开。 */
+.finance-page :deep(.profile-default-row) {
+  font-weight: 600;
+  --el-table-tr-bg-color: #fffbf0;
 }
 @media (max-width: 600px) {
   .finance-summary {

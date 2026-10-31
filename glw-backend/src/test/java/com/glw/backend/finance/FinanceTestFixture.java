@@ -36,7 +36,7 @@ abstract class FinanceTestFixture {
     final FinanceAuditService audit = mock(FinanceAuditService.class);
     final DocumentNumberService numbers = mock(DocumentNumberService.class);
     final FinanceStatementTemplateService statementTemplates = mock(FinanceStatementTemplateService.class);
-    final FinanceProfileServiceImpl profile = new FinanceProfileServiceImpl(finProfile, lock, audit);
+    final FinanceProfileServiceImpl profile = new FinanceProfileServiceImpl(finProfile, finOpenItem, lock, audit);
     final FinanceOpenItemServiceImpl open = new FinanceOpenItemServiceImpl(finOpenItem, finProfile, lock, audit);
     final FinanceStatementServiceImpl statements = new FinanceStatementServiceImpl(finStatement, finOpenItem, finStatementItem, finAllocation, lock, audit, open, statementTemplates, finProfile, numbers);
     final FinancePaymentServiceImpl cash = new FinancePaymentServiceImpl(finPayment, finAllocation, lock, audit, profile, numbers);

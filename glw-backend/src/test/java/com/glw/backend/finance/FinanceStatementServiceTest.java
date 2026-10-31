@@ -23,6 +23,14 @@ class FinanceStatementServiceTest extends FinanceTestFixture {
         verify(finStatement, never()).insertStatement(any());
     }
 
+    @Test void blocksManualGenerationWithoutProfile() {
+        var one = item(); one.setReconcileStatus("OPEN");
+        when(finOpenItem.openItem(1L)).thenReturn(one);
+        var input = new Generate(); input.setOpenItemIds(List.of(1L));
+        assertThatThrownBy(() -> statements.generate(input)).hasMessageContaining("结算档案");
+        verify(finStatement, never()).insertStatement(any());
+    }
+
     @Test void voidDraftReleasesActualOpenItemIdsAndCanBeRetried() {
         var s = new Statement(); s.setId(7L); s.setStatus("DRAFT");
         var item = item(); item.setId(93L); item.setReconcileStatus("IN_STATEMENT");

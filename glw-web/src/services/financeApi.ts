@@ -134,6 +134,13 @@ export interface Profile {
   dueDay: number
   autoGenerate: boolean
   reconcileBasis: 'SIGNED' | 'INBOUND'
+  /** DEFAULT=沿用公司默认方案（方案字段只读），CUSTOM=自定义；partnerId=0 的公司默认行固定 CUSTOM。 */
+  planSource: 'DEFAULT' | 'CUSTOM'
+}
+/** 保存结算档案的结果：公司默认方案同步给多少客户、按新口径重算多少条未出账记录。 */
+export interface SaveProfileResult {
+  syncedPartners: number
+  recalculatedItems: number
 }
 export interface Summary {
   grossAmount: Money
@@ -176,7 +183,7 @@ export const financeApi = {
   partners: (direction: Direction) => apiRequest<Partner[]>(`/fin/partners?direction=${direction}`),
   profiles: (direction: Direction) =>
     apiRequest<Profile[]>(`/fin/profile/list?direction=${direction}`),
-  saveProfile: (input: Profile) => post<void>('profile/save', input),
+  saveProfile: (input: Profile) => post<SaveProfileResult>('profile/save', input),
 }
 export type StatementFormat = 'XLSX' | 'PDF'
 export type DocumentTypeCode =
@@ -211,6 +218,14 @@ export interface LayoutColumn {
   width: number
   align?: 'left' | 'center' | 'right'
 }
+/** 表格自带的合计行单元格：按 span 跨列合并，text 可写 {{占位符}}，field 取合计字段。 */
+export interface LayoutFooterCell {
+  text?: string
+  field?: string
+  span?: number
+  align?: 'left' | 'center' | 'right'
+  bold?: boolean
+}
 export interface LayoutComponent {
   id: string
   type: 'text' | 'field' | 'table' | 'signature'
@@ -229,6 +244,8 @@ export interface LayoutComponent {
   rowHeight?: number
   headerBold?: boolean
   columns?: LayoutColumn[]
+  /** 合计行：跟在最后一行明细后面，和表格是同一个框。 */
+  footer?: LayoutFooterCell[]
 }
 export interface StatementLayout {
   page: {

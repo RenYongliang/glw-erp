@@ -18,21 +18,42 @@
     <result column="due_day" property="dueDay" jdbcType="INTEGER"/>
     <result column="auto_generate" property="autoGenerate" jdbcType="INTEGER"/>
     <result column="reconcile_basis" property="reconcileBasis" jdbcType="VARCHAR"/>
+    <result column="plan_source" property="planSource" jdbcType="VARCHAR"/>
     <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
   </resultMap>
   <sql id="Base_Column_List">id, direction, partner_id, term_days, term_basis, cutoff_day, cycle_months, statement_lag_months,
-    statement_day, due_rule, credit_days, credit_basis, due_month_offset, due_day, auto_generate, reconcile_basis, updated_at</sql>
+    statement_day, due_rule, credit_days, credit_basis, due_month_offset, due_day, auto_generate, reconcile_basis,
+    plan_source, updated_at</sql>
   <sql id="Profile_Column_List">direction, partner_id, cutoff_day, cycle_months, statement_lag_months, statement_day,
-    due_rule, credit_days, credit_basis, due_month_offset, due_day, auto_generate, reconcile_basis</sql>
+    due_rule, credit_days, credit_basis, due_month_offset, due_day, auto_generate, reconcile_basis, plan_source</sql>
   <select id="profiles" resultType="com.glw.backend.finance.FinanceModels$Profile">
-    SELECT p.*,c.name partner_name FROM fin_profile p JOIN customer c ON c.id=p.partner_id WHERE p.direction='AR' AND #{direction}='AR' UNION ALL SELECT p.*,s.name partner_name FROM fin_profile p JOIN supplier s ON s.id=p.partner_id WHERE p.direction='AP' AND #{direction}='AP' ORDER BY partner_id
+    SELECT p.*,COALESCE(c.name,'公司默认') partner_name FROM fin_profile p LEFT JOIN customer c ON c.id=p.partner_id WHERE p.direction='AR' AND #{direction}='AR'
+    UNION ALL
+    SELECT p.*,COALESCE(s.name,'公司默认') partner_name FROM fin_profile p LEFT JOIN supplier s ON s.id=p.partner_id WHERE p.direction='AP' AND #{direction}='AP'
+    ORDER BY partner_id
   </select>
   <select id="profile" resultType="com.glw.backend.finance.FinanceModels$Profile">
     SELECT * FROM fin_profile WHERE direction=#{direction} AND partner_id=#{partnerId}
   </select>
-  <select id="autoProfiles" resultType="com.glw.backend.finance.FinanceModels$Profile">
-    SELECT <include refid="Profile_Column_List"/> FROM fin_profile WHERE auto_generate=1 AND direction=#{direction} ORDER BY partner_id
+  <select id="companyProfile" resultType="com.glw.backend.finance.FinanceModels$Profile">
+    SELECT <include refid="Profile_Column_List"/> FROM fin_profile WHERE direction=#{direction} AND partner_id=0
   </select>
+  <select id="autoProfiles" resultType="com.glw.backend.finance.FinanceModels$Profile">
+    SELECT <include refid="Profile_Column_List"/> FROM fin_profile
+    WHERE auto_generate=1 AND direction=#{direction} AND partner_id&lt;&gt;0 ORDER BY partner_id
+  </select>
+  <select id="defaultPartnerIds" resultType="long">
+    SELECT partner_id FROM fin_profile WHERE direction=#{direction} AND plan_source='DEFAULT' AND partner_id&lt;&gt;0 ORDER BY partner_id
+  </select>
+  <update id="syncDefault">
+    UPDATE fin_profile c JOIN fin_profile d ON d.direction=c.direction AND d.partner_id=0
+    SET c.cutoff_day=d.cutoff_day,c.cycle_months=d.cycle_months,c.statement_lag_months=d.statement_lag_months,
+      c.statement_day=d.statement_day,c.due_rule=d.due_rule,c.credit_days=d.credit_days,
+      c.credit_basis=d.credit_basis,c.due_month_offset=d.due_month_offset,c.due_day=d.due_day,
+      c.reconcile_basis=CASE WHEN c.direction='AP' THEN 'INBOUND' ELSE d.reconcile_basis END,
+      c.term_days=d.term_days,c.term_basis=d.term_basis
+    WHERE c.direction=#{direction} AND c.plan_source='DEFAULT' AND c.partner_id&lt;&gt;0
+  </update>
   <select id="autoProfileDirections" resultType="string">
     SELECT DISTINCT direction FROM fin_profile WHERE auto_generate=1 ORDER BY direction
   </select>
@@ -41,14 +62,14 @@
     VALUES (#{direction},#{partnerId},#{cutoffDay},#{cycleMonths},#{statementLagMonths},#{statementDay},
       #{dueRule},#{creditDays},#{creditBasis},#{dueMonthOffset},#{dueDay},#{autoGenerate},
       CASE WHEN #{direction}='AP' OR #{reconcileBasis}='INBOUND' THEN 'INBOUND' ELSE 'SIGNED' END,
-      #{creditDays},'MONTH_END')
+      #{planSource},#{creditDays},'MONTH_END')
     ON DUPLICATE KEY UPDATE
       cutoff_day=VALUES(cutoff_day),cycle_months=VALUES(cycle_months),
       statement_lag_months=VALUES(statement_lag_months),statement_day=VALUES(statement_day),
       due_rule=VALUES(due_rule),credit_days=VALUES(credit_days),credit_basis=VALUES(credit_basis),
       due_month_offset=VALUES(due_month_offset),due_day=VALUES(due_day),
       auto_generate=VALUES(auto_generate),reconcile_basis=VALUES(reconcile_basis),
-      term_days=VALUES(term_days),term_basis=VALUES(term_basis)
+      plan_source=VALUES(plan_source),term_days=VALUES(term_days),term_basis=VALUES(term_basis)
   </insert>
   <select id="partners" resultType="com.glw.backend.finance.FinanceModels$Partner">
     SELECT id,name,short_name FROM customer WHERE #{direction}='AR' UNION ALL SELECT id,name,short_name FROM supplier WHERE #{direction}='AP' ORDER BY id

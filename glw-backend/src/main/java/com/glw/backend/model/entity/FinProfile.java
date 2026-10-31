@@ -71,6 +71,10 @@ public class FinProfile {
     @TableField("reconcile_basis")
     private String reconcileBasis;
 
+    /** 方案来源：DEFAULT=复制公司默认方案（只读），CUSTOM=自定义。 */
+    @TableField("plan_source")
+    private String planSource;
+
     @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime updatedAt;
 }

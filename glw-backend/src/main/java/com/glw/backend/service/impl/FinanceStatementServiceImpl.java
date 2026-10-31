@@ -71,6 +71,8 @@ public class FinanceStatementServiceImpl extends ServiceImpl<FinStatementMapper,
                 throw bad("存在待客户签收的记录，签收后才能生成对账单：" + item.getSourceNo());
         }
         var profile = profileMapper.profile(first.getDirection(), first.getPartnerId());
+        // 没有结算档案就没有账单口径（截止日、周期、到期规则），手工出单同样拦住。
+        if (profile == null) throw bad("该往来单位尚未建立结算档案，请先到「结算档案」添加后再出单");
         List<Statement> created = new ArrayList<>();
         for (BillingCalendar.Cycle cycle : BillingCalendar.cycles(items, profile)) {
             created.add(createStatement(cycle, input.getRemark(), false));

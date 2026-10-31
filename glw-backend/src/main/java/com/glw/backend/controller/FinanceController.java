@@ -122,5 +122,5 @@ public class FinanceController {
     @PostMapping("/clearing/{id}/reverse") public ApiResponse<Void> reverse(@PathVariable Long id) { financeAllocationService.reverse(id); return ApiResponse.ok(null); }
     @GetMapping("/partners") public ApiResponse<List<Partner>> partners(@RequestParam String direction) { return ApiResponse.ok(financeProfileService.partners(direction)); }
     @GetMapping("/profile/list") public ApiResponse<List<com.glw.backend.finance.FinanceModels.Profile>> profiles(@RequestParam String direction) { return ApiResponse.ok(financeProfileService.profiles(direction)); }
-    @PostMapping("/profile/save") public ApiResponse<Void> saveProfile(@Valid @RequestBody com.glw.backend.finance.FinanceModels.Profile input) { financeProfileService.saveProfile(input); return ApiResponse.ok(null); }
+    @PostMapping("/profile/save") public ApiResponse<com.glw.backend.finance.FinanceModels.SaveProfileResult> saveProfile(@Valid @RequestBody com.glw.backend.finance.FinanceModels.Profile input) { return ApiResponse.ok(financeProfileService.saveProfile(input)); }
 }

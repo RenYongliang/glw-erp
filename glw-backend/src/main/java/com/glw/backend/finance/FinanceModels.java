@@ -60,7 +60,8 @@ public final class FinanceModels {
     @Data public static class Profile {
         private Long id;
         @NotNull @Pattern(regexp = "AR|AP") private String direction;
-        @NotNull @Positive private Long partnerId;
+        /** 0 表示公司默认方案行；客户档案必须填真实往来单位。 */
+        @NotNull @Min(0) private Long partnerId;
         private String partnerName;
         /** 截止日（1-31）；为空表示按自然月切分账单。 */
         @Min(1) @Max(31) private Integer cutoffDay;
@@ -84,7 +85,12 @@ public final class FinanceModels {
         private Boolean autoGenerate = Boolean.FALSE;
         /** 对账依据：AR 可选 SIGNED/INBOUND，AP 固定 INBOUND。 */
         @Pattern(regexp = "SIGNED|INBOUND") private String reconcileBasis;
+        /** 方案来源：DEFAULT=复制公司默认方案（只读），CUSTOM=自定义；partner_id=0 的公司默认行固定 CUSTOM。 */
+        @Pattern(regexp = "DEFAULT|CUSTOM") private String planSource = "CUSTOM";
     }
+
+    /** 保存结算档案的结果：同步了多少个客户默认行、重算了多少条未出账记录。 */
+    public record SaveProfileResult(int syncedPartners, int recalculatedItems) {}
     @Data public static class Partner {
         private Long id;
         private String name, shortName;

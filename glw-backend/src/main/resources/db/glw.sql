@@ -505,6 +505,7 @@ INSERT INTO fin_lock VALUES (1);
 -- ----------------------------
 -- Table structure for fin_profile
 -- 每个往来单位一份结算档案：截止日、账单周期、出单时点与到期规则。
+-- partner_id = 0 是公司默认方案；客户行 plan_source=DEFAULT 时复制默认行，默认行保存后自动同步。
 -- ----------------------------
 CREATE TABLE fin_profile (
  id bigint PRIMARY KEY AUTO_INCREMENT,
@@ -523,9 +524,11 @@ CREATE TABLE fin_profile (
  due_day int NOT NULL DEFAULT 0 COMMENT 'CALENDAR：第几天，0=月末',
  auto_generate tinyint NOT NULL DEFAULT 0 COMMENT '是否自动生成对账单',
  reconcile_basis varchar(20) NOT NULL DEFAULT 'INBOUND' COMMENT 'AR: SIGNED/INBOUND；AP: INBOUND',
+ plan_source varchar(10) NOT NULL DEFAULT 'CUSTOM' COMMENT 'DEFAULT=复制公司默认方案（只读），CUSTOM=自定义',
  updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  UNIQUE KEY uk_partner (direction, partner_id),
  CHECK (direction IN ('AR','AP')),
+ CHECK (plan_source IN ('DEFAULT','CUSTOM')),
  CHECK (term_days BETWEEN 0 AND 3650),
  CHECK (term_basis IN ('BIZ_DATE','MONTH_END')),
  CHECK (cutoff_day IS NULL OR cutoff_day BETWEEN 1 AND 31),

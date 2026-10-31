@@ -112,6 +112,12 @@
       AND reconcile_status='OPEN' AND statement_id IS NULL
     ORDER BY basis_date,id
   </select>
+  <select id="pendingBilling" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
+    SELECT * FROM fin_open_item
+    WHERE direction=#{direction} AND partner_id=#{partnerId}
+      AND statement_id IS NULL AND reconcile_status='OPEN'
+    ORDER BY basis_date,id
+  </select>
   <select id="bySource" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
     SELECT * FROM fin_open_item WHERE source_type=#{type} AND source_line_id=#{lineId}
   </select>
