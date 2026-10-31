@@ -124,6 +124,15 @@ public class LayoutStatementRenderer {
                     if (!column.key().startsWith("item.") || !ITEM_FIELDS.contains(column.key().substring(5)))
                         throw bad("明细列字段不存在：" + column.key());
                 }
+                List<StatementLayout.FooterCell> footer = c.summary();
+                if (footer.size() > c.columns().size()) throw bad("合计行单元格不能超过明细列数");
+                int spans = footer.stream().mapToInt(StatementLayout.FooterCell::spanCount).sum();
+                if (spans > c.columns().size())
+                    throw bad("合计行跨列数（" + spans + "）超过明细列数（" + c.columns().size() + "）");
+                for (StatementLayout.FooterCell cell : footer) {
+                    if (!cell.key().isEmpty()) checkScalar(cell.key());
+                    checkText(cell.label());
+                }
             }
             if ("field".equals(c.kind())) checkScalar(c.field());
             if ("text".equals(c.kind())) checkText(c.text());
@@ -153,7 +162,7 @@ public class LayoutStatementRenderer {
         for (StatementLayout.Component table : components) {
             if (!"table".equals(table.kind()) || table == component) continue;
             if (component.y() + 0.01 < table.y() + table.h()) continue;
-            double rendered = table.headerMm() + Math.max(itemCount, 1) * table.rowMm();
+            double rendered = table.headerMm() + Math.max(itemCount, 1) * table.rowMm() + table.footerMm();
             shift += Math.max(0, rendered - table.h());
         }
         return shift;
@@ -163,7 +172,7 @@ public class LayoutStatementRenderer {
         if (shift == 0) return c;
         return new StatementLayout.Component(c.id(), c.type(), c.x(), c.y() + shift, c.w(), c.h(),
                 c.text(), c.label(), c.field(), c.fontSize(), c.bold(), c.align(), c.border(), c.color(),
-                c.headerHeight(), c.rowHeight(), c.headerBold(), c.columns());
+                c.headerHeight(), c.rowHeight(), c.headerBold(), c.columns(), c.footer());
     }
 
     private void draw(Sheet sheet, XSSFWorkbook workbook, StatementLayout.Component component,
@@ -176,7 +185,7 @@ public class LayoutStatementRenderer {
                 box(sheet, workbook, component, fieldText(component, scalars), hasLabel ? null : value, false, grid);
             }
             case "signature" -> box(sheet, workbook, component, replace(component.text(), scalars), null, true, grid);
-            case "table" -> table(sheet, workbook, component, rows, grid);
+            case "table" -> table(sheet, workbook, component, rows, scalars, grid);
             default -> { }
         }
     }
@@ -190,7 +199,7 @@ public class LayoutStatementRenderer {
     }
 
     private void table(Sheet sheet, XSSFWorkbook workbook, StatementLayout.Component component,
-                       List<Map<String, Object>> rows, double grid) {
+                       List<Map<String, Object>> rows, Map<String, Object> scalars, double grid) {
         List<StatementLayout.Column> columns = component.columns();
         double totalWidth = columns.stream().mapToDouble(StatementLayout.Column::widthMm).sum();
         double scale = totalWidth <= 0 ? 1 : component.w() / totalWidth;
@@ -229,6 +238,32 @@ public class LayoutStatementRenderer {
                         col(cursor, grid), col(cursor + width, grid) - 1, display(value), numeric(value), cellStyle);
                 cursor += width;
             }
+        }
+
+        // 合计行：与明细共用列宽，按 span 跨列合并，保证导出后仍和表格是一个整体。
+        double footerTop = component.y() + component.headerMm() + rowCount * component.rowMm();
+        int footerRow = row(footerTop, grid);
+        int footerEndRow = Math.max(footerRow, row(footerTop + component.rowMm(), grid) - 1);
+        int column = 0;
+        for (StatementLayout.FooterCell cell : component.summary()) {
+            int span = Math.min(cell.spanCount(), columns.size() - column);
+            if (span <= 0) break;
+            CellStyle cellStyle = style(workbook, component, cell.strong());
+            cellStyle.setAlignment(alignment(cell.horizontal()));
+            border(cellStyle);
+            double left = component.x();
+            double right = component.x();
+            for (int i = 0; i < columns.size(); i++) {
+                double width = columns.get(i).widthMm() * scale;
+                if (i < column) left += width;
+                if (i < column + span) right += width;
+            }
+            Object value = cell.key().isEmpty() ? null : scalarValue(cell.key(), scalars);
+            if (value instanceof BigDecimal) money(workbook, cellStyle);
+            String text = replace(cell.label(), scalars) + display(value);
+            writeRange(sheet, footerRow, footerEndRow,
+                    col(left, grid), col(right, grid) - 1, text, numeric(value), cellStyle);
+            column += span;
         }
     }
 
@@ -292,7 +327,8 @@ public class LayoutStatementRenderer {
         int extra = 0;
         for (StatementLayout.Component component : layout.components()) {
             if (!"table".equals(component.kind())) continue;
-            double rendered = component.headerMm() + Math.max(itemCount, 1) * component.rowMm();
+            double rendered = component.headerMm() + Math.max(itemCount, 1) * component.rowMm()
+                    + component.footerMm();
             extra = Math.max(extra, (int) Math.ceil(Math.max(0, rendered - component.h()) / layout.page().grid()));
         }
         return extra;

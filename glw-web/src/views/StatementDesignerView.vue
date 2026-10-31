@@ -267,6 +267,8 @@ const documentScalarGroups = [
 const scalarGroups = computed(() =>
   docType.value === 'STATEMENT' ? statementScalarGroups : documentScalarGroups,
 )
+/** 合计行 / 字段组件共用的扁平选项列表。 */
+const scalarOptions = computed(() => scalarGroups.value.flatMap(group => group.options))
 
 const statementItemFields: ItemField[] = [
   { value: 'item.seq', label: '序号', width: 12, align: 'center' },
@@ -438,6 +440,7 @@ function normalize(input: StatementLayout): StatementLayout {
       align: c.align || 'left',
       border: Boolean(c.border),
       columns: c.columns?.map(col => ({ ...col, width: col.width || 20 })),
+      footer: c.footer?.map(cell => ({ ...cell, span: Math.max(1, cell.span || 1), align: cell.align || 'left' })),
     })),
   }
 }
@@ -480,17 +483,71 @@ function componentLabel(c: LayoutComponent) {
   if (c.type === 'table') return '明细表格'
   return '签章区'
 }
-function tableRows(c: LayoutComponent) {
-  const body = Math.max(0, Math.floor((c.h - (c.headerHeight || 8)) / (c.rowHeight || 7)))
-  return Math.min(body, sampleItems.value.length)
+/**
+ * 表格行高按百分比分配：各行加起来正好等于表格高度。
+ * 若按毫米铺满，行高之和会比去掉 1px 上边框后的内容区多出 1px，最后一行被 overflow 裁掉，下边框就没了。
+ */
+function tableLayout(c: LayoutComponent) {
+  const total = c.h || 1
+  const headerMm = c.headerHeight || 8
+  const rowHeight = c.rowHeight || 7
+  const footerMm = c.footer?.length ? rowHeight : 0
+  const body = Math.max(1, Math.floor((total - headerMm - footerMm) / rowHeight))
+  // 除不尽的高度补给最后一行，避免表格底部留白、边框不闭合。
+  const spare = Math.max(0, total - headerMm - body * rowHeight - footerMm)
+  const heights = [headerMm, ...Array<number>(body).fill(rowHeight)]
+  if (footerMm > 0) heights.push(footerMm)
+  heights[heights.length - 1] = (heights[heights.length - 1] ?? 0) + spare
+  // 前几行各自取四位小数，最后一行取剩余量，保证合计正好 100%，不把底边挤出画布。
+  let used = 0
+  const percents = heights.map((mm, index) => {
+    const value =
+      index === heights.length - 1
+        ? Number(Math.max(0, 100 - used).toFixed(4))
+        : Number(((mm / total) * 100).toFixed(4))
+    used += value
+    return `${value}%`
+  })
+  return {
+    header: percents[0] ?? '0%',
+    body: percents.slice(1, 1 + body),
+    footer: footerMm > 0 ? (percents[percents.length - 1] ?? null) : null,
+  }
+}
+/** 明细不足时补空行，画布上的表格始终是闭合的完整表格。 */
+function tableBodyRows(c: LayoutComponent) {
+  return tableLayout(c).body.map((height, index) => ({
+    height,
+    values: sampleItems.value[index] ?? null,
+  }))
 }
 function tableColumns(c: LayoutComponent) {
   return c.columns?.length ? c.columns : []
 }
-function columnWidth(c: LayoutComponent, column: LayoutColumn) {
+function columnPercents(c: LayoutComponent) {
+  // 用百分比而不是毫米：表格外框有 1px 左边框，列宽若按毫米铺满 c.w 会多出 1px，
+  // 被 overflow:hidden 裁掉后最后一列的右边框就画不出来。
   const sum = (c.columns || []).reduce((total, item) => total + (item.width || 0), 0)
-  const width = sum > 0 ? ((column.width || 0) * c.w) / sum : 0
-  return `${width.toFixed(2)}mm`
+  return (c.columns || []).map(col => (sum > 0 ? ((col.width || 0) * 100) / sum : 0))
+}
+function columnWidth(c: LayoutComponent, column: LayoutColumn) {
+  const index = tableColumns(c).indexOf(column)
+  return `${(columnPercents(c)[index] || 0).toFixed(4)}%`
+}
+/** 合计行各单元格的显示宽度和文字，跨列宽度按列宽比例累加。 */
+function tableFooterRow(c: LayoutComponent) {
+  const percents = columnPercents(c)
+  let index = 0
+  return (c.footer || []).map(cell => {
+    const span = Math.max(1, Math.min(cell.span || 1, percents.length - index))
+    const width = percents.slice(index, index + span).reduce((total, value) => total + value, 0)
+    index += span
+    return {
+      cell,
+      width: `${width.toFixed(4)}%`,
+      text: `${sampleText(cell.text)}${sampleValue(cell.field)}`,
+    }
+  })
 }
 
 function select(c: LayoutComponent) {
@@ -665,6 +722,20 @@ function moveColumn(index: number, delta: number) {
 function syncColumnTitle(column: LayoutColumn) {
   const option = itemFields.value.find(f => f.value === column.field)
   if (option) column.title = option.label
+}
+function addFooterCell() {
+  const table = selected.value
+  if (!table || table.type !== 'table') return
+  const used = (table.footer || []).reduce((total, cell) => total + (cell.span || 1), 0)
+  const remain = (table.columns?.length || 1) - used
+  if (remain <= 0) {
+    ElMessage.warning('合计行已经占满全部明细列')
+    return
+  }
+  table.footer = [...(table.footer || []), { text: '', span: 1, align: 'left' }]
+}
+function removeFooterCell(index: number) {
+  selected.value?.footer?.splice(index, 1)
 }
 
 function layoutError(): string | null {
@@ -906,9 +977,9 @@ onBeforeUnmount(() => {
               <template v-else-if="c.type === 'table'">
                 <div
                   class="designer-table"
-                  :style="{ fontSize: `${c.fontSize || 9}pt`, borderColor: '#7b8794' }"
+                  :style="{ fontSize: `${c.fontSize || 9}pt` }"
                 >
-                  <div class="designer-table-row header" :style="{ height: `${c.headerHeight || 8}mm` }">
+                  <div class="designer-table-row header" :style="{ height: tableLayout(c).header }">
                     <div
                       v-for="(col, index) in tableColumns(c)"
                       :key="index"
@@ -918,10 +989,10 @@ onBeforeUnmount(() => {
                     >{{ col.title }}</div>
                   </div>
                   <div
-                    v-for="(row, rowIndex) in sampleItems.slice(0, tableRows(c))"
+                    v-for="(row, rowIndex) in tableBodyRows(c)"
                     :key="rowIndex"
                     class="designer-table-row"
-                    :style="{ height: `${c.rowHeight || 7}mm` }"
+                    :style="{ height: row.height }"
                   >
                     <div
                       v-for="(col, index) in tableColumns(c)"
@@ -929,7 +1000,20 @@ onBeforeUnmount(() => {
                       class="designer-table-cell"
                       :class="`align-${col.align || 'left'}`"
                       :style="{ width: columnWidth(c, col) }"
-                    >{{ itemValue(col.field, row) }}</div>
+                    >{{ row.values ? itemValue(col.field, row.values) : '' }}</div>
+                  </div>
+                  <div
+                    v-if="tableLayout(c).footer"
+                    class="designer-table-row footer"
+                    :style="{ height: tableLayout(c).footer || undefined }"
+                  >
+                    <div
+                      v-for="(item, index) in tableFooterRow(c)"
+                      :key="`footer-${index}`"
+                      class="designer-table-cell"
+                      :class="`align-${item.cell.align || 'left'}`"
+                      :style="{ width: item.width, fontWeight: item.cell.bold ? 600 : 400 }"
+                    >{{ item.text }}</div>
                   </div>
                 </div>
               </template>
@@ -1029,6 +1113,37 @@ onBeforeUnmount(() => {
                 <el-button text type="primary" size="small" :icon="Plus" @click="addColumn">添加列</el-button>
                 <p class="inspector-hint">
                   列宽合计 {{ selected.columns?.reduce((sum, col) => sum + (col.width || 0), 0) }}mm，表格宽 {{ selected.w }}mm，保存时按比例缩放。
+                </p>
+              </div>
+              <div class="column-editor">
+                <div class="column-editor-title">合计行</div>
+                <div v-for="(cell, index) in selected.footer" :key="`footer-${index}`" class="footer-editor-row">
+                  <div class="footer-editor-line">
+                    <el-input v-model="cell.text" size="small" placeholder="文字，如：合计数量" />
+                    <el-input-number
+                      v-model="cell.span"
+                      size="small"
+                      :min="1"
+                      :max="selected.columns?.length || 1"
+                      controls-position="right"
+                      style="width: 82px"
+                    />
+                  </div>
+                  <div class="footer-editor-line">
+                    <el-select v-model="cell.field" size="small" clearable placeholder="合计字段（可选）" class="footer-editor-field">
+                      <el-option v-for="option in scalarOptions" :key="option.value" :label="option.label" :value="option.value" />
+                    </el-select>
+                    <el-select v-model="cell.align" size="small" style="width: 82px">
+                      <el-option label="左对齐" value="left" />
+                      <el-option label="居中" value="center" />
+                      <el-option label="右对齐" value="right" />
+                    </el-select>
+                    <el-button text size="small" type="danger" @click="removeFooterCell(index)">×</el-button>
+                  </div>
+                </div>
+                <el-button text type="primary" size="small" :icon="Plus" @click="addFooterCell">添加合计单元格</el-button>
+                <p class="inspector-hint">
+                  合计行是表格的最后一行，跨列数合计不能超过 {{ selected.columns?.length || 0 }} 列；文字里可以写占位符。
                 </p>
               </div>
             </template>
@@ -1244,6 +1359,8 @@ onBeforeUnmount(() => {
   top: 0;
   left: 0;
   transform-origin: top left;
+  /* PDF 渲染用的是黑体，画布用同一套字体才能真正 1:1 预览。 */
+  font-family: SimHei, "黑体", "Microsoft YaHei", "PingFang SC", sans-serif;
   background-color: #fff;
   background-image:
     linear-gradient(to right, rgb(23 52 86 / 7%) 1px, transparent 1px),
@@ -1287,7 +1404,7 @@ onBeforeUnmount(() => {
   line-height: 1.3;
   overflow: hidden;
   box-sizing: border-box;
-  padding: 0 1mm;
+  padding: 0 0.42mm;
 }
 .component-text.signature {
   align-items: flex-start;
@@ -1297,7 +1414,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border: 1px solid;
+  border: 1px solid #333;
   border-right: 0;
   border-bottom: 0;
   box-sizing: border-box;
@@ -1306,17 +1423,18 @@ onBeforeUnmount(() => {
   display: flex;
   overflow: hidden;
 }
+/* 和 PDF 渲染保持一致：表头 93% 灰底、0.42mm 内边距、黑色细边框。 */
 .designer-table-row.header {
-  background: #f2f4f7;
+  background: #ededed;
   font-weight: 600;
 }
 .designer-table-cell {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 1mm;
-  border-right: 1px solid #7b8794;
-  border-bottom: 1px solid #7b8794;
+  padding: 0 0.42mm;
+  border-right: 1px solid #333;
+  border-bottom: 1px solid #333;
   box-sizing: border-box;
   overflow: hidden;
   white-space: nowrap;
@@ -1405,6 +1523,25 @@ onBeforeUnmount(() => {
   border: 1px solid #edf0f5;
   border-radius: 5px;
   background: #fbfcfe;
+}
+.footer-editor-row {
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  border: 1px solid #edf0f5;
+  border-radius: 5px;
+  background: #fbfcfe;
+}
+.footer-editor-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.footer-editor-line + .footer-editor-line {
+  margin-top: 4px;
+}
+.footer-editor-field {
+  flex: 1;
+  min-width: 0;
 }
 .column-field {
   flex: 1;

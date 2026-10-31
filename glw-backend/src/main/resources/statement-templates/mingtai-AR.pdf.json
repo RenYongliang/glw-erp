@@ -1,0 +1,52 @@
+{
+  "page": {"size": "A4", "orientation": "PORTRAIT", "marginMm": 10, "gridMm": 3},
+  "components": [
+    {"id": "title", "type": "text", "x": 20, "y": 25, "w": 170, "h": 12,
+     "text": "{{company.name}}", "fontSize": 22, "bold": false, "align": "center"},
+    {"id": "subtitle", "type": "text", "x": 20, "y": 38, "w": 170, "h": 9,
+     "text": "{{header.periodLabel}}对账单", "fontSize": 16, "bold": false, "align": "center"},
+    {"id": "date", "type": "field", "x": 105, "y": 51, "w": 85, "h": 7,
+     "label": "对账日期：", "field": "header.statementDateLabel", "fontSize": 11, "align": "right"},
+    {"id": "customer", "type": "field", "x": 20, "y": 62, "w": 98, "h": 7,
+     "label": "客户名称：", "field": "partner.name", "fontSize": 11, "align": "left"},
+    {"id": "supplier", "type": "field", "x": 120, "y": 62, "w": 70, "h": 7,
+     "label": "供应商：", "field": "company.name", "fontSize": 11, "align": "left"},
+    {"id": "partner-phone", "type": "field", "x": 20, "y": 70, "w": 98, "h": 7,
+     "label": "电话：", "field": "partner.phone", "fontSize": 11, "align": "left"},
+    {"id": "company-contact", "type": "field", "x": 120, "y": 70, "w": 70, "h": 7,
+     "label": "联系人：", "field": "company.contact", "fontSize": 11, "align": "left"},
+    {"id": "company-phone", "type": "field", "x": 120, "y": 78, "w": 70, "h": 7,
+     "label": "电话：", "field": "company.phone", "fontSize": 11, "align": "left"},
+    {"id": "items", "type": "table", "x": 20, "y": 88, "w": 170, "h": 60,
+     "headerHeight": 10, "rowHeight": 10, "fontSize": 9, "headerBold": true, "border": true,
+     "columns": [
+       {"title": "序号", "field": "item.seq", "width": 10, "align": "center"},
+       {"title": "送货日期", "field": "item.bizDateText", "width": 17, "align": "center"},
+       {"title": "销售送货单号", "field": "item.sourceNo", "width": 24, "align": "left"},
+       {"title": "客户订单号", "field": "item.partnerOrderNo", "width": 23, "align": "left"},
+       {"title": "型号", "field": "item.partNo", "width": 27, "align": "left"},
+       {"title": "数量", "field": "item.quantity", "width": 15, "align": "right"},
+       {"title": "单位", "field": "item.unit", "width": 9, "align": "center"},
+       {"title": "单价", "field": "item.unitPrice", "width": 13, "align": "right"},
+       {"title": "含税金额", "field": "item.amountGross", "width": 22, "align": "right"},
+       {"title": "备注", "field": "item.remark", "width": 10, "align": "left"}
+     ],
+     "footer": [
+       {"text": "合计数量：", "span": 5, "align": "right"},
+       {"field": "totals.totalQuantity", "span": 1, "align": "center"},
+       {"text": "对账金额", "span": 2, "align": "center"},
+       {"field": "totals.totalGross", "span": 1, "align": "right"},
+       {"text": "", "span": 1, "align": "left"}
+     ]},
+    {"id": "currency", "type": "text", "x": 20, "y": 151, "w": 170, "h": 8,
+     "text": "币　　别：{{header.currencyLabel}}", "fontSize": 11, "align": "center"},
+    {"id": "note-1", "type": "text", "x": 20, "y": 168, "w": 170, "h": 6,
+     "text": "1.以上对账明细,请贵司尽快核对,并签字盖章确认后回传我司。", "fontSize": 10, "align": "left"},
+    {"id": "note-2", "type": "text", "x": 20, "y": 175, "w": 170, "h": 6,
+     "text": "2.若有任何疑问,请于收到本对账单之日起一周内提出,逾期视为接受并认可本对账单全部内容。", "fontSize": 10, "align": "left"},
+    {"id": "signature", "type": "text", "x": 108, "y": 200, "w": 82, "h": 7,
+     "text": "客户确定（请签名盖公章）：", "fontSize": 11, "align": "left"},
+    {"id": "signature-date", "type": "text", "x": 108, "y": 208, "w": 82, "h": 7,
+     "text": "日期：", "fontSize": 11, "align": "left"}
+  ]
+}

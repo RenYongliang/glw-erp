@@ -17,6 +17,21 @@
 - `{{item.bizDate}}`、`{{item.dueDate}}` 输出为日期值，所在单元格请设置日期格式（如 `yyyy/m/d`）；需要纯文本时用 `{{item.bizDateText}}`、`{{item.dueDateText}}`。
 - 金额、数量输出为数值，保留模板单元格的数字格式。
 
+## 合计行
+
+合计跟表格是同一个框：在设计器选中明细表格，用「合计行」添加单元格，每个单元格可以跨多列
+（`span`），文字里可以写 `{{totals.totalGross}}` 这类占位符，也可以直接绑定合计字段。
+渲染时合计行紧跟在最后一行明细后面，明细跨页时只在最后一页出现，表格下方组件随之下移。
+
+```json
+"footer": [
+  {"text": "合计数量：", "span": 5, "align": "right"},
+  {"field": "totals.totalQuantity", "span": 1, "align": "center"},
+  {"text": "对账金额", "span": 2, "align": "center"},
+  {"field": "totals.totalGross", "span": 1, "align": "right"}
+]
+```
+
 ## 单值字段
 
 | 占位符 | 含义 |
@@ -43,3 +58,9 @@
 
 - `qintai-AR.xlsx`：勤泰原始 Excel 对账单改造的模板
 - `mingtai-AR.xlsx`：按铭泰纸质对账单版式重建的模板（扫描件无法直接套打，需转成 Excel 模板）
+- `mingtai-AR.pdf.json`：铭泰 PDF 版对账单布局，按回传的纸质扫描件重建：A4 纵向、10 列明细、
+  表头客户/供应商信息、合计行、币别、说明与签章区位置与原件一致
+- `mingtai-AR.pdf`：由上述布局渲染的样例文件
+
+PDF 版式在模板中心保存为「PDF」输出格式后，导出时按布局和真实明细实时渲染，不依赖固定行数；
+明细跨页会自动重复表头。布局字段说明见上文占位符表。

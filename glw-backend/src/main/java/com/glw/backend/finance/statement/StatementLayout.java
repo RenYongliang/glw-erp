@@ -47,7 +47,8 @@ public record StatementLayout(Page page, List<Component> components) {
                             Integer fontSize, Boolean bold, String align, Boolean border,
                             String color,
                             Double headerHeight, Double rowHeight, Boolean headerBold,
-                            List<Column> columns) {
+                            List<Column> columns,
+                            List<FooterCell> footer) {
 
         public String kind() {
             return type == null ? "" : type.strip().toLowerCase();
@@ -83,6 +84,45 @@ public record StatementLayout(Page page, List<Component> components) {
 
         public boolean strongHeader() {
             return headerBold == null || headerBold;
+        }
+
+        /** 表格自带的合计行；为空表示没有合计行。 */
+        public List<FooterCell> summary() {
+            return footer == null ? List.of() : footer;
+        }
+
+        /** 合计行高度：占一行明细行高。 */
+        public double footerMm() {
+            return summary().isEmpty() ? 0 : rowMm();
+        }
+    }
+
+    /** 合计行单元格：按 span 跨列合并，text 里的 {{占位符}} 和 field 都会替换成真实数据。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record FooterCell(String text, String field, Integer span, String align, Boolean bold) {
+
+        public String label() {
+            return text == null ? "" : text;
+        }
+
+        public String key() {
+            return field == null ? "" : field.strip();
+        }
+
+        public int spanCount() {
+            return span == null || span < 1 ? 1 : Math.min(span, 20);
+        }
+
+        public String horizontal() {
+            return switch (align == null ? "" : align.strip().toLowerCase()) {
+                case "center" -> "center";
+                case "right" -> "right";
+                default -> "left";
+            };
+        }
+
+        public boolean strong() {
+            return Boolean.TRUE.equals(bold);
         }
     }
 

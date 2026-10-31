@@ -29,8 +29,8 @@ import java.util.Map;
 /**
  * 把可视化布局直接渲染成 PDF。
  *
- * 明细表格跨页时每页重复表头，合计与签章等表格下方组件只出现在最后一页；
- * 最后一页放不下时优先贴到页面底部，仍放不下才另起一页。
+ * 明细表格跨页时每页重复表头，表格自带的合计行跟在最后一行明细后面（与表格同一个框）；
+ * 签章等表格下方组件只出现在最后一页，最后一页放不下时优先贴到页面底部，仍放不下才另起一页。
  */
 @Component
 public class LayoutPdfRenderer {
@@ -81,7 +81,7 @@ public class LayoutPdfRenderer {
                 for (StatementLayout.Component component : above)
                     component(canvas, font, component, component.y(), scalars);
 
-                double tableEnd = table(canvas, font, table, rows);
+                double tableEnd = table(canvas, font, table, rows, scalars);
                 below(canvas, font, below, table, tableEnd, scalars);
             } finally {
                 canvas.close();
@@ -93,11 +93,12 @@ public class LayoutPdfRenderer {
         }
     }
 
-    /** 按真实行数分页渲染明细，返回最后一页表格的底边（mm）。 */
+    /** 按真实行数分页渲染明细，返回最后一页表格的底边（mm，含合计行）。 */
     private double table(Canvas canvas, PDFont font, StatementLayout.Component table,
-                         List<Map<String, Object>> rows) throws IOException {
+                         List<Map<String, Object>> rows, Map<String, Object> scalars) throws IOException {
         int rowCount = Math.max(rows.size(), 1);
         double rowMm = table.rowMm();
+        double footerMm = table.footerMm();
         double pageBottom = canvas.page.heightMm() - canvas.page.margin();
         int index = 0;
         int pageIndex = 0;
@@ -107,7 +108,8 @@ public class LayoutPdfRenderer {
             double bodyTop = headerTop + table.headerMm();
             header(canvas, font, table, headerTop);
 
-            double available = pageBottom - bodyTop;
+            // 每页都给合计行留位置，避免明细填满后合计行被挤到下一页单独成行。
+            double available = pageBottom - bodyTop - footerMm;
             int capacity = Math.max(1, (int) Math.floor(available / rowMm));
             int count = Math.min(capacity, rowCount - index);
             if (count <= 0 && index < rowCount) count = 1;
@@ -122,7 +124,35 @@ public class LayoutPdfRenderer {
             pageIndex++;
             canvas.next();
         }
+        if (footerMm > 0) {
+            footer(canvas, font, table, end, scalars);
+            end += footerMm;
+        }
         return end;
+    }
+
+    /** 合计行与明细共用一套列宽和边框，跨列数由布局里的 span 决定。 */
+    private void footer(Canvas canvas, PDFont font, StatementLayout.Component table, double top,
+                        Map<String, Object> scalars) throws IOException {
+        float[] widths = widths(table);
+        double cursor = table.x();
+        int column = 0;
+        for (StatementLayout.FooterCell cell : table.summary()) {
+            int span = Math.min(cell.spanCount(), widths.length - column);
+            if (span <= 0) break;
+            float width = 0;
+            for (int i = 0; i < span; i++) width += widths[column + i];
+            cell(canvas, font, cursor, top, width, table.rowMm(), footerText(cell, scalars),
+                    cell.horizontal(), table.font(), cell.strong(), false);
+            cursor += width;
+            column += span;
+        }
+    }
+
+    private String footerText(StatementLayout.FooterCell cell, Map<String, Object> scalars) {
+        String text = layouts.replace(cell.label(), scalars);
+        if (cell.key().isEmpty()) return text;
+        return text + LayoutStatementRenderer.display(scalars.get(cell.key()));
     }
 
     private void header(Canvas canvas, PDFont font, StatementLayout.Component table, double top)
