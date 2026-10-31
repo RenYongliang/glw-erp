@@ -79,7 +79,7 @@ app:
       bank-name: ${COMPANY_BANK_NAME:中国工商银行股份有限公司深圳深圳湾支行}
       bank-account: ${COMPANY_BANK_ACCOUNT:4000027709200986297}
       phone: ${COMPANY_PHONE:13713956403}
-      contact: ${COMPANY_CONTACT:}
+      contact: ${COMPANY_CONTACT:黄宇}
 logging:
   level:
     root: INFO

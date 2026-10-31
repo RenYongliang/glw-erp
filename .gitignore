@@ -4,3 +4,4 @@ target/
 .vscode/
 logs/
 .env
+.runlogs/
