@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class ProductOptionVO {
     private Long id;
+    private Long supplierId;
     private String brand;
     private String partNo;
     private String packageType;

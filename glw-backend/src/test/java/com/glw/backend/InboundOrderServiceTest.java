@@ -163,8 +163,8 @@ class InboundOrderServiceTest {
         assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("0.0848"), new BigDecimal("0.0750"));
     }
 
-    @Test void rejectsIncompleteOrOverflowingCostBeforeWritingReceipt() {
-        for (Integer rate : java.util.Arrays.asList(null, -1, 101)) {
+    @Test void rejectsOverflowingOrOutOfRangeCostBeforeWritingReceipt() {
+        for (Integer rate : java.util.Arrays.asList(-1, 101)) {
             var f = new Fixture();
             var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(rate);
             prices(f, first, item(22L, 2L, "1.00"));
@@ -176,6 +176,17 @@ class InboundOrderServiceTest {
         prices(f, first, item(22L, 2L, "1.00"));
         assertThatThrownBy(() -> f.service.createInboundOrder(request(50, 20))).isInstanceOf(BusinessException.class).hasMessageContaining("超出");
         verify(f.service, never()).save(any());
+    }
+
+    @Test void excludedPriceWithoutTaxRateIsCostedAtFaceValue() {
+        var f = new Fixture();
+        var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(null);
+        prices(f, first, item(22L, 2L, "1.00"));
+        f.service.createInboundOrder(request(50, 20));
+        assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("1.0000"));
+        assertThat(f.stock.getFirst().getInitialQuantity()).isEqualTo(70);
+        assertThat(f.savedAllocations.getFirst().getUnitPrice()).isEqualByComparingTo("1.00");
+        assertThat(f.savedAllocations.getFirst().getTaxIncluded()).isEqualTo(TaxIncluded.EXCLUDED);
     }
 
     @Test void existingStockFromAnotherReceiptIsNotCombinedWithThisReceipt() {

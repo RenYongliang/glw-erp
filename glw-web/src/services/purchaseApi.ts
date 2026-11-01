@@ -18,7 +18,7 @@ interface PurchaseOrderItemResponse {
   partNo: string
   packageType?: string
   unitPrice: string
-  taxIncluded?: string
+  taxIncluded?: number | null
   taxRate?: number | null
   quantity: number
   pendingQuantity: number
@@ -36,6 +36,7 @@ interface PurchaseOrderResponse {
   orderStatus: string
   paymentStatus: string
   remark?: string | null
+  version?: number
   items: PurchaseOrderItemResponse[]
 }
 
@@ -131,10 +132,12 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
       quantity: item.quantity,
       pendingQuantity: item.pendingQuantity,
       price: Number(item.unitPrice),
+      taxIncluded: item.taxIncluded !== 0,
       tax: item.taxRate ?? 0,
       amount: Number(item.amount),
       delivery,
     })),
+    version: order.version,
     arrivals: [],
     payments: [],
     paymentStatus: ({ UNPAID: '未付款', PARTIALLY_PAID: '部分付款', PAID: '已付款' } as const)[order.paymentStatus as 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'],
@@ -200,6 +203,43 @@ function toPurchaseReceipt(receipt: InboundOrderResponse, purchaseOrderId?: stri
 
 export async function fetchPurchaseOrders() {
   return (await allRecords<PurchaseOrderResponse>('/purchase-order/list')).map(toPurchaseOrder)
+}
+
+function toPurchaseOrderRequest(order: PurchaseOrder) {
+  if (!/^\d+$/.test(order.supplierId)) throw Error('请从供应商列表中选择供应商')
+  const items = order.lines.map(line => {
+    if (!/^\d+$/.test(line.productId)) throw Error('采购产品需从产品列表中选择')
+    const taxIncluded = line.taxIncluded !== false
+    return {
+      productId: Number(line.productId),
+      unitPrice: line.price,
+      taxIncluded: taxIncluded ? 1 : 0,
+      taxRate: taxIncluded ? line.tax : null,
+      quantity: line.quantity,
+    }
+  })
+  return {
+    supplierId: Number(order.supplierId),
+    orderTime: order.signed,
+    deliveryTime: order.delivery,
+    remark: (order.term || '').trim().slice(0, 256),
+    version: order.version,
+    items,
+  }
+}
+
+export async function createPurchaseOrder(order: PurchaseOrder) {
+  await apiRequest<unknown>('/purchase-order', {
+    method: 'POST',
+    body: JSON.stringify(toPurchaseOrderRequest(order)),
+  })
+}
+
+export async function updatePurchaseOrder(order: PurchaseOrder) {
+  await apiRequest<unknown>(`/purchase-order/${order.id}`, {
+    method: 'PUT',
+    body: JSON.stringify(toPurchaseOrderRequest(order)),
+  })
 }
 
 export async function fetchInboundOrders() {

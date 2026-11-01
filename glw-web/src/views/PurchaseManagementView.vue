@@ -446,7 +446,7 @@ function downloadTemplate() {
           store.state.orders.find(
             (o) =>
               o.lines.some((l) => remainingQuantity(store.state, o.id, l.id) > 0) &&
-              o.status === '审批通过',
+              ['待收货', '部分收货'].includes(o.status),
           )?.code || '请填写订单编号',
           '杭州仓',
           'CP001',
@@ -508,7 +508,7 @@ function confirmImport() {
             payments: [],
             attachments: [],
             term: '月结30天',
-            status: '待审批',
+            status: '待收货',
             reason: '',
             approver: '',
             approvedAt: '',
@@ -788,11 +788,11 @@ function confirmImport() {
                     v-else-if="c.key === 'status'"
                     size="small"
                     :type="
-                      ['审批通过', '已入库'].includes(String(row.values.status))
+                      ['已完成', '已入库'].includes(String(row.values.status))
                         ? 'success'
-                        : row.values.status === '不通过'
-                          ? 'danger'
-                          : 'warning'
+                        : ['待收货', '部分收货'].includes(String(row.values.status))
+                          ? 'warning'
+                          : 'info'
                     "
                     >{{ row.values.status }}</el-tag
                   ><span v-else>{{ display(row, c.key) || '—' }}</span>
@@ -802,7 +802,7 @@ function confirmImport() {
                     class="purchase-pay"
                     size="small"
                     plain
-                    :disabled="row.order?.status !== '审批通过'"
+                    :disabled="!['待收货', '部分收货', '已完成'].includes(row.order?.status ?? '')"
                     @click="business(row.order!, '付款')"
                     >付款</el-button
                   ><el-button
@@ -909,7 +909,7 @@ function confirmImport() {
             v-for="line in activeOrder.lines"
             :key="line.id"
             :value="line.id"
-            :label="products.find((p) => p.id === line.productId)?.name"
+            :label="line.model || products.find((p) => p.id === line.productId)?.name"
             :disabled="returnableQuantity(store.state, activeOrder.id, line.id) <= 0" /></el-select
       ></el-form-item>
       <p>可退数量：{{ returnableQuantity(store.state, activeOrder.id, returned.lineId) }}</p>
@@ -938,7 +938,7 @@ function confirmImport() {
   >
     <p>
       使用 UTF-8 CSV 模板，每行一条产品明细。{{
-        isOrder ? '同名订单会合并，导入后进入待审批。' : '同一订单会合并，导入后进入待入库。'
+        isOrder ? '同名订单会合并，导入后进入待收货。' : '同一订单会合并，导入后进入待入库。'
       }}
     </p>
     <el-button :icon="Download" @click="downloadTemplate">下载导入模板</el-button

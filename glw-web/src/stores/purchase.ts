@@ -16,8 +16,10 @@ import {
 } from '../domain/purchase'
 import {
   createInboundOrder,
+  createPurchaseOrder,
   fetchInboundOrders,
   fetchPurchaseOrders,
+  updatePurchaseOrder,
 } from '../services/purchaseApi'
 
 function emptyState(): PurchaseState {
@@ -57,44 +59,29 @@ export const usePurchaseStore = defineStore('purchase', () => {
     }
     state.value = next
   }
-  function saveOrder(input: PurchaseOrder) {
-    const order: PurchaseOrder = JSON.parse(JSON.stringify(input)),
-      next = snapshot(),
-      error = validateOrder(order)
-    if (error) throw Error(error)
-    const index = next.orders.findIndex((o) => o.id === order.id)
-    if (
-      index >= 0 &&
-      (next.receipts.some((r) => receiptMatchesOrder(r, order.id)) ||
-        next.payments.some((p) => p.orderId === order.id) ||
-        next.returns.some((r) => r.orderId === order.id))
-    )
-      throw Error('订单已有入库或财务记录，不能再修改订单基础数据')
+  async function saveOrder(input: PurchaseOrder) {
+    const order: PurchaseOrder = JSON.parse(JSON.stringify(input))
     order.name = order.name.trim()
     order.supplierName = order.supplierName?.trim()
-    for (const line of order.lines) line.delivery ??= order.delivery
+    for (const line of order.lines) {
+      line.delivery ??= order.delivery
+      line.taxIncluded ??= true
+    }
     order.delivery = order.lines.map(l => l.delivery!).sort().at(-1) || order.signed
-    order.status = '待审批'
-    order.reason = ''
-    order.approver = ''
-    order.approvedAt = ''
-    if (index < 0) {
-      order.code = nextPurchaseCode('GL', next.orders, order.signed)
-      next.orders.unshift(order)
-    } else next.orders[index] = order
-    commit(next, index < 0 ? '新增采购订单' : '修改并重新提交审批', order.code)
-    return order
-  }
-  function approve(id: string, passed: boolean, reason: string) {
-    const next = snapshot(),
-      order = next.orders.find((o) => o.id === id)
-    if (!order || order.status !== '待审批') throw Error('订单已发生变化，请刷新后重试')
-    if (!passed && !reason.trim()) throw Error('请填写不通过原因')
-    order.status = passed ? '审批通过' : '不通过'
-    order.reason = reason
-    order.approver = '张睿'
-    order.approvedAt = new Date().toLocaleString('sv-SE')
-    commit(next, passed ? '审批通过' : '审批不通过', order.code)
+    const error = validateOrder(order)
+    if (error) throw Error(error)
+    const existing = state.value.orders.find((o) => o.id === order.id)
+    if (
+      existing &&
+      (state.value.receipts.some((r) => receiptMatchesOrder(r, order.id)) ||
+        state.value.payments.some((p) => p.orderId === order.id) ||
+        state.value.returns.some((r) => r.orderId === order.id))
+    )
+      throw Error('订单已有入库或财务记录，不能再修改订单基础数据')
+    if (existing) await updatePurchaseOrder(order)
+    else await createPurchaseOrder(order)
+    // 以服务端数据为准刷新列表，确保拿到后端订单号和状态。
+    await load()
   }
   async function saveReceipt(input: PurchaseReceipt) {
     const receipt: PurchaseReceipt = JSON.parse(JSON.stringify(input)),
@@ -130,7 +117,8 @@ export const usePurchaseStore = defineStore('purchase', () => {
   function pay(input: PurchasePayment) {
     const next = snapshot(),
       order = next.orders.find((o) => o.id === input.orderId)
-    if (!order || order.status !== '审批通过') throw Error('只能为已审批订单付款')
+    if (!order || !['待收货', '部分收货', '已完成'].includes(order.status))
+      throw Error('当前订单状态不能付款')
     const remaining =
       orderTotals(order).total -
       next.payments.filter((p) => p.orderId === order.id).reduce((a, p) => a + p.amount, 0)
@@ -166,7 +154,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
       const error = validateOrder(row)
       if (error) throw Error(error)
       row.code = nextPurchaseCode('GL', next.orders, row.signed)
-      row.status = '待审批'
+      row.status = '待收货'
       next.orders.unshift(row)
     }
     commit(next, '导入采购订单', `${rows.length} 条`)
@@ -187,7 +175,6 @@ export const usePurchaseStore = defineStore('purchase', () => {
     loading,
     load,
     saveOrder,
-    approve,
     saveReceipt,
     remove,
     pay,

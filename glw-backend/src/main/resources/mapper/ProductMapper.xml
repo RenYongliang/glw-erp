@@ -19,7 +19,7 @@
         `id`, `supplier_id`, `brand_id`, `brand`, `part_no`, `package_type`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
     <select id="selectOptions" resultType="com.glw.backend.model.vo.ProductOptionVO">
-        SELECT p.id, p.brand, p.part_no, p.package_type,
+        SELECT p.id, p.supplier_id, p.brand, p.part_no, p.package_type,
                COALESCE(SUM(i.quantity), 0) AS stock_quantity,
                ROUND(SUM(i.unit_cost * i.quantity) / NULLIF(SUM(i.quantity), 0), 4) AS estimated_cost,
                MIN(i.unit_cost) AS min_cost, MAX(i.unit_cost) AS max_cost
@@ -31,7 +31,7 @@
                  OR LOCATE(#{keyword}, p.package_type) > 0 OR CAST(p.id AS CHAR) = #{keyword})
             </if>
         </where>
-        GROUP BY p.id, p.brand, p.part_no, p.package_type
+        GROUP BY p.id, p.supplier_id, p.brand, p.part_no, p.package_type
         ORDER BY p.id
     </select>
     <select id="selectCostBatches" resultType="com.glw.backend.model.vo.ProductCostBatchVO">

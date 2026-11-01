@@ -334,9 +334,10 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         if (price == null || price.signum() < 0 || taxIncluded == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "请补全采购单价及是否含税，才能计算含税库存成本");
         }
-        if (taxIncluded == TaxIncluded.EXCLUDED) {
-            if (taxRate == null || taxRate < 0 || taxRate > 100) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "未税采购单价需要填写有效税率（0至100），才能计算含税库存成本");
+        // 未税单价仅在填写税率时换算为含税成本；未填税率按未税金额入库。
+        if (taxIncluded == TaxIncluded.EXCLUDED && taxRate != null) {
+            if (taxRate < 0 || taxRate > 100) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "未税采购单价需填写 0 至 100 的税率");
             }
             price = price.multiply(BigDecimal.ONE.add(BigDecimal.valueOf(taxRate).movePointLeft(2)));
         }

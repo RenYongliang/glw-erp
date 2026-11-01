@@ -2,6 +2,7 @@ import type { Product } from '../domain/sales'
 
 export interface ProductOptionResponse {
   id: number | string
+  supplierId: number | string
   brand: string | null
   partNo: string
   packageType: string | null
@@ -12,6 +13,7 @@ export interface ProductOptionResponse {
 }
 
 export interface SalesProductOption extends Product {
+  supplierId: string
   estimatedCost: number | null
   minCost: number | null
   maxCost: number | null
@@ -36,7 +38,8 @@ export type ProductCostBatch = ReturnType<typeof toProductCostBatch>
 const cost = (value: number | string | null) => value === null ? null : Number(value)
 export function toSalesProductOption(row: ProductOptionResponse): SalesProductOption {
   return {
-    id: String(row.id), code: String(row.id), brand: row.brand ?? '',
+    id: String(row.id), code: String(row.id), supplierId: String(row.supplierId),
+    brand: row.brand ?? '',
     name: row.partNo, model: row.packageType ?? '', unit: '个',
     stock: Number(row.stockQuantity), price: 0, tax: 13, cost: Number(row.estimatedCost ?? 0),
     estimatedCost: cost(row.estimatedCost), minCost: cost(row.minCost), maxCost: cost(row.maxCost),

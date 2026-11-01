@@ -5,6 +5,7 @@ export interface Product {
   id: string
   name: string
   code: string
+  supplierId?: string
   brand: string
   model: string
   packaging?: string
@@ -21,6 +22,7 @@ export interface Supplier {
   phone: string
   bank: string
   account: string
+  enabled?: boolean
 }
 export interface PurchaseLine {
   delivery?: string
@@ -34,6 +36,7 @@ export interface PurchaseLine {
   quantity: number
   pendingQuantity?: number
   price: number
+  taxIncluded?: boolean
   tax: number
 }
 export interface ArrivalPlan {
@@ -74,10 +77,12 @@ export interface PurchaseOrder {
   paymentStatus?: '未付款' | '部分付款' | '已付款'
   attachments: Attachment[]
   term: string
-  status: '待审批' | '审批通过' | '不通过' | '待收货' | '部分收货' | '已完成'
+  status: '待收货' | '部分收货' | '已完成'
   reason: string
   approver: string
   approvedAt: string
+  /** 后端乐观锁版本号，修改已保存的订单时回传。 */
+  version?: number
 }
 export interface ReceiptBatch {
   id: string
@@ -219,7 +224,8 @@ export function orderTotals(order: Pick<PurchaseOrder, 'lines' | 'discount'>) {
       gross: (cents[i] || 0) / 100,
       total,
       unit: l.quantity ? total / l.quantity : 0,
-      net: roundMoney(total / (1 + l.tax / 100)),
+      // 含税单价按税率倒算不含税金额；不含税单价本身即为不含税金额。
+      net: roundMoney(l.taxIncluded === false ? total : total / (1 + l.tax / 100)),
     }
   })
   return {
@@ -336,7 +342,8 @@ export function receiptTotals(receipt: PurchaseReceipt, order?: PurchaseOrder | 
 const dateValid = (value: string) =>
   /^\d{4}-\d{2}-\d{2}/.test(value) && Number.isFinite(Date.parse(value))
 export function purchaseSupplierName(order?: PurchaseOrder): string {
-  return suppliers.find(s => s.id === order?.supplierId)?.name || order?.supplierName?.trim() || ''
+  // 后端订单直接带供应商名称；静态供应商列表仅用于兼容历史本地数据。
+  return order?.supplierName?.trim() || suppliers.find(s => s.id === order?.supplierId)?.name || ''
 }
 export function purchaseContact(order?: PurchaseOrder): string {
   return order?.contact ?? suppliers.find(s => s.id === order?.supplierId)?.contact ?? ''
@@ -345,7 +352,13 @@ export function purchasePhone(order?: PurchaseOrder): string {
   return order?.phone ?? suppliers.find(s => s.id === order?.supplierId)?.phone ?? ''
 }
 export function validateOrder(order: PurchaseOrder) {
-  if (order.supplierId && !suppliers.some(s => s.id === order.supplierId)) return '请选择有效供应商'
+  // 后端供应商 id 为纯数字；静态列表只覆盖历史本地数据的 s1..sn。
+  if (
+    order.supplierId &&
+    !/^\d+$/.test(order.supplierId) &&
+    !suppliers.some(s => s.id === order.supplierId)
+  )
+    return '请选择有效供应商'
   if (!purchaseSupplierName(order)) return '请选择或填写供应商名称'
   if (purchaseSupplierName(order).length > 100) return '供应商名称不能超过100字'
   if (!order.name.trim()) return '请填写采购订单名称'
@@ -353,14 +366,17 @@ export function validateOrder(order: PurchaseOrder) {
   if (order.lines.some(l => !dateValid(l.delivery ?? order.delivery))) return '请填写每项产品的交付日期'
   if (order.lines.some(l => (l.delivery ?? order.delivery) < order.signed)) return '产品交付日期不能早于采购日期'
   if (order.lines.some(l => (l.remark?.length || 0) > 200)) return '产品备注不能超过200字'
-  if (!warehouses.includes(order.warehouse)) return '请选择入库仓库'
+  // 后端采购订单不保存仓库字段，编辑这类订单时允许为空。
+  if (!warehouses.includes(order.warehouse) && !(/^\d+$/.test(order.id) && !order.warehouse))
+    return '请选择入库仓库'
   if (!order.lines.length) return '请至少添加一条采购产品明细'
   if (new Set(order.lines.map((l) => l.productId)).size !== order.lines.length)
     return '同一产品请合并数量，不要重复添加'
   if (
     order.lines.some(
       (l) =>
-        !products.some((p) => p.id === l.productId) ||
+        // 后端产品 id 为纯数字；静态目录只覆盖历史本地数据。
+        (!/^\d+$/.test(l.productId) && !products.some((p) => p.id === l.productId)) ||
         !Number.isSafeInteger(l.quantity) ||
         l.quantity <= 0 ||
         l.quantity > 100000000 ||
