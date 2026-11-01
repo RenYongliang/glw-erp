@@ -35,9 +35,12 @@
         ORDER BY p.id
     </select>
     <select id="selectCostBatches" resultType="com.glw.backend.model.vo.ProductCostBatchVO">
-        SELECT id AS inventory_id, batch_no, date_code, lot_code, quantity, unit_cost
-        FROM inventory
-        WHERE product_id = #{productId} AND quantity > 0
-        ORDER BY batch_no, id
+        SELECT i.id AS inventory_id, i.batch_no, i.date_code, i.lot_code, i.quantity, i.unit_cost,
+               o.inbound_time AS inbound_time
+        FROM inventory i
+        LEFT JOIN inbound_order_item oi ON oi.id = i.inbound_order_item_id
+        LEFT JOIN inbound_order o ON o.id = oi.inbound_order_id
+        WHERE i.product_id = #{productId} AND i.quantity > 0
+        ORDER BY o.inbound_time, i.batch_no, i.id
     </select>
 </mapper>

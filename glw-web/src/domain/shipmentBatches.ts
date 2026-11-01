@@ -1,6 +1,9 @@
 export interface BatchStock {
   inventoryId: string
   batchNo: string
+  dateCode?: string
+  lotCode?: string
+  inboundTime?: string
   quantity: number
   unitCost: number
 }
@@ -9,6 +12,9 @@ export interface ShipmentBatch {
   id: string
   inventoryId: string
   batchNo?: string
+  dateCode?: string
+  lotCode?: string
+  inboundTime?: string
   quantity: number
   unitCost: number
 }
@@ -32,7 +38,9 @@ export function allocateFifo(stock: BatchStock[], pending: number): ShipmentBatc
   for (const batch of stock) {
     const quantity = Math.min(batch.quantity, remaining)
     if (quantity <= 0) continue
-    result.push({ id: batch.inventoryId, inventoryId: batch.inventoryId, batchNo: batch.batchNo, quantity, unitCost: batch.unitCost })
+    result.push({ id: batch.inventoryId, inventoryId: batch.inventoryId, batchNo: batch.batchNo,
+      dateCode: batch.dateCode, lotCode: batch.lotCode, inboundTime: batch.inboundTime,
+      quantity, unitCost: batch.unitCost })
     remaining -= quantity
     if (remaining === 0) break
   }

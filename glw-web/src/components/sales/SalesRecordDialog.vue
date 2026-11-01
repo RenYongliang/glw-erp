@@ -116,7 +116,7 @@ const order = ref<SalesOrder>(
         payments: [],
         attachments: [],
         term: "月结30天",
-        status: "待审批",
+        status: "待发货",
         reason: "",
         approver: "",
         approvedAt: "",
@@ -143,6 +143,7 @@ const shipment = ref<SalesShipment>(
 );
 const isOrder = props.kind === "orders",
   title = isOrder ? "销售订单" : props.dispatch ? "发货" : "销售出库";
+for (const line of order.value.lines) line.taxIncluded ??= true;
 const linkedOrders = computed(() =>
   shipmentOrders(shipment.value, store.state.orders),
 );
@@ -187,7 +188,7 @@ const locked = computed(
 const availableOrders = computed(() =>
   store.state.orders.filter(
     (o) =>
-      ['审批通过', '待发货', '部分发货'].includes(o.status) &&
+      ['待发货', '部分发货'].includes(o.status) &&
       o.lines.some(
         (l) =>
           remainingQuantity(store.state, o.id, l.id, shipment.value.id) > 0,
@@ -300,6 +301,7 @@ function addProducts() {
         packaging: p.model,
         price: 0,
         tax: p.tax,
+        taxIncluded: true,
       });
     }
   productSelection.value = [];
@@ -386,7 +388,7 @@ const dispatchWidths = computed(() => {
     brand: contentWidth('品牌', lines.map(l => productFor(l.lineId)?.brand)),
     model: contentWidth('型号', lines.map(l => productFor(l.lineId)?.name)),
     package: contentWidth('封装', lines.map(l => productFor(l.lineId)?.model)),
-    quantity: contentWidth('数量', lines.map(l => orderLine(l.lineId)?.quantity)),
+    quantity: contentWidth('销售数量', lines.map(l => orderLine(l.lineId)?.quantity)),
     pending: contentWidth('待出库数量', lines.map(l => remainingQuantity(store.state, lineOrderId(l.lineId), l.lineId, shipment.value.id))),
     dispatch: contentWidth('本次发货数量', lines.map(l => l.arrived), 105),
     remark: 180,
@@ -419,7 +421,7 @@ async function save() {
   if (saving.value) return;
   saving.value = true;
   try {
-    if (isOrder) store.saveOrder(order.value, productCatalog.value);
+    if (isOrder) await store.saveOrder(order.value, productCatalog.value);
     else {
       if (!props.shipment?.confirmed) {
         const stockByProduct = new Map<string, ProductCostBatch[]>();
@@ -450,7 +452,7 @@ async function save() {
     dirty.value = false;
     ElMessage.success(
       isOrder
-        ? "已提交，等待审批"
+        ? "销售订单已保存"
         : shipment.value.confirmed
           ? "出库及收货信息已保存"
           : `已保存${shipment.value.tag}单据`,
@@ -478,22 +480,6 @@ async function close(done?: () => void) {
   emit("close");
 }
 
-async function approve(passed: boolean) {
-  try {
-    let reason = "";
-    if (!passed) {
-      const r = await ElMessageBox.prompt("请填写不通过原因", "合同审批", {
-        inputValidator: (v) => !!v?.trim() || "请填写原因",
-      });
-      reason = r.value;
-    }
-    store.approve(order.value.id, passed, reason);
-    ElMessage.success("审批结果已保存");
-    emit("saved");
-  } catch (e) {
-    if (e instanceof Error) ElMessage.error(e.message);
-  }
-}
 async function uploadContract(event: Event) {
   await attach(event);
   try {
@@ -575,6 +561,7 @@ function quickFill() {
           packaging: r.p!.model,
           price: 0,
           tax: r.p!.tax,
+          taxIncluded: true,
         });
     } else {
       const l = linkedOrder.value?.lines.find((l) => l.productId === r.p!.id),
@@ -609,11 +596,11 @@ function quickFill() {
             v-if="isOrder && order.code"
             size="small"
             :type="
-              order.status === '审批通过'
+              order.status === '已完成'
                 ? 'success'
-                : order.status === '不通过'
-                  ? 'danger'
-                  : 'warning'
+                : order.status === '部分发货'
+                  ? 'warning'
+                  : 'info'
             "
             >{{ order.status }}</el-tag
           ></span
@@ -752,13 +739,20 @@ function quickFill() {
       </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
-        <el-table-column v-for="f in [{key:'brand',label:'品牌',width:65},{key:'name',label:'型号',width:105},{key:'model',label:'封装',width:160}]" :key="f.key" :label="f.label" :min-width="f.width" :width="f.key === 'model' ? 160 : undefined" show-overflow-tooltip>
-          <template #default="{row}">{{ lineProductValue(row, f.key) }}</template>
+        <el-table-column label="型号" min-width="105" show-overflow-tooltip>
+          <template #default="{row}">{{ lineProductValue(row, 'name') }}</template>
         </el-table-column>
-        <el-table-column label="单价(含税)" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="4" controls-position="right" aria-label="单价(含税)" /></template></el-table-column>
+        <el-table-column label="品牌" min-width="65" show-overflow-tooltip>
+          <template #default="{row}">{{ lineProductValue(row, 'brand') }}</template>
+        </el-table-column>
+        <el-table-column label="封装" width="160" show-overflow-tooltip>
+          <template #default="{row}">{{ lineProductValue(row, 'model') }}</template>
+        </el-table-column>
         <el-table-column label="数量" width="130"><template #default="{row}"><el-input-number v-model="row.quantity" :step="100" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
+        <el-table-column label="单价" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="4" controls-position="right" aria-label="单价" /></template></el-table-column>
+        <el-table-column label="是否含税" width="90"><template #default="{row}"><el-select v-model="row.taxIncluded" :disabled="view" aria-label="是否含税"><el-option label="是" :value="true" /><el-option label="否" :value="false" /></el-select></template></el-table-column>
+        <el-table-column label="税率(%)" width="100"><template #default="{row}"><el-select v-if="row.taxIncluded" v-model="row.tax" :disabled="view" aria-label="税率(%)"><el-option v-for="rate in [13,6,3]" :key="rate" :label="rate + '%'" :value="rate" /></el-select><span v-else class="sales-tax-empty">—</span></template></el-table-column>
         <el-table-column label="金额" width="120"><template #default="{row}">{{ money(row.price * row.quantity) }}</template></el-table-column>
-        <el-table-column label="税率" width="100"><template #default="{row}"><el-select v-model="row.tax" :disabled="view" aria-label="税率"><el-option v-for="rate in [13,6,3]" :key="rate" :label="rate + '%'" :value="rate" /></el-select></template></el-table-column>
         <el-table-column label="当前库存" width="120"><template #default="{row}">{{ productValue(row.productId, 'stock') }}</template></el-table-column>
         <el-table-column v-if="!view" fixed="right" label="操作" width="90" align="center" class-name="sales-order-product-actions">
           <template #default="{$index}"><el-button text type="danger" :icon="Delete" aria-label="删除产品" @click="order.lines.splice($index,1); dirty=true" /></template>
@@ -860,14 +854,14 @@ function quickFill() {
         empty-text="请选择本次发货的产品"
       >
         <el-table-column type="index" :width="dispatchWidths.index" />
-        <el-table-column label="品牌" :min-width="65" show-overflow-tooltip
-          ><template #default="{ row }">{{
-            productFor(row.lineId)?.brand
-          }}</template></el-table-column
-        >
-        <el-table-column label="型号" :min-width="85" show-overflow-tooltip
+        <el-table-column label="型号" :width="dispatchWidths.model"
           ><template #default="{ row }">{{
             productFor(row.lineId)?.name
+          }}</template></el-table-column
+        >
+        <el-table-column label="品牌" :min-width="dispatchWidths.brand" show-overflow-tooltip
+          ><template #default="{ row }">{{
+            productFor(row.lineId)?.brand
           }}</template></el-table-column
         >
         <el-table-column label="封装" :width="160" show-overflow-tooltip
@@ -1219,23 +1213,6 @@ function quickFill() {
             }}</template></el-table-column
           ></el-table
         >
-        <template v-if="view"
-          ><h3 class="purchase-section">合同审批</h3>
-          <el-descriptions :column="2" border
-            ><el-descriptions-item label="审批结果">{{
-              order.status
-            }}</el-descriptions-item
-            ><el-descriptions-item label="审批人">{{
-              order.approver || "—"
-            }}</el-descriptions-item
-            ><el-descriptions-item label="审批时间">{{
-              order.approvedAt || "—"
-            }}</el-descriptions-item
-            ><el-descriptions-item label="不通过原因">{{
-              order.reason || "—"
-            }}</el-descriptions-item></el-descriptions
-          ></template
-        >
       </template>
       <template v-else>
         <h3 class="purchase-section">发货信息</h3>
@@ -1266,11 +1243,6 @@ function quickFill() {
           <el-form-item label="出库员"
             ><el-input
               v-model="shipment.keeper"
-              :disabled="!!props.shipment?.confirmed"
-          /></el-form-item>
-          <el-form-item label="库管归属部门"
-            ><el-input
-              v-model="shipment.department"
               :disabled="!!props.shipment?.confirmed"
           /></el-form-item>
         </el-form>
@@ -1330,21 +1302,12 @@ function quickFill() {
             type="primary"
             @click="view = false"
             >编辑</el-button
-          ><el-button
-            v-if="isOrder && order.status === '待审批'"
-            type="success"
-            @click="approve(true)"
-            >审批通过</el-button
-          ><el-button
-            v-if="isOrder && order.status === '待审批'"
-            type="danger"
-            plain
-            @click="approve(false)"
-            >不通过</el-button
           ><span v-if="isOrder && locked" class="purchase-tip"
             >已有业务记录，订单基础数据已锁定</span
           ></template
-        ><el-button v-else type="primary" :loading="saving" @click="save">提交</el-button
+        ><el-button v-else type="primary" :loading="saving" @click="save">{{
+          isOrder ? "保存" : "提交"
+        }}</el-button
         ><el-button @click="close()">{{ view ? "关闭" : "取消" }}</el-button>
       </div></template
     >
@@ -1549,6 +1512,8 @@ function quickFill() {
 <style>
 .sales-order-products .cell { white-space: nowrap; padding: 0 8px; }
 .sales-order-products .el-input-number { width: 100%; min-width: 0; }
+.sales-order-products .el-select { width: 100%; }
+.sales-order-products .sales-tax-empty { color: #a8abb2; }
 .sales-order-products .sales-order-product-actions .el-button { padding: 8px; margin: 0; }
 .sales-new-customer { display: flex; align-items: center; gap: 16px; margin: 12px 0; color: #909399; font-size: 13px; }
 </style>

@@ -1,5 +1,5 @@
 import { apiRequest } from './api'
-import { shipmentOrderIds, type SalesShipment, type ShippingInfo } from '../domain/sales'
+import { shipmentOrderIds, type SalesOrder, type SalesShipment, type ShippingInfo } from '../domain/sales'
 import { fetchAllPages, toSalesOrder, toSalesShipment,
   type PageResponse, type SalesOrderResponse, type OutboundOrderResponse } from './salesApiData'
 
@@ -15,6 +15,56 @@ export async function fetchOutboundOrders() {
     '/outbound-order/list', { method: 'POST', body: JSON.stringify({ pageNo, pageSize }) },
   ))
   return rows.map(toSalesShipment)
+}
+
+const settleTypes: [string, string][] = [
+  ['月结', 'MONTHLY'],
+  ['预付', 'PREPAID'],
+  ['货到付款', 'COD'],
+  ['现金', 'CASH'],
+]
+
+function toSettleType(term?: string) {
+  return settleTypes.find(([label]) => (term || '').startsWith(label))?.[1]
+}
+
+function toSalesOrderRequest(order: SalesOrder) {
+  if (!/^\d+$/.test(order.customerId)) throw Error('请从客户列表中选择客户')
+  const items = order.lines.map(line => {
+    if (!/^\d+$/.test(line.productId)) throw Error('销售产品需从产品列表中选择')
+    const taxIncluded = line.taxIncluded !== false
+    return {
+      productId: Number(line.productId),
+      unitPrice: line.price,
+      taxIncluded: taxIncluded ? 1 : 0,
+      taxRate: taxIncluded ? line.tax : null,
+      quantity: line.quantity,
+    }
+  })
+  return {
+    customerId: Number(order.customerId),
+    orderTime: order.signed,
+    deliveryTime: order.delivery,
+    customerOrderNo: (order.purchaseNumber || '').trim().slice(0, 64) || null,
+    settleType: toSettleType(order.term),
+    remark: (order.remark || '').trim().slice(0, 256) || null,
+    version: order.version,
+    items,
+  }
+}
+
+export async function createSalesOrder(order: SalesOrder) {
+  await apiRequest<unknown>('/sales-order', {
+    method: 'POST',
+    body: JSON.stringify(toSalesOrderRequest(order)),
+  })
+}
+
+export async function updateSalesOrder(order: SalesOrder) {
+  await apiRequest<unknown>(`/sales-order/${order.id}`, {
+    method: 'PUT',
+    body: JSON.stringify(toSalesOrderRequest(order)),
+  })
 }
 
 interface OutboundOrderCreateRequest {

@@ -2,7 +2,10 @@ package com.glw.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.glw.backend.common.BusinessException;
+import com.glw.backend.common.ErrorCode;
 import com.glw.backend.converter.SalesOrderConverter;
+import com.glw.backend.model.dto.SalesOrderCreateDTO;
 import com.glw.backend.model.dto.SalesOrderPageDTO;
 import com.glw.backend.model.entity.SalesOrder;
 import com.glw.backend.model.vo.SalesOrderVO;
@@ -38,5 +41,15 @@ public class MockSalesOrderServiceImpl implements SalesOrderService {
         page.setRecords(List.of(salesOrderConverter.toVO(salesOrder)));
         page.setTotal(1);
         return page;
+    }
+
+    @Override
+    public SalesOrderVO createSalesOrder(SalesOrderCreateDTO createDTO) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "演示模式不支持保存销售订单");
+    }
+
+    @Override
+    public SalesOrderVO updateSalesOrder(Long id, SalesOrderCreateDTO createDTO) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "演示模式不支持保存销售订单");
     }
 }

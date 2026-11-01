@@ -1,6 +1,7 @@
 package com.glw.backend.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.glw.backend.model.dto.SalesOrderCreateDTO;
 import com.glw.backend.model.dto.SalesOrderPageDTO;
 import com.glw.backend.model.vo.SalesOrderVO;
 
@@ -8,4 +9,10 @@ import com.glw.backend.model.vo.SalesOrderVO;
 public interface SalesOrderService {
 
     IPage<SalesOrderVO> pageSalesOrder(SalesOrderPageDTO pageDTO);
+
+    /** 新增销售订单，直接进入待发货状态。 */
+    SalesOrderVO createSalesOrder(SalesOrderCreateDTO createDTO);
+
+    /** 修改销售订单基础数据；已有出库记录时拒绝修改。 */
+    SalesOrderVO updateSalesOrder(Long id, SalesOrderCreateDTO createDTO);
 }

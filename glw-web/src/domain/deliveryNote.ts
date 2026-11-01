@@ -67,12 +67,15 @@ export function createDeliveryNote(
       const sourceOrder = sourceFor(line)!
       const orderLine = sourceOrder.lines.find((l) => l.id === line.lineId)!
       const product = products.find((p) => p.id === orderLine?.productId)
+      // 后端产品档案没有物料编码，按型号/品牌回查本地产品目录补全。
+      const catalogEntry = catalog.find((p) =>
+        p.name === orderLine.model && (!orderLine.brand || p.brand === orderLine.brand))
       const model = orderLine.model || product?.name
       if (!model || !Number.isSafeInteger(line.arrived))
         throw Error('请填写有效的本次发货数量')
       return {
-        code: product?.code || orderLine.productId,
-        name: catalog.find((p) => p.code === product?.code)?.type || '集成电路',
+        code: product?.code || catalogEntry?.code || orderLine.productId,
+        name: catalogEntry?.type || '集成电路',
         model,
         unit: 'pcs',
         quantity: line.arrived,

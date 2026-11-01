@@ -547,7 +547,7 @@ const importHeaders = isOrder
 function downloadTemplate() {
   const sampleOrder = store.state.orders.find(
     (o) =>
-      o.status === "审批通过" &&
+      ["待发货", "部分发货"].includes(o.status) &&
       o.lines.some((l) => remainingQuantity(store.state, o.id, l.id) > 0),
   );
   const sampleLine = sampleOrder?.lines.find(
@@ -627,7 +627,7 @@ function confirmImport() {
             payments: [],
             attachments: [],
             term: "月结30天",
-            status: "待审批",
+            status: "待发货",
             reason: "",
             approver: "",
             approvedAt: "",
@@ -954,11 +954,11 @@ function confirmImport() {
                     v-else-if="c.key === 'status'"
                     size="small"
                     :type="
-                      ['审批通过', '已出库'].includes(String(row.values.status))
+                      ['已完成', '已出库'].includes(String(row.values.status))
                         ? 'success'
-                        : row.values.status === '不通过'
-                          ? 'danger'
-                          : 'warning'
+                        : ['待发货', '部分发货'].includes(String(row.values.status))
+                          ? 'warning'
+                          : 'info'
                     "
                     >{{ row.values.status }}</el-tag
                   >
@@ -984,7 +984,7 @@ function confirmImport() {
                     class="purchase-pay"
                     size="small"
                     plain
-                    :disabled="row.order?.status !== '审批通过'"
+                    :disabled="!['待发货', '部分发货', '已完成'].includes(row.order?.status ?? '')"
                     @click="business(row.order!, '收款')"
                     >收款</el-button
                   ><el-button
@@ -1158,7 +1158,7 @@ function confirmImport() {
     <p>
       使用 UTF-8 CSV 模板，每行一条产品明细。{{
         isOrder
-          ? "同名订单会合并，导入后进入待审批。"
+          ? "同名订单会合并，导入后进入待发货。"
           : "同一订单会合并，导入后进入待出库。"
       }}
     </p>

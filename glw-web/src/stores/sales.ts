@@ -9,7 +9,6 @@ import {
   returnableQuantity,
   shipmentMatchesOrder,
   shipmentOrderIds,
-  margin,
   type SalesState,
   type SalesOrder,
   type SalesShipment,
@@ -19,9 +18,11 @@ import {
 } from '../domain/sales'
 import {
   createOutboundOrder,
+  createSalesOrder,
   fetchSalesOrders,
   fetchOutboundOrders,
   signOutboundOrder,
+  updateSalesOrder,
 } from '../services/salesApi'
 
 function initial(): SalesState {
@@ -59,29 +60,23 @@ export const useSalesStore = defineStore('sales', () => {
     }
     state.value = next
   }
-  function saveOrder(input: SalesOrder, catalog?: Pick<Product, 'id'>[]) {
-    const order: SalesOrder = JSON.parse(JSON.stringify(input)),
-      next = snapshot(),
-      error = validateOrder(order, catalog)
+  async function saveOrder(input: SalesOrder, catalog?: Pick<Product, 'id'>[]) {
+    const order: SalesOrder = JSON.parse(JSON.stringify(input))
+    order.name = order.name.trim()
+    const error = validateOrder(order, catalog)
     if (error) throw Error(error)
-    const index = next.orders.findIndex((o) => o.id === order.id)
+    const existing = state.value.orders.find((o) => o.id === order.id)
     if (
-      index >= 0 &&
-      (next.shipments.some((r) => shipmentMatchesOrder(r, order.id)) ||
-        next.payments.some((p) => p.orderId === order.id) ||
-        next.returns.some((r) => r.orderId === order.id))
+      existing &&
+      (state.value.shipments.some((r) => shipmentMatchesOrder(r, order.id)) ||
+        state.value.payments.some((p) => p.orderId === order.id) ||
+        state.value.returns.some((r) => r.orderId === order.id))
     )
       throw Error('订单已有出库或财务记录，不能再修改订单基础数据')
-    order.name = order.name.trim()
-    order.status = '待审批'
-    order.reason = ''
-    order.approver = ''
-    order.approvedAt = ''
-    if (index < 0) {
-      order.code = nextSalesCode('SO', next.orders, order.signed)
-      next.orders.unshift(order)
-    } else next.orders[index] = order
-    commit(next, index < 0 ? '新增销售订单' : '修改并重新提交审批', order.code)
+    if (existing) await updateSalesOrder(order)
+    else await createSalesOrder(order)
+    // 以服务端数据为准刷新列表，确保拿到后端订单号和状态。
+    await load()
     return order
   }
   function saveAttachments(id: string, attachments: SalesOrder['attachments']) {
@@ -90,18 +85,6 @@ export const useSalesStore = defineStore('sales', () => {
     if (!order) throw Error('订单不存在，请刷新')
     order.attachments = JSON.parse(JSON.stringify(attachments))
     commit(next, '补充合同附件', order.code)
-  }
-  function approve(id: string, passed: boolean, reason: string) {
-    const next = snapshot(),
-      order = next.orders.find((o) => o.id === id)
-    if (!order || order.status !== '待审批') throw Error('订单已发生变化，请刷新后重试')
-    if (!passed && !reason.trim()) throw Error('请填写不通过原因')
-    if (passed && margin(order) < 35) throw Error('订单毛利率低于 35%，不能审批通过')
-    order.status = passed ? '审批通过' : '不通过'
-    order.reason = reason
-    order.approver = '张睿'
-    order.approvedAt = new Date().toLocaleString('sv-SE')
-    commit(next, passed ? '审批通过' : '审批不通过', order.code)
   }
   async function saveShipment(input: SalesShipment) {
     const next = snapshot(),
@@ -179,7 +162,8 @@ export const useSalesStore = defineStore('sales', () => {
   function pay(input: SalesPayment) {
     const next = snapshot(),
       order = next.orders.find((o) => o.id === input.orderId)
-    if (!order || order.status !== '审批通过') throw Error('只能为已审批订单收款')
+    if (!order || !['待发货', '部分发货', '已完成'].includes(order.status))
+      throw Error('当前订单状态不能收款')
     const remaining =
       orderTotals(order).total -
       next.payments.filter((p) => p.orderId === order.id).reduce((a, p) => a + p.amount, 0)
@@ -215,7 +199,7 @@ export const useSalesStore = defineStore('sales', () => {
       const error = validateOrder(row)
       if (error) throw Error(error)
       row.code = nextSalesCode('SO', next.orders, row.signed)
-      row.status = '待审批'
+      row.status = '待发货'
       next.orders.unshift(row)
     }
     commit(next, '导入销售订单', `${rows.length} 条`)
@@ -237,7 +221,6 @@ export const useSalesStore = defineStore('sales', () => {
     load,
     saveOrder,
     saveAttachments,
-    approve,
     saveShipment,
     remove,
     pay,

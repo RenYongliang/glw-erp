@@ -14,6 +14,7 @@ export interface SalesOrderItemResponse {
   partNo: string
   packageType?: string | null
   unitPrice: string | number
+  taxIncluded?: number | null
   taxRate?: number | null
   quantity: number
   pendingQuantity?: number
@@ -33,6 +34,7 @@ export interface SalesOrderResponse {
   orderStatus: string
   paymentStatus: string
   remark?: string | null
+  version?: number
   items: SalesOrderItemResponse[]
 }
 export interface OutboundSalesOrderResponse {
@@ -95,12 +97,14 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
     status: statuses[order.orderStatus] || '待发货',
     paymentStatus: payments[order.paymentStatus],
     remark: order.remark || '',
+    version: order.version,
     lines: order.items.map(item => ({
       id: String(item.id), productId: String(item.productId),
       brand: item.brand ?? '', model: item.partNo, packaging: item.packageType ?? '',
       quantity: item.quantity, cancelledQuantity: item.cancelledQuantity ?? 0,
       pendingQuantity: item.pendingQuantity,
-      price: Number(item.unitPrice), tax: item.taxRate ?? 0, amount: Number(item.amount),
+      price: Number(item.unitPrice), tax: item.taxRate ?? 0,
+      taxIncluded: item.taxIncluded !== 0, amount: Number(item.amount),
     })),
     arrivals: [], payments: [], attachments: [], reason: '', approver: '', approvedAt: '',
   }

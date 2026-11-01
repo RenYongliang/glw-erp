@@ -17,7 +17,9 @@ const loading = ref(false), error = ref('')
 const rows = ref<(BatchStock & { selected: boolean; shippingQuantity: number })[]>([])
 const selected = computed<ShipmentBatch[]>(() => rows.value.filter(r => r.selected).map(r => ({
   id: props.batches.find(b => b.inventoryId === r.inventoryId)?.id || r.inventoryId,
-  inventoryId: r.inventoryId, batchNo: r.batchNo, quantity: r.shippingQuantity, unitCost: r.unitCost,
+  inventoryId: r.inventoryId, batchNo: r.batchNo,
+  dateCode: r.dateCode, lotCode: r.lotCode, inboundTime: r.inboundTime,
+  quantity: r.shippingQuantity, unitCost: r.unitCost,
 })))
 const total = computed(() => selected.value.reduce((sum, b) => sum + b.quantity, 0))
 async function load() {
@@ -54,15 +56,18 @@ onMounted(load)
 </script>
 
 <template>
-  <el-dialog :model-value="true" title="选择发货批次" width="min(860px,94vw)" append-to-body class="purchase-dialog shipment-batch-picker" @close="emit('close')">
+  <el-dialog :model-value="true" title="选择发货批次" width="min(1080px,96vw)" append-to-body class="purchase-dialog shipment-batch-picker" @close="emit('close')">
     <div class="shipment-batch-summary"><span>{{ productName }}</span><span>待发数量：{{ pending }}</span></div>
     <el-alert v-if="error" :title="error" type="error" :closable="false"><el-button link type="primary" @click="load">重试</el-button></el-alert>
     <template v-else>
       <div class="shipment-batch-tools"><el-button plain type="primary" :disabled="loading || !rows.some(r => r.quantity > 0)" @click="fifo">按 FIFO 分配</el-button><span>本次发货数量：{{ total }}</span></div>
       <el-table v-loading="loading" :data="rows" row-key="inventoryId" border max-height="400" :empty-text="loading ? '加载中…' : '暂无可发货批次'">
         <el-table-column width="45" align="center"><template #default="{row}"><el-checkbox :model-value="row.selected" :disabled="row.quantity <= 0" :aria-label="`选择批次${row.batchNo}`" @change="toggle(row, !!$event)" /></template></el-table-column>
-        <el-table-column prop="batchNo" label="批次号" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="quantity" label="可发库存" min-width="100" align="right" />
+        <el-table-column prop="batchNo" label="批次号" min-width="190" show-overflow-tooltip />
+        <el-table-column label="入库日期" min-width="105"><template #default="{row}">{{ row.inboundTime || '—' }}</template></el-table-column>
+        <el-table-column label="Date Code" min-width="100" show-overflow-tooltip><template #default="{row}">{{ row.dateCode || '—' }}</template></el-table-column>
+        <el-table-column label="Lot Code" min-width="110" show-overflow-tooltip><template #default="{row}">{{ row.lotCode || '—' }}</template></el-table-column>
+        <el-table-column prop="quantity" label="可发库存" min-width="90" align="right" />
         <el-table-column label="单位成本" min-width="105" align="right"><template #default="{row}">{{ formatUnitCost(row.unitCost) }}</template></el-table-column>
         <el-table-column label="本批发货数量" width="165"><template #default="{row}"><el-input-number v-model="row.shippingQuantity" :disabled="!row.selected" :min="0" :max="Math.min(row.quantity, pending)" :precision="0" :step="100" controls-position="right" :aria-label="`${row.batchNo}发货数量`" /></template></el-table-column>
       </el-table>

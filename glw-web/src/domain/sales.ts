@@ -35,6 +35,8 @@ export interface SalesLine {
   quantity: number
   price: number
   tax: number
+  /** 是否含税；未填写时按含税单价处理。 */
+  taxIncluded?: boolean
   listPrice?: number
 }
 export interface ArrivalPlan {
@@ -77,10 +79,12 @@ export interface SalesOrder {
   payments: PaymentPlan[]
   attachments: Attachment[]
   term: string
-  status: '待审批' | '审批通过' | '不通过' | '待发货' | '部分发货' | '已完成' | '剩余未交取消'
+  status: '待发货' | '部分发货' | '已完成' | '剩余未交取消'
   reason: string
   approver: string
   approvedAt: string
+  /** 后端乐观锁版本号，修改已保存的订单时回传。 */
+  version?: number
 }
 export interface ShipmentLine {
   batches?: ShipmentBatch[]
@@ -295,7 +299,8 @@ export function orderTotals(order: Pick<SalesOrder, 'lines' | 'discount'>) {
       gross: roundMoney(l.quantity * (l.listPrice ?? l.price)),
       total,
       unit: l.quantity ? total / l.quantity : 0,
-      net: roundMoney(total / (1 + l.tax / 100)),
+      // 含税单价按税率倒算不含税金额；不含税单价本身即为不含税金额。
+      net: roundMoney(l.taxIncluded === false ? total : total / (1 + l.tax / 100)),
     }
   })
   return {
@@ -409,20 +414,29 @@ export function shipmentTotals(
 const dateValid = (value: string) =>
   /^\d{4}-\d{2}-\d{2}/.test(value) && Number.isFinite(Date.parse(value))
 export function validateOrder(order: SalesOrder, catalog: Pick<Product, 'id'>[] = products) {
-  if (order.customerId && !customers.some((s) => s.id === order.customerId)) return '请选择有效客户'
+  // 后端客户 id 为纯数字；静态列表只覆盖历史本地数据。
+  if (
+    order.customerId &&
+    !/^\d+$/.test(order.customerId) &&
+    !customers.some((s) => s.id === order.customerId)
+  )
+    return '请选择有效客户'
   if (!orderCustomerName(order)) return '请选择或填写客户名称'
   if (orderCustomerName(order).length > 100) return '客户名称不能超过100字'
   if (!order.name.trim()) return '请填写销售订单名称'
   if (!dateValid(order.signed) || !dateValid(order.delivery)) return '请填写订单签订日期和交付日期'
   if (order.delivery < order.signed) return '订单交付日期不能早于签订日期'
-  if (!warehouses.includes(order.warehouse)) return '请选择出库仓库'
+  // 后端销售订单不保存仓库字段，编辑这类订单时允许为空。
+  if (!warehouses.includes(order.warehouse) && !(/^\d+$/.test(order.id) && !order.warehouse))
+    return '请选择出库仓库'
   if (!order.lines.length) return '请至少添加一条销售产品明细'
   if (new Set(order.lines.map((l) => l.productId)).size !== order.lines.length)
     return '同一产品请合并数量，不要重复添加'
   if (
     order.lines.some(
       (l) =>
-        !catalog.some((p) => p.id === l.productId) ||
+        // 后端产品 id 为纯数字；静态目录只覆盖历史本地数据。
+        (!/^\d+$/.test(l.productId) && !catalog.some((p) => p.id === l.productId)) ||
         !Number.isSafeInteger(l.quantity) ||
         l.quantity <= 0 ||
         l.quantity > 100000000 ||
@@ -460,7 +474,7 @@ export function validateOrder(order: SalesOrder, catalog: Pick<Product, 'id'>[] 
 export function validateShipment(shipment: SalesShipment, state: SalesState) {
   const orders = shipmentOrders(shipment, state.orders)
   if (!orders.length) return '请选择可发货的销售订单'
-  if (orders.some((o) => !['审批通过', '待发货', '部分发货'].includes(o.status)))
+  if (orders.some((o) => !['待发货', '部分发货'].includes(o.status)))
     return '请选择可发货的销售订单'
   if (shipment.shipping && shipment.confirmed) {
     if (!shipment.shipping.address.trim()) return '请填写收货地址'

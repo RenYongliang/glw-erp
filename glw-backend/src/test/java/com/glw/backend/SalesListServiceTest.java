@@ -34,7 +34,7 @@ class SalesListServiceTest {
         var items = mock(SalesOrderItemService.class);
         var customers = mock(CustomerMapper.class);
         var outbound = mock(OutboundOrderItemAllocMapper.class);
-        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), customers, outbound, mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.mapper.FinanceOrderStatusMapper.class)));
+        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), customers, mock(com.glw.backend.mapper.ProductMapper.class), outbound, mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.mapper.FinanceOrderStatusMapper.class)));
         LambdaQueryChainWrapper<SalesOrder> ordersQuery = query();
         LambdaQueryChainWrapper<SalesOrderItem> itemsQuery = query();
         doReturn(ordersQuery).when(service).lambdaQuery();
@@ -69,7 +69,7 @@ class SalesListServiceTest {
     @Test
     void missingProductMatchReturnsEmptyInsteadOfAllOrders() {
         var items = mock(SalesOrderItemService.class);
-        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), mock(CustomerMapper.class), mock(OutboundOrderItemAllocMapper.class), mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.mapper.FinanceOrderStatusMapper.class)));
+        var service = spy(new SalesOrderServiceImpl(items, Mappers.getMapper(SalesOrderConverter.class), mock(CustomerMapper.class), mock(com.glw.backend.mapper.ProductMapper.class), mock(OutboundOrderItemAllocMapper.class), mock(com.glw.backend.service.DocumentNumberService.class), mock(com.glw.backend.mapper.FinanceOrderStatusMapper.class)));
         LambdaQueryChainWrapper<SalesOrderItem> itemsQuery = query();
         when(items.lambdaQuery()).thenReturn(itemsQuery);
         when(itemsQuery.list()).thenReturn(List.of());

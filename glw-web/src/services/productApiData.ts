@@ -24,6 +24,7 @@ export interface ProductCostBatchResponse {
   batchNo: string
   dateCode?: string
   lotCode?: string
+  inboundTime?: string
   quantity: number
   unitCost: number | string
 }
@@ -31,6 +32,7 @@ export interface ProductCostBatchResponse {
 export function toProductCostBatch(row: ProductCostBatchResponse) {
   return { inventoryId: String(row.inventoryId), batchNo: row.batchNo,
     dateCode: row.dateCode ?? '', lotCode: row.lotCode ?? '',
+    inboundTime: row.inboundTime?.slice(0, 10) ?? '',
     quantity: Number(row.quantity), unitCost: Number(row.unitCost) }
 }
 export type ProductCostBatch = ReturnType<typeof toProductCostBatch>
