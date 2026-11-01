@@ -9,11 +9,13 @@ import com.glw.backend.common.ErrorCode;
 import com.glw.backend.converter.SalesOrderConverter;
 import com.glw.backend.mapper.SalesOrderMapper;
 import com.glw.backend.mapper.CustomerMapper;
+import com.glw.backend.mapper.CustomerProductCodeMapper;
 import com.glw.backend.mapper.OutboundOrderItemAllocMapper;
 import com.glw.backend.mapper.ProductMapper;
 import com.glw.backend.model.dto.SalesOrderCreateDTO;
 import com.glw.backend.model.dto.SalesOrderItemCreateDTO;
 import com.glw.backend.model.entity.Customer;
+import com.glw.backend.model.entity.CustomerProductCode;
 import com.glw.backend.model.dto.SalesOrderPageDTO;
 import com.glw.backend.model.entity.OutboundOrderItemAlloc;
 import com.glw.backend.model.entity.Product;
@@ -53,6 +55,7 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     private final SalesOrderItemService salesOrderItemService;
     private final SalesOrderConverter salesOrderConverter;
     private final CustomerMapper customerMapper;
+    private final CustomerProductCodeMapper customerProductCodeMapper;
     private final ProductMapper productMapper;
     private final OutboundOrderItemAllocMapper outboundOrderItemAllocMapper;
     private final DocumentNumberService documentNumberService;
@@ -158,6 +161,17 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
             row.setBrand(product.getBrand());
             row.setPartNo(product.getPartNo());
             row.setPackageType(product.getPackageType());
+            // 订单行保存客户物料编码快照；前端未传时回落到客户客件对照表。
+            String customerPartNo = trimText(itemDTO.getCustomerPartNo(), 64, "客户物料编码");
+            if (customerPartNo == null) {
+                CustomerProductCode mapping = customerProductCodeMapper.selectOne(
+                        Wrappers.<CustomerProductCode>lambdaQuery()
+                                .eq(CustomerProductCode::getCustomerId, order.getCustomerId())
+                                .eq(CustomerProductCode::getProductId, product.getId())
+                                .eq(CustomerProductCode::getEnabled, true));
+                if (mapping != null) customerPartNo = mapping.getCustomerCode();
+            }
+            row.setCustomerPartNo(customerPartNo);
             row.setUnitPrice(price);
             row.setTaxIncluded(itemDTO.getTaxIncluded());
             row.setTaxRate(itemDTO.getTaxRate());

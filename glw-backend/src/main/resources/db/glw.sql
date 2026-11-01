@@ -65,6 +65,29 @@ CREATE TABLE `customer`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '客户表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for customer_product_code
+-- 客户系统内的物料编码对照；同一客户同一产品唯一。
+-- ----------------------------
+DROP TABLE IF EXISTS `customer_product_code`;
+CREATE TABLE `customer_product_code`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `customer_id` bigint(0) NOT NULL COMMENT '客户id',
+  `product_id` bigint(0) NOT NULL COMMENT '产品id',
+  `customer_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '客户物料编码',
+  `source` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'MANUAL' COMMENT '来源：MANUAL、PURCHASE_CONTRACT、IMPORT',
+  `enabled` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
+  `remark` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
+  `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
+  `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
+  `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_customer_product`(`customer_id`, `product_id`) USING BTREE,
+  INDEX `idx_customer_code`(`customer_id`, `customer_code`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '客户物料编码对照表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for customer_visit
 -- ----------------------------
 DROP TABLE IF EXISTS `customer_visit`;
@@ -416,6 +439,7 @@ CREATE TABLE `sales_order_item`  (
   `brand` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '品牌',
   `part_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '型号',
   `package_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '封装',
+  `customer_part_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '客户物料编码快照',
   `unit_price` decimal(12, 4) NOT NULL COMMENT '单价',
   `tax_included` int(0) NOT NULL DEFAULT 1 COMMENT '是否含税 0未税 1含税',
   `tax_rate` int(0) NULL DEFAULT NULL COMMENT '增值税税率',

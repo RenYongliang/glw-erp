@@ -28,6 +28,8 @@ export interface SalesLine {
   brand?: string
   model?: string
   packaging?: string
+  /** 客户系统内的物料编码；客户未提供时为空。 */
+  customerPartNo?: string
   amount?: number
   cancelledQuantity?: number
   id: string

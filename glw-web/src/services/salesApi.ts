@@ -35,6 +35,7 @@ function toSalesOrderRequest(order: SalesOrder) {
     const taxIncluded = line.taxIncluded !== false
     return {
       productId: Number(line.productId),
+      customerPartNo: (line.customerPartNo || '').trim().slice(0, 64) || null,
       unitPrice: line.price,
       taxIncluded: taxIncluded ? 1 : 0,
       taxRate: taxIncluded ? line.tax : null,

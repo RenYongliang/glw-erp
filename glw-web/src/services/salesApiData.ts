@@ -13,6 +13,7 @@ export interface SalesOrderItemResponse {
   brand?: string | null
   partNo: string
   packageType?: string | null
+  customerPartNo?: string | null
   unitPrice: string | number
   taxIncluded?: number | null
   taxRate?: number | null
@@ -101,6 +102,7 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
     lines: order.items.map(item => ({
       id: String(item.id), productId: String(item.productId),
       brand: item.brand ?? '', model: item.partNo, packaging: item.packageType ?? '',
+      customerPartNo: item.customerPartNo ?? undefined,
       quantity: item.quantity, cancelledQuantity: item.cancelledQuantity ?? 0,
       pendingQuantity: item.pendingQuantity,
       price: Number(item.unitPrice), tax: item.taxRate ?? 0,

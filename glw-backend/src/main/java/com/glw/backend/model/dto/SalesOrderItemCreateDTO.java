@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import lombok.Data;
 
@@ -24,6 +25,10 @@ public class SalesOrderItemCreateDTO {
     @DecimalMax("10000000.0000")
     @Digits(integer = 8, fraction = 4)
     private BigDecimal unitPrice;
+
+    /** 客户系统内的物料编码；为空时按客户客件对照自动带出。 */
+    @Size(max = 64)
+    private String customerPartNo;
 
     @NotNull
     private TaxIncluded taxIncluded;

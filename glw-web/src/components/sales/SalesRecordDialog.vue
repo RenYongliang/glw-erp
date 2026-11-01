@@ -9,6 +9,7 @@ import { validateBatchSelection, type ShipmentBatch } from "../../domain/shipmen
 import { useSalesStore } from "../../stores/sales";
 import { fetchSalesProducts, fetchProductCostBatches } from "../../services/productApi";
 import { fetchCustomerOptions, type CustomerOption } from "../../services/customerApi";
+import { fetchCustomerProductCodes } from "../../services/customerProductCodeApi";
 import { formatUnitCost, formatCostRange, type SalesProductOption, type ProductCostBatch } from "../../services/productApiData";
 import {
   orderCustomerName,
@@ -231,12 +232,45 @@ watch(
 function chooseCustomer(id: string) {
   const s = customers.value.find((s) => s.id === id);
   if (!s) return;
+  resetCustomerPartCodes();
   order.value.customerId = id;
   order.value.customerName = s.name;
   order.value.customerShortName = s.shortName || undefined;
   order.value.name = `${s.name}-第${store.state.orders.filter((o) => o.customerId === id).length + 1}份销售订单`;
   picker.value = "";
   dirty.value = true;
+  void loadCustomerPartCodes(id);
+}
+const customerPartCodes = ref<Record<string, string>>({});
+let partCodeRequest = 0;
+async function loadCustomerPartCodes(customerId: string) {
+  const request = ++partCodeRequest;
+  customerPartCodes.value = {};
+  if (!/^\d+$/.test(customerId)) return;
+  try {
+    const rows = await fetchCustomerProductCodes(customerId);
+    if (request !== partCodeRequest) return;
+    customerPartCodes.value = Object.fromEntries(rows
+      .filter(row => row.enabled)
+      .map(row => [String(row.productId), row.customerCode]));
+    fillCustomerPartCodes();
+  } catch {
+    // 客件编码加载失败不影响下单，用户可以手工填写。
+  }
+}
+function fillCustomerPartCodes() {
+  for (const line of order.value.lines)
+    if (!line.customerPartNo && customerPartCodes.value[line.productId])
+      line.customerPartNo = customerPartCodes.value[line.productId];
+}
+/** 切换客户时清掉上一客户自动带出的编码，避免打印出错；手工填写且不匹配旧编码的保留。 */
+function resetCustomerPartCodes() {
+  const known = new Set(Object.values(customerPartCodes.value));
+  for (const line of order.value.lines)
+    if (!line.customerPartNo || known.has(line.customerPartNo)) line.customerPartNo = '';
+}
+function customerPartCodeFor(productId: string) {
+  return customerPartCodes.value[productId] || '';
 }
 function useCustomerName() {
   const name = pickerQuery.value.trim();
@@ -244,6 +278,8 @@ function useCustomerName() {
   if (name.length > 100) return void ElMessage.warning("客户名称不能超过100字");
   const existing = customers.value.find(c => c.name === name);
   if (existing) return chooseCustomer(existing.id);
+  resetCustomerPartCodes();
+  customerPartCodes.value = {};
   order.value.customerId = "";
   order.value.customerName = name;
   order.value.customerShortName = undefined;
@@ -299,6 +335,7 @@ function addProducts() {
         brand: p.brand,
         model: p.name,
         packaging: p.model,
+        customerPartNo: customerPartCodeFor(id),
         price: 0,
         tax: p.tax,
         taxIncluded: true,
@@ -366,6 +403,8 @@ function syncDispatchFont() {
 onMounted(() => {
   void loadProducts();
   void loadCustomers();
+  if (isOrder && /^\d+$/.test(order.value.customerId))
+    void loadCustomerPartCodes(order.value.customerId);
   syncDispatchFont();
   void document.fonts.ready.then(syncDispatchFont);
   window.addEventListener('resize', syncDispatchFont);
@@ -747,6 +786,9 @@ function quickFill() {
         </el-table-column>
         <el-table-column label="封装" width="160" show-overflow-tooltip>
           <template #default="{row}">{{ lineProductValue(row, 'model') }}</template>
+        </el-table-column>
+        <el-table-column label="客户物料编码" width="150">
+          <template #default="{row}"><el-input v-model="row.customerPartNo" :disabled="view" maxlength="64" placeholder="客户提供时填写" aria-label="客户物料编码" /></template>
         </el-table-column>
         <el-table-column label="数量" width="130"><template #default="{row}"><el-input-number v-model="row.quantity" :step="100" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
         <el-table-column label="单价" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="4" controls-position="right" aria-label="单价" /></template></el-table-column>

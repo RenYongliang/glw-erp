@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.CustomerProductCodeMapper">
+    <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.CustomerProductCode">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="customer_id" property="customerId" jdbcType="BIGINT"/>
+        <result column="product_id" property="productId" jdbcType="BIGINT"/>
+        <result column="customer_code" property="customerCode" jdbcType="VARCHAR"/>
+        <result column="source" property="source" jdbcType="VARCHAR"/>
+        <result column="enabled" property="enabled" jdbcType="BOOLEAN"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="version" property="version" jdbcType="INTEGER"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+        <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
+        <result column="updated_by" property="updatedBy" jdbcType="BIGINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`, `customer_id`, `product_id`, `customer_code`, `source`, `enabled`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+    </sql>
+
+    <select id="selectByCustomer" resultType="com.glw.backend.model.vo.CustomerProductCodeVO">
+        SELECT cpc.id, cpc.customer_id, cpc.product_id, p.brand, p.part_no, p.package_type,
+               cpc.customer_code, cpc.source, cpc.enabled, cpc.remark, cpc.version
+        FROM customer_product_code cpc
+        LEFT JOIN product p ON p.id = cpc.product_id
+        WHERE cpc.customer_id = #{customerId}
+        ORDER BY p.part_no, cpc.id
+    </select>
+</mapper>

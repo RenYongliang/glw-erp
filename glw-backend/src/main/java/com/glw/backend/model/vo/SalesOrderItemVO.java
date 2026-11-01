@@ -13,6 +13,8 @@ public class SalesOrderItemVO {
     private String brand;
     private String partNo;
     private String packageType;
+    /** 客户物料编码快照；客户未提供时为空。 */
+    private String customerPartNo;
     private BigDecimal unitPrice;
     private TaxIncluded taxIncluded;
     private Integer taxRate;

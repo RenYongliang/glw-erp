@@ -6,6 +6,8 @@ import { fetchCrmCustomers, fetchCrmVisits, saveCustomer, saveVisit, deleteCrmRe
   categoryOptions, stageOptions, settlementOptions, settlementLabel, type CustomerRecord, type VisitRecord } from '../../services/crmApi'
 import { fetchSalesProducts } from '../../services/productApi'
 import type { SalesProductOption } from '../../services/productApiData'
+import { fetchCustomerProductCodes, saveCustomerProductCode, deleteCustomerProductCode,
+  type CustomerProductCode } from '../../services/customerProductCodeApi'
 import { downloadExport } from '../../services/exportApi'
 import { today } from '../../domain/purchase'
 import '../../assets/purchase.css'
@@ -103,6 +105,60 @@ async function remove(row: CustomerRecord | VisitRecord) {
     await deleteCrmRecord(props.kind, row); ElMessage.success('已删除'); await load()
   } catch (e) { if (e instanceof Error) ElMessage.error(e.message) }
 }
+const codesOpen = ref(false), codeCustomer = ref<CustomerRecord>()
+const codeRows = ref<CustomerProductCode[]>([]), codesLoading = ref(false), codesError = ref('')
+const codeEditor = ref(false), codeSaving = ref(false)
+const codeEditingId = ref<number>(), codeVersion = ref<number>()
+const codeDraft = ref({ productId: undefined as number | undefined, customerCode: '', enabled: true, remark: '' })
+function openCodes(row: CustomerRecord) {
+  codeCustomer.value = row
+  codesOpen.value = true
+  void loadCodes()
+  if (!products.value.length) void fetchSalesProducts().then(rows => { products.value = rows }).catch(e => ElMessage.error(e.message))
+}
+async function loadCodes() {
+  if (!codeCustomer.value) return
+  codesLoading.value = true
+  codesError.value = ''
+  try { codeRows.value = await fetchCustomerProductCodes(String(codeCustomer.value.id)) }
+  catch (e) { codesError.value = (e as Error).message }
+  finally { codesLoading.value = false }
+}
+function openCodeEditor(row?: CustomerProductCode) {
+  codeEditingId.value = row?.id
+  codeVersion.value = row?.version
+  codeDraft.value = { productId: row?.productId, customerCode: row?.customerCode || '',
+    enabled: row?.enabled ?? true, remark: row?.remark || '' }
+  codeEditor.value = true
+}
+async function saveCode() {
+  if (!codeCustomer.value) return
+  if (!codeDraft.value.productId) return void ElMessage.warning('请选择产品')
+  const customerCode = codeDraft.value.customerCode.trim()
+  if (!customerCode) return void ElMessage.warning('请填写客户物料编码')
+  codeSaving.value = true
+  try {
+    await saveCustomerProductCode({
+      customerId: codeEditingId.value ? undefined : Number(codeCustomer.value.id),
+      productId: codeDraft.value.productId, customerCode,
+      enabled: codeDraft.value.enabled, remark: codeDraft.value.remark.trim() || null,
+      version: codeVersion.value,
+    }, codeEditingId.value)
+    ElMessage.success('已保存')
+    codeEditor.value = false
+    await loadCodes()
+  } catch (e) { ElMessage.error((e as Error).message) }
+  finally { codeSaving.value = false }
+}
+async function removeCode(row: CustomerProductCode) {
+  try {
+    await ElMessageBox.confirm(`确定删除客户物料编码「${row.customerCode}」吗？`, '删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' })
+    await deleteCustomerProductCode(row.id, row.version)
+    ElMessage.success('已删除')
+    await loadCodes()
+  } catch (e) { if (e instanceof Error) ElMessage.error(e.message) }
+}
 const exporting = ref(false)
 async function exportRows() {
   if (exporting.value) return
@@ -153,6 +209,7 @@ async function exportRows() {
         <el-table-column prop="contactPhone" label="手机" width="135" />
         <el-table-column prop="address" label="客户地址" min-width="220" show-overflow-tooltip />
         <el-table-column label="结算方式" width="115" show-overflow-tooltip><template #default="{ row }">{{ settlementLabel(row.settleType) }}</template></el-table-column>
+        <el-table-column label="客件编码" width="100" align="center"><template #default="{ row }"><el-button link type="primary" @click="openCodes(row)">维护</el-button></template></el-table-column>
       </template>
       <template v-else>
         <el-table-column label="客户" min-width="140" show-overflow-tooltip><template #default="{ row }"><span :title="row.customerName">{{ row.customerShortName || row.customerName || '—' }}</span></template></el-table-column>
@@ -208,6 +265,40 @@ async function exportRows() {
       <el-button v-if="readonly" type="primary" :icon="Edit" @click="readonly = false">编辑</el-button>
       <el-button v-else type="primary" :loading="saving" @click="submit">保存</el-button></template>
   </el-dialog>
+  <el-dialog v-if="codesOpen" :model-value="true" :title="`客件物料编码 - ${codeCustomer?.name || ''}`" width="860px" top="6vh" class="purchase-dialog" @close="codesOpen = false">
+    <div class="crm-codes-toolbar">
+      <span>维护该客户采购合同或客户系统中的物料编码，录入销售订单时会自动带出。</span>
+      <el-button type="primary" :icon="Plus" @click="openCodeEditor()">添加</el-button>
+    </div>
+    <el-alert v-if="codesError" :title="codesError" type="error" :closable="false"><el-button link @click="loadCodes">重试</el-button></el-alert>
+    <el-table v-else v-loading="codesLoading" :data="codeRows" border max-height="420" empty-text="尚未维护客户物料编码">
+      <el-table-column prop="customerCode" label="客户物料编码" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="brand" label="品牌" min-width="85" show-overflow-tooltip />
+      <el-table-column prop="partNo" label="型号" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="packageType" label="封装" min-width="150" show-overflow-tooltip />
+      <el-table-column label="状态" width="80"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'" effect="plain">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column>
+      <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
+      <el-table-column label="操作" width="110" fixed="right" align="center"><template #default="{ row }">
+        <el-button link type="primary" @click="openCodeEditor(row)">编辑</el-button>
+        <el-button link type="danger" @click="removeCode(row)">删除</el-button>
+      </template></el-table-column>
+    </el-table>
+    <template #footer><el-button @click="codesOpen = false">关闭</el-button></template>
+  </el-dialog>
+  <el-dialog v-if="codeEditor" :model-value="true" :title="`${codeEditingId ? '编辑' : '添加'}客户物料编码`" width="520px" append-to-body class="purchase-dialog" :close-on-click-modal="false" @close="codeEditor = false">
+    <el-form label-position="top" class="crm-business-form">
+      <el-form-item label="产品" required class="crm-full">
+        <el-select v-model="codeDraft.productId" filterable clearable placeholder="选择产品" :disabled="!!codeEditingId">
+          <el-option v-for="product in products" :key="product.id" :value="Number(product.id)" :label="[product.brand, product.name, product.model].filter(Boolean).join(' / ')" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="客户物料编码" required><el-input v-model="codeDraft.customerCode" maxlength="64" placeholder="客户系统中的物料编码" /></el-form-item>
+      <el-form-item label="状态"><el-switch v-model="codeDraft.enabled" active-text="启用" inactive-text="停用" /></el-form-item>
+      <el-form-item label="备注" class="crm-full"><el-input v-model="codeDraft.remark" maxlength="256" type="textarea" :rows="3" /></el-form-item>
+    </el-form>
+    <template #footer><el-button :disabled="codeSaving" @click="codeEditor = false">取消</el-button>
+      <el-button type="primary" :loading="codeSaving" @click="saveCode">保存</el-button></template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -228,6 +319,7 @@ async function exportRows() {
 .crm-business-table :deep(.el-button) { max-width: 100%; margin-left: 0; }
 .crm-business-table :deep(.el-button > span) { overflow: hidden; text-overflow: ellipsis; }
 .crm-row-actions { display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 2px; }
+.crm-codes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; color: #8491a4; font-size: 13px; }
 .crm-row-actions .el-button { flex-shrink: 0; padding: 6px 8px; }
 .crm-business-pagination { display: flex; justify-content: flex-end; overflow-x: auto; padding: 12px 0; }
 .crm-business-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }

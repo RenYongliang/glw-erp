@@ -74,7 +74,8 @@ export function createDeliveryNote(
       if (!model || !Number.isSafeInteger(line.arrived))
         throw Error('请填写有效的本次发货数量')
       return {
-        code: product?.code || catalogEntry?.code || orderLine.productId,
+        // 客户物料编码优先，其次旧目录编码，最后回退内部产品id。
+        code: orderLine.customerPartNo || product?.code || catalogEntry?.code || orderLine.productId,
         name: catalogEntry?.type || '集成电路',
         model,
         unit: 'pcs',

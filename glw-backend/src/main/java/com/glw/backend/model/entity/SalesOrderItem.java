@@ -46,6 +46,10 @@ public class SalesOrderItem {
     @TableField("package_type")
     private String packageType;
 
+    /** 客户物料编码快照；客户未提供时为空。 */
+    @TableField("customer_part_no")
+    private String customerPartNo;
+
     /** 单价。 */
     @TableField("unit_price")
     private BigDecimal unitPrice;
