@@ -85,24 +85,38 @@ BEGIN
   IF EXISTS (SELECT 1 FROM `supplier` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: supplier';
   END IF;
+  IF EXISTS (SELECT 1 FROM `supplier_brand` LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: supplier_brand';
+  END IF;
+  IF EXISTS (SELECT 1 FROM `brand` LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: brand';
+  END IF;
   -- sys_user: 2 rows from local MySQL (BCrypt hashes preserved)
   INSERT INTO `sys_user` (`id`, `username`, `password_hash`, `name`, `role`, `department`, `enabled`, `deleted`, `version`, `created_at`, `updated_at`) VALUES
     (1, 'admin', '$2a$10$LJ9S7JCkTQf0eRubB3Fx/uSe1aZvsleTDSZE9SeMyWFv/plG7d7Nq', '管理员', 'ADMIN', '运营管理部', 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07'),
     (2, 'demo', '$2a$10$FsQjImExBVt8PJ5OYqmUs.G69uMw0w4gbygedpjtvOmISNb1ONmGC', '体验用户', 'USER', '业务体验组', 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07');
   -- supplier: 2 confirmed rows
-  INSERT INTO `supplier` (`id`, `name`, `brand`) VALUES
-    (1, '深圳中盛昌', '力芯微'),
-    (2, '深圳联思微', '芯洲');
+  INSERT INTO `supplier` (`id`, `name`) VALUES
+    (1, '深圳中盛昌'),
+    (2, '深圳联思微');
+  -- brand: 2 confirmed rows, brand master data owned by manufacturers
+  INSERT INTO `brand` (`id`, `name`) VALUES
+    (1, '力芯微'),
+    (2, '芯洲');
+  -- supplier_brand: many to many, supplier can carry multiple brands
+  INSERT INTO `supplier_brand` (`id`, `supplier_id`, `brand_id`) VALUES
+    (1, 1, 1),
+    (2, 2, 2);
   -- product: 8 confirmed rows
-  INSERT INTO `product` (`id`, `supplier_id`, `brand`, `part_no`, `package_type`) VALUES
-    (1, 1, '力芯微', 'ET7303Y', 'QFN14'),
-    (2, 1, '力芯微', 'ET8211', 'SOP16'),
-    (3, 1, '力芯微', 'ET5A033YB', 'DFN1*1'),
-    (4, 1, '力芯微', 'ET5A2ADJZB', 'WLCSP6(0.4 Pitch)'),
-    (5, 2, '芯洲', 'SCT9330STER', 'ESOP-8L'),
-    (6, 1, '力芯微', 'ET5907', 'WLCSP20(0.35 Pitch)'),
-    (7, 1, '力芯微', 'ET2104', 'WLCSP12(0.5 Pitch)/ QFN12/TSSOP14'),
-    (8, 1, '力芯微', 'ET52318YB', 'DFN1*1');
+  INSERT INTO `product` (`id`, `supplier_id`, `brand_id`, `brand`, `part_no`, `package_type`) VALUES
+    (1, 1, 1, '力芯微', 'ET7303Y', 'QFN14'),
+    (2, 1, 1, '力芯微', 'ET8211', 'SOP16'),
+    (3, 1, 1, '力芯微', 'ET5A033YB', 'DFN1*1'),
+    (4, 1, 1, '力芯微', 'ET5A2ADJZB', 'WLCSP6(0.4 Pitch)'),
+    (5, 2, 2, '芯洲', 'SCT9330STER', 'ESOP-8L'),
+    (6, 1, 1, '力芯微', 'ET5907', 'WLCSP20(0.35 Pitch)'),
+    (7, 1, 1, '力芯微', 'ET2104', 'WLCSP12(0.5 Pitch)/ QFN12/TSSOP14'),
+    (8, 1, 1, '力芯微', 'ET52318YB', 'DFN1*1');
   -- purchase_order: 17 confirmed rows
   INSERT INTO `purchase_order` (`id`, `purchase_order_no`, `order_time`, `supplier_id`, `supplier_name`, `delivery_time`, `order_status`, `payment_status`, `remark`) VALUES
     (1, 'GL20260410001', '2026-04-10 00:00:00', 1, '深圳中盛昌', NULL, 'PARTIALLY_RECEIVED', 'PARTIALLY_PAID', 'Excel采购订单合同;源行:3,5,23;采购人:Eric;结算:当月结25号前付款;已付款:44100.0000;已入库未付款:0.0000;预计交期原文:1周'),

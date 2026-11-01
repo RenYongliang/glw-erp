@@ -23,7 +23,11 @@ public class Product {
     @TableField("supplier_id")
     private Long supplierId;
 
-    /** 品牌。 */
+    /** 品牌id；指向品牌主数据 brand.id。 */
+    @TableField("brand_id")
+    private Long brandId;
+
+    /** 品牌名称；冗余展示字段，与 brand_id 对应，品牌改名时同步。 */
     @TableField("brand")
     private String brand;
 

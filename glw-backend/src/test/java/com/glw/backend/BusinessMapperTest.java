@@ -68,7 +68,7 @@ class BusinessMapperTest {
             if (table.equals("sys_user")) continue;
             tests.add(DynamicTest.dynamicTest(table, () -> verifyTable(table, body)));
         }
-        assertThat(tests).hasSize(18);
+        assertThat(tests).hasSize(20);
         return tests.stream();
     }
 
@@ -134,6 +134,7 @@ class BusinessMapperTest {
             Class<?> type =
                     switch (column.getValue()) {
                         case "bigint" -> Long.class;
+                        case "tinyint" -> Boolean.class;
                         case "int" -> Integer.class;
                         case "decimal" -> BigDecimal.class;
                         case "timestamp" -> LocalDateTime.class;
@@ -158,11 +159,13 @@ class BusinessMapperTest {
                                     ? 1L
                                     : type == Integer.class
                                             ? 1
-                                            : type == BigDecimal.class
-                                                    ? new BigDecimal("12.34")
-                                                    : type == LocalDateTime.class
-                                                            ? LocalDateTime.of(2026, 9, 28, 12, 0)
-                                                            : "test";
+                                            : type == Boolean.class
+                                                    ? true
+                                                    : type == BigDecimal.class
+                                                            ? new BigDecimal("12.34")
+                                                            : type == LocalDateTime.class
+                                                                    ? LocalDateTime.of(2026, 9, 28, 12, 0)
+                                                                    : "test";
             entityClass.getMethod("set" + pascal(column.getKey()), type).invoke(entity, value);
         }
         // Even entities loaded from a previous query must not write stale database timestamps.

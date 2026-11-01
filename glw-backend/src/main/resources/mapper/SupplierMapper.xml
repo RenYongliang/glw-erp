@@ -3,12 +3,19 @@
 <mapper namespace="com.glw.backend.mapper.SupplierMapper">
     <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.Supplier">
         <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="code" property="code" jdbcType="VARCHAR"/>
         <result column="name" property="name" jdbcType="VARCHAR"/>
         <result column="short_name" property="shortName" jdbcType="VARCHAR"/>
-        <result column="brand" property="brand" jdbcType="VARCHAR"/>
+        <result column="category" property="category" jdbcType="VARCHAR"/>
+        <result column="enabled" property="enabled" jdbcType="BOOLEAN"/>
         <result column="address" property="address" jdbcType="VARCHAR"/>
         <result column="contact" property="contact" jdbcType="VARCHAR"/>
         <result column="contact_phone" property="contactPhone" jdbcType="VARCHAR"/>
+        <result column="tax_no" property="taxNo" jdbcType="VARCHAR"/>
+        <result column="bank_name" property="bankName" jdbcType="VARCHAR"/>
+        <result column="bank_account" property="bankAccount" jdbcType="VARCHAR"/>
+        <result column="account_name" property="accountName" jdbcType="VARCHAR"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
         <result column="version" property="version" jdbcType="INTEGER"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
@@ -17,6 +24,8 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `name`, `short_name`, `brand`, `address`, `contact`, `contact_phone`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `code`, `name`, `short_name`, `category`, `enabled`, `address`, `contact`, `contact_phone`,
+        `tax_no`, `bank_name`, `bank_account`, `account_name`, `remark`, `version`,
+        `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

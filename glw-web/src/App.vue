@@ -82,8 +82,19 @@ const purchaseMenus = [
   { title: '采购订单', path: '/purchase/orders' },
   { title: '产品入库', path: '/purchase/receipts' },
 ]
-const basicExpanded = ref(route.path.startsWith('/products/'))
+const supplierMenus = [
+  { title: '供应商', path: '/suppliers' },
+  { title: '供应商品牌', path: '/supplier-brands' },
+]
+const basicMenus = [
+  { title: '产品信息查询', path: '/products/query' },
+  { title: '品牌管理', path: '/brands' },
+]
+const basicExpanded = ref(
+  route.path.startsWith('/products/') || route.path === '/brands',
+)
 const purchaseExpanded = ref(route.path.startsWith('/purchase/'))
+const supplierExpanded = ref(route.path.startsWith('/supplier'))
 const inventoryExpanded = ref(route.path.startsWith('/inventory/'))
 const customerExpanded = ref(['/customers', '/followups'].includes(route.path))
 const boardExpanded = ref(route.path.startsWith('/boards/'))
@@ -129,12 +140,13 @@ watch(
 watch(
   () => route.path,
   () => {
-    if (route.path.startsWith('/products/')) {
+    if (route.path.startsWith('/products/') || route.path === '/brands') {
       basicExpanded.value = true
     }
     if (route.path.startsWith('/sales/')) salesExpanded.value = true
     if (route.path.startsWith('/finance/')) financeExpanded.value = true
     if (route.path.startsWith('/purchase/')) purchaseExpanded.value = true
+    if (route.path.startsWith('/supplier')) supplierExpanded.value = true
     if (route.path.startsWith('/inventory/')) inventoryExpanded.value = true
     if (route.path.startsWith('/boards/')) boardExpanded.value = true
     if (['/customers', '/followups'].includes(route.path)) customerExpanded.value = true
@@ -152,6 +164,7 @@ const menus = [
   '客户管理',
   '销售管理',
   '采购管理',
+  '供应商管理',
   '库存管理',
   '财务管理',
 ]
@@ -162,14 +175,29 @@ const filteredMenus = computed(() =>
       (item === '财务管理' && financeMenus.some(menu => menu.title.includes(query.value.trim()))) ||
       (item === '库存管理' && '库存列表'.includes(query.value.trim())) ||
       (item === '销售管理' && salesMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
-      (item === '基础数据' && '产品信息查询'.includes(query.value.trim())) ||
+      (item === '基础数据' &&
+        basicMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '经营看板' && boardMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '采购管理' &&
         purchaseMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
+      (item === '供应商管理' &&
+        supplierMenus.some((menu) => menu.title.includes(query.value.trim()))) ||
       (item === '客户管理' &&
         customerMenus.some((menu) => menu.title.includes(query.value.trim()))),
   ),
 )
+/** 菜单分组是否展开；未知分组不展开。 */
+function menuExpanded(name: string) {
+  if (name === '销售管理') return salesExpanded.value
+  if (name === '基础数据') return basicExpanded.value
+  if (name === '经营看板') return boardExpanded.value
+  if (name === '客户管理') return customerExpanded.value
+  if (name === '采购管理') return purchaseExpanded.value
+  if (name === '供应商管理') return supplierExpanded.value
+  if (name === '库存管理') return inventoryExpanded.value
+  if (name === '财务管理') return financeExpanded.value
+  return false
+}
 function navigate(name: string) {
   if (name === '首页') {
     router.push('/')
@@ -186,6 +214,9 @@ function navigate(name: string) {
   } else if (name === '采购管理') {
     if (collapsed.value) collapsed.value = false
     purchaseExpanded.value = !purchaseExpanded.value
+  } else if (name === '供应商管理') {
+    if (collapsed.value) collapsed.value = false
+    supplierExpanded.value = !supplierExpanded.value
   } else if (name === '客户管理') {
     if (collapsed.value) collapsed.value = false
     customerExpanded.value = !customerExpanded.value
@@ -241,21 +272,7 @@ async function fullscreen() {
                 :aria-current="
                   name === '首页' && ['/', '/orders'].includes(route.path) ? 'page' : undefined
                 "
-                :aria-expanded="
-                  name === '销售管理'
-                    ? salesExpanded
-                    : name === '基础数据'
-                      ? basicExpanded
-                      : name === '经营看板'
-                        ? boardExpanded
-                        : name === '客户管理'
-                          ? customerExpanded
-                          : name === '采购管理'
-                            ? purchaseExpanded
-                            : name === '库存管理'
-                              ? inventoryExpanded
-                              : name === '财务管理' ? financeExpanded : undefined
-                "
+                :aria-expanded="menuExpanded(name)"
                 @click="navigate(name)"
               >
                 <el-icon :class="name === '首页' || name === '应用说明' ? 'nav-blue' : 'nav-folder'"
@@ -267,37 +284,28 @@ async function fullscreen() {
                 >
                 <el-icon
                   v-if="
-                    ['经营看板', '客户管理', '采购管理', '基础数据', '销售管理', '库存管理', '财务管理'].includes(name) &&
+                    ['经营看板', '客户管理', '采购管理', '供应商管理', '基础数据', '销售管理', '库存管理', '财务管理'].includes(name) &&
                     !collapsed
                   "
                   class="board-menu-arrow"
-                  :class="{
-                    open:
-                      name === '销售管理'
-                        ? salesExpanded
-                        : name === '基础数据'
-                          ? basicExpanded
-                          : name === '经营看板'
-                            ? boardExpanded
-                            : name === '客户管理'
-                              ? customerExpanded
-                              : name === '库存管理'
-                                ? inventoryExpanded
-                                : name === '财务管理' ? financeExpanded : purchaseExpanded,
-                  }"
+                  :class="{ open: menuExpanded(name) }"
                   ><ArrowDown
                 /></el-icon>
               </button>
               <div v-if="name === '基础数据' && (basicExpanded || query)" class="board-submenu">
                 <RouterLink
-                  to="/products/query"
+                  v-for="menu in basicMenus.filter(
+                    (item) => !query || '基础数据'.includes(query) || item.title.includes(query),
+                  )"
+                  :key="menu.path"
+                  :to="menu.path"
                   class="nav-item"
-                  :class="{ active: route.path === '/products/query' }"
-                  title="产品信息查询"
-                  aria-label="产品信息查询"
-                  :aria-current="route.path === '/products/query' ? 'page' : undefined"
+                  :class="{ active: route.path === menu.path }"
+                  :title="menu.title"
+                  :aria-label="menu.title"
+                  :aria-current="route.path === menu.path ? 'page' : undefined"
                 >
-                  <el-icon><DataAnalysis /></el-icon><span>产品信息查询</span>
+                  <el-icon><Document /></el-icon><span>{{ menu.title }}</span>
                 </RouterLink>
               </div>
               <div v-if="name === '财务管理' && (financeExpanded || query)" class="board-submenu">
@@ -343,6 +351,21 @@ async function fullscreen() {
                 <RouterLink
                   v-for="menu in purchaseMenus.filter(
                     (item) => !query || '采购管理'.includes(query) || item.title.includes(query),
+                  )"
+                  :key="menu.path"
+                  :to="menu.path"
+                  class="nav-item"
+                  :class="{ active: route.path === menu.path }"
+                  :title="menu.title"
+                  :aria-label="menu.title"
+                  :aria-current="route.path === menu.path ? 'page' : undefined"
+                  ><el-icon><Document /></el-icon><span>{{ menu.title }}</span></RouterLink
+                >
+              </div>
+              <div v-if="name === '供应商管理' && (supplierExpanded || query)" class="board-submenu">
+                <RouterLink
+                  v-for="menu in supplierMenus.filter(
+                    (item) => !query || '供应商管理'.includes(query) || item.title.includes(query),
                   )"
                   :key="menu.path"
                   :to="menu.path"

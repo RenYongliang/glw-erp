@@ -21,6 +21,29 @@ CREATE TABLE IF NOT EXISTS document_number_sequence (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
+-- Table structure for brand
+-- 品牌属于原厂；供应商通过 supplier_brand 关联可供品牌。
+-- ----------------------------
+DROP TABLE IF EXISTS `brand`;
+CREATE TABLE `brand`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `code` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '品牌编码',
+  `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '品牌名称',
+  `manufacturer` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '原厂/生产厂商',
+  `enabled` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否启用；停用后不出现在业务选择列表',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
+  `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
+  `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
+  `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_brand_name`(`name`) USING BTREE,
+  UNIQUE INDEX `uk_brand_code`(`code`) USING BTREE,
+  INDEX `idx_brand_enabled`(`enabled`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '品牌主数据表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for customer
 -- ----------------------------
 DROP TABLE IF EXISTS `customer`;
@@ -84,7 +107,8 @@ CREATE TABLE `inbound_order`  (
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_inbound_order_no`(`inbound_order_no`) USING BTREE
+  UNIQUE INDEX `uk_inbound_order_no`(`inbound_order_no`) USING BTREE,
+  INDEX `idx_inbound_order_supplier_id`(`supplier_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '入库表' ROW_FORMAT = Dynamic;
 
 -- Remove obsolete association tables during full initialization.
@@ -290,7 +314,8 @@ DROP TABLE IF EXISTS `product`;
 CREATE TABLE `product`  (
   `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `supplier_id` bigint(0) NOT NULL COMMENT '供应商id',
-  `brand` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '品牌',
+  `brand_id` bigint(0) NOT NULL COMMENT '品牌id',
+  `brand` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '品牌名称（冗余展示，与brand_id对应）',
   `part_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '型号',
   `package_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '封装',
   `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
@@ -298,7 +323,9 @@ CREATE TABLE `product`  (
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
-  PRIMARY KEY (`id`) USING BTREE
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_product_supplier_id`(`supplier_id`) USING BTREE,
+  INDEX `idx_product_brand_id`(`brand_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '产品信息表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -321,7 +348,8 @@ CREATE TABLE `purchase_order`  (
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_purchase_order_no`(`purchase_order_no`) USING BTREE
+  UNIQUE INDEX `uk_purchase_order_no`(`purchase_order_no`) USING BTREE,
+  INDEX `idx_purchase_order_supplier_id`(`supplier_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '采购订单表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -447,19 +475,49 @@ CREATE TABLE `sample_apply`  (
 DROP TABLE IF EXISTS `supplier`;
 CREATE TABLE `supplier`  (
   `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `code` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '供应商编码',
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '供应商名称',
   `short_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '供应商简称',
-  `brand` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '品牌',
-  `address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '客户地址',
+  `category` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '供应商分类',
+  `enabled` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否启用 0停用 1启用',
+  `address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '供应商地址',
   `contact` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '联系人',
-  `contact_phone` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '联系人手机',
+  `contact_phone` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '联系人手机/座机',
+  `tax_no` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '税号',
+  `bank_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '开户行',
+  `bank_account` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '银行账号',
+  `account_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '开户户名',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
   `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
   `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
   `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
-  PRIMARY KEY (`id`) USING BTREE
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_supplier_name`(`name`) USING BTREE,
+  UNIQUE INDEX `uk_supplier_code`(`code`) USING BTREE,
+  INDEX `idx_supplier_enabled`(`enabled`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '供应商表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for supplier_brand
+-- 供应商与品牌多对多关联：一个供应商可供应多个品牌，一个品牌也可由多个供应商供应。
+-- ----------------------------
+DROP TABLE IF EXISTS `supplier_brand`;
+CREATE TABLE `supplier_brand`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `supplier_id` bigint(0) NOT NULL COMMENT '供应商id',
+  `brand_id` bigint(0) NOT NULL COMMENT '品牌id',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
+  `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
+  `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
+  `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_supplier_brand`(`supplier_id`, `brand_id`) USING BTREE,
+  INDEX `idx_supplier_brand_brand_id`(`brand_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '供应商可供应品牌表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for sys_user

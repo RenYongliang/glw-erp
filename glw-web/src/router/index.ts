@@ -51,6 +51,12 @@ const router = createRouter({
       meta: { title: '产品信息查询' },
     },
     {
+      path: '/brands',
+      name: 'brands',
+      component: () => import('../views/BrandManagementView.vue'),
+      meta: { title: '品牌管理' },
+    },
+    {
       path: '/purchase/orders',
       name: 'purchase-orders',
       component: () => import('../views/PurchaseManagementView.vue'),
@@ -63,6 +69,20 @@ const router = createRouter({
       component: () => import('../views/PurchaseManagementView.vue'),
       props: { kind: 'receipts' },
       meta: { title: '产品入库' },
+    },
+    {
+      path: '/suppliers',
+      name: 'suppliers',
+      component: () => import('../views/SupplierManagementView.vue'),
+      props: { kind: 'suppliers' },
+      meta: { title: '供应商' },
+    },
+    {
+      path: '/supplier-brands',
+      name: 'supplier-brands',
+      component: () => import('../views/SupplierManagementView.vue'),
+      props: { kind: 'brands' },
+      meta: { title: '供应商品牌' },
     },
     {
       path: '/customers',
