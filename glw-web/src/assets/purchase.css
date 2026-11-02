@@ -337,6 +337,47 @@
 .purchase-section:not(:first-child) {
   margin-top: 28px;
 }
+/* 产品明细区标题：左侧标题、右侧单价口径等行内操作，共用同一条分隔线。 */
+.purchase-products-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-bottom: 12px;
+  border-bottom: 4px solid #d2e6ff;
+}
+.purchase-products-head:after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 112px;
+  height: 7px;
+  background: #1384ff;
+  border-radius: 0 8px 0 6px;
+}
+.purchase-products-head .purchase-section {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+.purchase-products-head .purchase-section:after {
+  display: none;
+}
+.purchase-price-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+.purchase-price-mode-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8a94a6;
+}
 .purchase-tip {
   color: #8491a4;
   font-size: 12px;

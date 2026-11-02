@@ -138,12 +138,13 @@ class OutboundOrderServiceTest {
 
     private static SalesOrder order(Long id) {
         var row = new SalesOrder(); row.setId(id); row.setOrderNo("SO-" + id); row.setCustomerId(3L);
-        row.setCustomerName("Customer"); row.setOrderStatus(SalesOrderStatus.PENDING_SHIPMENT); return row;
+        row.setCustomerName("Customer"); row.setOrderStatus(SalesOrderStatus.PENDING_SHIPMENT);
+        row.setTaxIncluded(TaxIncluded.INCLUDED); return row;
     }
     private static SalesOrderItem item(Long id, Long orderId) {
         var row = new SalesOrderItem(); row.setId(id); row.setSalesOrderId(orderId); row.setProductId(6L);
         row.setPartNo("ET5907"); row.setQuantity(100); row.setUnitPrice(BigDecimal.ONE);
-        row.setTaxIncluded(TaxIncluded.INCLUDED); return row;
+        return row;
     }
     private static OutboundOrderCreateDTO request() {
         var request = new OutboundOrderCreateDTO(); request.setSalesOrderIds(List.of(1L, 2L));

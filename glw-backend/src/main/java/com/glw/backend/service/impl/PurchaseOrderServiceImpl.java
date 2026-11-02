@@ -21,6 +21,7 @@ import com.glw.backend.model.entity.PurchaseOrder;
 import com.glw.backend.model.entity.PurchaseOrderItem;
 import com.glw.backend.model.enums.PurchaseOrderStatus;
 import com.glw.backend.model.enums.PurchasePaymentStatus;
+import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.model.vo.PurchaseOrderVO;
 import com.glw.backend.service.PurchaseOrderItemService;
 import com.glw.backend.service.PurchaseOrderService;
@@ -81,6 +82,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierId(supplier.getId());
         order.setSupplierName(supplier.getName());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
+        order.setTaxIncluded(createDTO.getTaxIncluded() == null ? TaxIncluded.INCLUDED : createDTO.getTaxIncluded());
         // 业务上不设审批环节，新建订单直接进入待收货。
         order.setOrderStatus(PurchaseOrderStatus.PENDING_RECEIPT);
         order.setPaymentStatus(PurchasePaymentStatus.UNPAID);
@@ -113,6 +115,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierId(supplier.getId());
         order.setSupplierName(supplier.getName());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
+        if (createDTO.getTaxIncluded() != null) order.setTaxIncluded(createDTO.getTaxIncluded());
         order.setRemark(trimRemark(createDTO.getRemark()));
         if (!updateById(order))
             throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
@@ -163,7 +166,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             row.setPartNo(product.getPartNo());
             row.setPackageType(product.getPackageType());
             row.setUnitPrice(price);
-            row.setTaxIncluded(itemDTO.getTaxIncluded());
+            // 采购税率始终按行保存：含税单价用它拆分税额，未税单价用它换算含税库存成本。
             row.setTaxRate(itemDTO.getTaxRate());
             row.setQuantity(itemDTO.getQuantity());
             row.setAmount(price.multiply(BigDecimal.valueOf(itemDTO.getQuantity()))

@@ -1,6 +1,7 @@
 package com.glw.backend.model.dto;
 
 import com.glw.backend.model.enums.SettlementType;
+import com.glw.backend.model.enums.TaxIncluded;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -28,6 +29,9 @@ public class SalesOrderCreateDTO {
 
     /** 结算类型，不填默认现金。 */
     private SettlementType settleType;
+
+    /** 单价口径，不填默认含税；整张订单统一，明细不再逐行选择。 */
+    private TaxIncluded taxIncluded;
 
     @Size(max = 256)
     private String remark;

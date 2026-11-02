@@ -113,7 +113,7 @@ type TableRow = {
 const orderColumns = [
   ['code', '采购单号'], ['supplier', '供应商'], ['signed', '采购日期'],
   ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
-  ['prices', '单价(含税)'], ['quantities', '采购数量'], ['pendingDelivery', '待交数量'],
+  ['prices', '单价'], ['quantities', '采购数量'], ['pendingDelivery', '待交数量'],
   ['amounts', '金额'], ['deliveries', '交付日期'],
   ['total', '订单金额'],
   ['owner', '采购负责人'],

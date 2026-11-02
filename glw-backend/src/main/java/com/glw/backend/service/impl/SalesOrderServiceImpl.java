@@ -24,6 +24,7 @@ import com.glw.backend.model.entity.SalesOrderItem;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
+import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.model.vo.SalesOrderVO;
 import com.glw.backend.service.SalesOrderItemService;
 import com.glw.backend.service.SalesOrderService;
@@ -85,6 +86,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         order.setCustomerName(customer.getName());
         order.setCustomerOrderNo(trimText(createDTO.getCustomerOrderNo(), 64, "客户采购单号"));
         order.setSettleType(createDTO.getSettleType() == null ? SettlementType.CASH : createDTO.getSettleType());
+        // 含税口径是订单级的：明细单价统一按订单口径解释，不再逐行选择。
+        order.setTaxIncluded(createDTO.getTaxIncluded() == null ? TaxIncluded.INCLUDED : createDTO.getTaxIncluded());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
         // 后端不设审批环节，新建销售订单直接进入待发货。
         order.setOrderStatus(SalesOrderStatus.PENDING_SHIPMENT);
@@ -116,6 +119,7 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         order.setCustomerName(customer.getName());
         order.setCustomerOrderNo(trimText(createDTO.getCustomerOrderNo(), 64, "客户采购单号"));
         if (createDTO.getSettleType() != null) order.setSettleType(createDTO.getSettleType());
+        if (createDTO.getTaxIncluded() != null) order.setTaxIncluded(createDTO.getTaxIncluded());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
         order.setRemark(trimText(createDTO.getRemark(), 256, "备注"));
         if (!updateById(order))
@@ -173,8 +177,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
             }
             row.setCustomerPartNo(customerPartNo);
             row.setUnitPrice(price);
-            row.setTaxIncluded(itemDTO.getTaxIncluded());
-            row.setTaxRate(itemDTO.getTaxRate());
+            // 未税订单单价本身就是净价，不保存税率；含税订单才逐行记录税率。
+            row.setTaxRate(order.getTaxIncluded() == TaxIncluded.INCLUDED ? itemDTO.getTaxRate() : null);
             row.setQuantity(itemDTO.getQuantity());
             row.setCancelledQuantity(0);
             row.setAmount(price.multiply(BigDecimal.valueOf(itemDTO.getQuantity()))

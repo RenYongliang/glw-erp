@@ -1,7 +1,5 @@
 package com.glw.backend.model.dto;
 
-import com.glw.backend.model.enums.TaxIncluded;
-
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -25,10 +23,7 @@ public class PurchaseOrderItemCreateDTO {
     @Digits(integer = 8, fraction = 4)
     private BigDecimal unitPrice;
 
-    @NotNull
-    private TaxIncluded taxIncluded;
-
-    /** 增值税税率；含税单价需填写，未税单价可不填。 */
+    /** 增值税税率；未税单价填写税率后可换算含税库存成本。 */
     @Min(0)
     @Max(100)
     private Integer taxRate;

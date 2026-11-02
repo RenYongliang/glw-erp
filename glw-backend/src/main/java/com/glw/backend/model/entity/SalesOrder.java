@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.annotation.Version;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
+import com.glw.backend.model.enums.TaxIncluded;
 
 import lombok.Data;
 
@@ -47,6 +48,10 @@ public class SalesOrder {
     /** 结算类型, CASH:现金; MONTHLY:月结; PREPAID:预付; COD:货到付款。 */
     @TableField("settle_type")
     private SettlementType settleType;
+
+    /** 单价口径, EXCLUDED:未税; INCLUDED:含税；整张订单统一。 */
+    @TableField("tax_included")
+    private TaxIncluded taxIncluded;
 
     /** 交付日期。 */
     @TableField("delivery_time")

@@ -4,9 +4,16 @@ import { deliveryNotePdf } from './deliveryNote'
 export const contractHeaders = ['序号', '规格', '数量', '单位', '税率', '单价(含税)', '合计', '交付日期', '备注']
 const widths = [48, 174, 90, 54, 65, 100, 108, 116, 293]
 const W = 1120, H = 792
+function contractHeadersFor(order: PurchaseOrder) {
+  // 单价口径是订单级的，打印合同时按订单实际口径标注。
+  return contractHeaders.map((header, index) =>
+    index === 5 ? (order.taxIncluded === false ? '单价(未税)' : '单价(含税)') : header,
+  )
+}
 export function purchaseContractData(order: PurchaseOrder) {
   const totals = orderTotals(order)
   return {
+    headers: contractHeadersFor(order),
     number: order.code || '待生成（草稿）',
     supplier: purchaseSupplierName(order), contact: purchaseContact(order), phone: purchasePhone(order), date: order.signed,
     rows: order.lines.map((line, index) => {
@@ -69,7 +76,7 @@ export function purchaseContractHtml(order: PurchaseOrder): { html: string; page
   const html = pages.map((page, i) => `<section class="purchase-contract-paper">
     <h1>采购合同</h1>
     <div class="purchase-contract-meta"><div>采购单号：${escape(data.number)}</div><div>采购日期：${escape(data.date)}</div><div class="supplier">供应商名称：${escape(data.supplier)}</div><div>联系人：${escape(data.contact)}</div><div>联系人手机：${escape(data.phone)}</div></div>
-    <table><colgroup>${widths.map(w=>`<col style="width:${w/1048*100}%">`).join('')}</colgroup><thead><tr>${contractHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row=>`<tr style="height:${row.height}px">${row.cells.map(cell=>`<td>${cell.map(escape).join('<br>')}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    <table><colgroup>${widths.map(w=>`<col style="width:${w/1048*100}%">`).join('')}</colgroup><thead><tr>${data.headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row=>`<tr style="height:${row.height}px">${row.cells.map(cell=>`<td>${cell.map(escape).join('<br>')}</td>`).join('')}</tr>`).join('')}</tbody></table>
     <div class="purchase-contract-summary"><span>合计数量（整单）：${data.quantity}</span><span>合计金额（整单）：￥${escape(data.total)}</span></div><div class="purchase-contract-uppercase">合计金额大写：${escape(data.uppercase)}</div>
     ${data.discount ? `<div>已含原订单优惠：￥${escape(money(data.discount))}</div>` : ''}
     <div class="purchase-contract-signatures"><span>采购方签章：________________</span><span>供应商签章：________________</span></div>
@@ -102,7 +109,7 @@ export async function purchaseContractPdf(order: PurchaseOrder): Promise<Blob> {
         x+=width
       });y+=height;ctx.textAlign='left'
     }
-    drawRow(contractHeaders.map(h=>[h]),40,true)
+    drawRow(data.headers.map(h=>[h]),40,true)
     page.rows.forEach(row=>drawRow(row.cells,row.height))
     y+=20;ctx.fillText(`合计数量（整单）：${data.quantity}`,36,y);ctx.fillText(`合计金额（整单）：￥${data.total}`,580,y)
     y+=30;wrap(ctx,`合计金额大写：${data.uppercase}`,1048).forEach((line,i)=>ctx.fillText(line,36,y+i*20))

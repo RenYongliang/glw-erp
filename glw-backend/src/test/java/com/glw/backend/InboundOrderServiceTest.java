@@ -135,7 +135,7 @@ class InboundOrderServiceTest {
 
     @Test void groupsByTaxInclusiveCostWhileKeepingOriginalPurchaseQuotes() {
         var f = new Fixture();
-        var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        var first = item(11L, 1L, "1.00"); f.first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
         var second = item(22L, 2L, "1.1300");
         prices(f, first, second);
         f.service.createInboundOrder(request(50, 20));
@@ -148,7 +148,7 @@ class InboundOrderServiceTest {
 
     @Test void identicalQuoteNumbersWithDifferentTaxTreatmentProduceDifferentCosts() {
         var f = new Fixture();
-        var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        var first = item(11L, 1L, "1.00"); f.first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
         prices(f, first, item(22L, 2L, "1.00"));
         f.service.createInboundOrder(request(50, 20));
         assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("1.1300"), new BigDecimal("1.0000"));
@@ -156,8 +156,8 @@ class InboundOrderServiceTest {
 
     @Test void roundsConvertedCostToFourDecimalsAndAcceptsExplicitZeroTax() {
         var f = new Fixture();
-        var first = item(11L, 1L, "0.0750"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
-        var second = item(22L, 2L, "0.0750"); second.setTaxIncluded(TaxIncluded.EXCLUDED); second.setTaxRate(0);
+        var first = item(11L, 1L, "0.0750"); f.first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        var second = item(22L, 2L, "0.0750"); f.second.setTaxIncluded(TaxIncluded.EXCLUDED); second.setTaxRate(0);
         prices(f, first, second);
         f.service.createInboundOrder(request(50, 20));
         assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("0.0848"), new BigDecimal("0.0750"));
@@ -166,13 +166,13 @@ class InboundOrderServiceTest {
     @Test void rejectsOverflowingOrOutOfRangeCostBeforeWritingReceipt() {
         for (Integer rate : java.util.Arrays.asList(-1, 101)) {
             var f = new Fixture();
-            var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(rate);
+            var first = item(11L, 1L, "1.00"); f.first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(rate);
             prices(f, first, item(22L, 2L, "1.00"));
             assertThatThrownBy(() -> f.service.createInboundOrder(request(50, 20))).isInstanceOf(BusinessException.class).hasMessageContaining("税率");
             verify(f.service, never()).save(any());
         }
         var f = new Fixture();
-        var first = item(11L, 1L, "99999999.9999"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
+        var first = item(11L, 1L, "99999999.9999"); f.first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(13);
         prices(f, first, item(22L, 2L, "1.00"));
         assertThatThrownBy(() -> f.service.createInboundOrder(request(50, 20))).isInstanceOf(BusinessException.class).hasMessageContaining("超出");
         verify(f.service, never()).save(any());
@@ -180,7 +180,7 @@ class InboundOrderServiceTest {
 
     @Test void excludedPriceWithoutTaxRateIsCostedAtFaceValue() {
         var f = new Fixture();
-        var first = item(11L, 1L, "1.00"); first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(null);
+        var first = item(11L, 1L, "1.00"); f.first.setTaxIncluded(TaxIncluded.EXCLUDED); first.setTaxRate(null);
         prices(f, first, item(22L, 2L, "1.00"));
         f.service.createInboundOrder(request(50, 20));
         assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("1.0000"));
@@ -225,11 +225,12 @@ class InboundOrderServiceTest {
     }
     private static PurchaseOrder order(Long id) {
         var row = new PurchaseOrder(); row.setId(id); row.setPurchaseOrderNo("PO-" + id);
-        row.setSupplierId(3L); row.setSupplierName("Supplier"); row.setOrderStatus(PurchaseOrderStatus.PENDING_RECEIPT); return row;
+        row.setSupplierId(3L); row.setSupplierName("Supplier"); row.setOrderStatus(PurchaseOrderStatus.PENDING_RECEIPT);
+        row.setTaxIncluded(TaxIncluded.INCLUDED); return row;
     }
     private static PurchaseOrderItem item(Long id, Long orderId, String cost) {
         var row = new PurchaseOrderItem(); row.setId(id); row.setPurchaseOrderId(orderId); row.setProductId(6L);
-        row.setPartNo("ET5907"); row.setQuantity(100); row.setUnitPrice(new BigDecimal(cost)); row.setTaxIncluded(TaxIncluded.INCLUDED); return row;
+        row.setPartNo("ET5907"); row.setQuantity(100); row.setUnitPrice(new BigDecimal(cost)); return row;
     }
     private static InboundOrderCreateDTO request(int first, int second) {
         var dto = new InboundOrderCreateDTO(); dto.setPurchaseOrderIds(List.of(1L, 2L)); dto.setInboundTime("2026-10-18T09:00:00");

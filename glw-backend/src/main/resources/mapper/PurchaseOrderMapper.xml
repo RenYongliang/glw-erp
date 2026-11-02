@@ -8,6 +8,7 @@
         <result column="supplier_id" property="supplierId" jdbcType="BIGINT"/>
         <result column="supplier_name" property="supplierName" jdbcType="VARCHAR"/>
         <result column="delivery_time" property="deliveryTime" jdbcType="TIMESTAMP"/>
+        <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="order_status" property="orderStatus" javaType="com.glw.backend.model.enums.PurchaseOrderStatus" jdbcType="VARCHAR"/>
         <result column="payment_status" property="paymentStatus" javaType="com.glw.backend.model.enums.PurchasePaymentStatus" jdbcType="VARCHAR"/>
         <result column="remark" property="remark" jdbcType="VARCHAR"/>
@@ -19,6 +20,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `purchase_order_no`, `order_time`, `supplier_id`, `supplier_name`, `delivery_time`, `order_status`, `payment_status`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `purchase_order_no`, `order_time`, `supplier_id`, `supplier_name`, `delivery_time`, `tax_included`, `order_status`, `payment_status`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

@@ -37,8 +37,6 @@ export interface SalesLine {
   quantity: number
   price: number
   tax: number
-  /** 是否含税；未填写时按含税单价处理。 */
-  taxIncluded?: boolean
   listPrice?: number
 }
 export interface ArrivalPlan {
@@ -58,6 +56,8 @@ export interface Attachment {
   url: string
 }
 export interface SalesOrder {
+  /** 订单级单价口径：true/未填为含税，false 为未税。整张订单统一，明细行不再单独设置。 */
+  taxIncluded?: boolean
   customerShortName?: string
   paymentStatus?: '未收款' | '部分收款' | '已收款'
   remark?: string
@@ -281,7 +281,7 @@ export const today = () => {
 export function nextSalesCode(prefix: string, rows: { code: string }[], date = today()) {
   return nextDocumentNumber(prefix, rows, date)
 }
-export function orderTotals(order: Pick<SalesOrder, 'lines' | 'discount'>) {
+export function orderTotals(order: Pick<SalesOrder, 'lines' | 'discount' | 'taxIncluded'>) {
   const cents = order.lines.map((l) => Math.round((l.amount ?? l.quantity * l.price) * 100))
   const actualCents = cents.reduce((a, b) => a + b, 0)
   const grossCents = order.lines.reduce(
@@ -301,8 +301,8 @@ export function orderTotals(order: Pick<SalesOrder, 'lines' | 'discount'>) {
       gross: roundMoney(l.quantity * (l.listPrice ?? l.price)),
       total,
       unit: l.quantity ? total / l.quantity : 0,
-      // 含税单价按税率倒算不含税金额；不含税单价本身即为不含税金额。
-      net: roundMoney(l.taxIncluded === false ? total : total / (1 + l.tax / 100)),
+      // 订单含税时，单价按行税率倒算不含税金额；订单未税时，金额本身即为不含税金额。
+      net: roundMoney(order.taxIncluded === false ? total : total / (1 + l.tax / 100)),
     }
   })
   return {

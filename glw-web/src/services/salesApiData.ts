@@ -15,7 +15,6 @@ export interface SalesOrderItemResponse {
   packageType?: string | null
   customerPartNo?: string | null
   unitPrice: string | number
-  taxIncluded?: number | null
   taxRate?: number | null
   quantity: number
   pendingQuantity?: number
@@ -31,6 +30,8 @@ export interface SalesOrderResponse {
   customerName: string
   customerShortName?: string | null
   settleType?: string | null
+  /** 订单级单价口径：0 未税，1 含税。 */
+  taxIncluded?: number | null
   deliveryTime?: string | null
   orderStatus: string
   paymentStatus: string
@@ -87,9 +88,12 @@ const payments: Record<string, NonNullable<SalesOrder['paymentStatus']>> = {
 const terms: Record<string, string> = { CASH: '现金', MONTHLY: '月结', PREPAID: '预付', COD: '货到付款' }
 
 export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
+  // 含税口径由订单表统一给出；未返回时按含税处理。
+  const taxIncluded = order.taxIncluded == null ? true : order.taxIncluded !== 0
   return {
     id: String(order.id), code: order.orderNo || String(order.id),
     name: `${order.customerName}销售订单`, customerId: String(order.customerId),
+    taxIncluded,
     customerName: order.customerName, purchaseNumber: order.customerOrderNo || '',
     customerShortName: order.customerShortName?.trim() || undefined,
     signed: date(order.orderTime), delivery: date(order.deliveryTime),
@@ -106,7 +110,7 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
       quantity: item.quantity, cancelledQuantity: item.cancelledQuantity ?? 0,
       pendingQuantity: item.pendingQuantity,
       price: Number(item.unitPrice), tax: item.taxRate ?? 0,
-      taxIncluded: item.taxIncluded !== 0, amount: Number(item.amount),
+      amount: Number(item.amount),
     })),
     arrivals: [], payments: [], attachments: [], reason: '', approver: '', approvedAt: '',
   }

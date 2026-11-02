@@ -102,6 +102,7 @@ const order = ref<SalesOrder>(
         code: "",
         name: "",
         customerId: "",
+        taxIncluded: true,
         priceLevel: "标准售价",
         quoteCode: "",
         purchaseNumber: "",
@@ -144,7 +145,14 @@ const shipment = ref<SalesShipment>(
 );
 const isOrder = props.kind === "orders",
   title = isOrder ? "销售订单" : props.dispatch ? "发货" : "销售出库";
-for (const line of order.value.lines) line.taxIncluded ??= true;
+// 含税口径是订单级的，后端随订单一起返回；缺省按含税处理。
+order.value.taxIncluded ??= true;
+/** 切换订单级含税口径：不换算已填单价，只改变价格的口径解释。 */
+function setTaxIncluded(value: boolean | string | number) {
+  const included = value !== false && value !== "false";
+  order.value.taxIncluded = included;
+  dirty.value = true;
+}
 const linkedOrders = computed(() =>
   shipmentOrders(shipment.value, store.state.orders),
 );
@@ -162,7 +170,8 @@ const printableShipment = computed(() => ({ ...shipment.value, shipping: shippin
 const dispatchFields = computed(() => [
   ["订单编号", linkedOrder.value?.code], ["客户名称", orderCustomerName(linkedOrder.value)],
 ]);
-const totals = computed(() => orderTotals(order.value)),
+const taxIncludedOrder = computed(() => order.value.taxIncluded !== false),
+  totals = computed(() => orderTotals(order.value)),
   shippedTotals = computed(() =>
     shipmentTotals(shipment.value, linkedOrder.value, store.state.orders),
   );
@@ -338,7 +347,6 @@ function addProducts() {
         customerPartNo: customerPartCodeFor(id),
         price: 0,
         tax: p.tax,
-        taxIncluded: true,
       });
     }
   productSelection.value = [];
@@ -600,7 +608,6 @@ function quickFill() {
           packaging: r.p!.model,
           price: 0,
           tax: r.p!.tax,
-          taxIncluded: true,
         });
     } else {
       const l = linkedOrder.value?.lines.find((l) => l.productId === r.p!.id),
@@ -751,9 +758,23 @@ function quickFill() {
           </div></el-form-item
         >
       </el-form>
-      <h3 class="purchase-section">
-        {{ isOrder ? "销售产品信息" : "产品明细" }}
-      </h3>
+      <div class="purchase-products-head">
+        <h3 class="purchase-section">
+          {{ isOrder ? "销售产品信息" : "产品明细" }}
+        </h3>
+        <div v-if="isOrder && !props.dispatch" class="purchase-price-mode">
+          <span class="purchase-price-mode-label">单价口径</span>
+          <el-radio-group
+            :model-value="order.taxIncluded !== false"
+            :disabled="view"
+            size="small"
+            @update:model-value="setTaxIncluded"
+          >
+            <el-radio-button :value="true">含税</el-radio-button>
+            <el-radio-button :value="false">未税</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
       <el-form v-if="!isOrder && !props.dispatch" label-position="top">
         <el-form-item label="出库仓库"><div class="purchase-read">{{ shipment.warehouse || "选择订单后自动带入" }}</div></el-form-item>
       </el-form>
@@ -773,9 +794,6 @@ function quickFill() {
           ></el-form-item
         >
       </el-form>
-      <div v-if="!props.dispatch" class="purchase-field-label">
-        <span>*</span> {{ isOrder ? "销售产品信息" : "产品明细" }}
-      </div>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
         <el-table-column label="型号" min-width="105" show-overflow-tooltip>
@@ -791,10 +809,9 @@ function quickFill() {
           <template #default="{row}"><el-input v-model="row.customerPartNo" :disabled="view" maxlength="64" placeholder="客户提供时填写" aria-label="客户物料编码" /></template>
         </el-table-column>
         <el-table-column label="数量" width="130"><template #default="{row}"><el-input-number v-model="row.quantity" :step="100" :disabled="view" :min="1" :max="100000000" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
-        <el-table-column label="单价" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="4" controls-position="right" aria-label="单价" /></template></el-table-column>
-        <el-table-column label="是否含税" width="90"><template #default="{row}"><el-select v-model="row.taxIncluded" :disabled="view" aria-label="是否含税"><el-option label="是" :value="true" /><el-option label="否" :value="false" /></el-select></template></el-table-column>
-        <el-table-column label="税率(%)" width="100"><template #default="{row}"><el-select v-if="row.taxIncluded" v-model="row.tax" :disabled="view" aria-label="税率(%)"><el-option v-for="rate in [13,6,3]" :key="rate" :label="rate + '%'" :value="rate" /></el-select><span v-else class="sales-tax-empty">—</span></template></el-table-column>
-        <el-table-column label="金额" width="120"><template #default="{row}">{{ money(row.price * row.quantity) }}</template></el-table-column>
+        <el-table-column :label="taxIncludedOrder ? '含税单价' : '未税单价'" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="4" controls-position="right" aria-label="单价" /></template></el-table-column>
+        <el-table-column label="税率(%)" width="100"><template #default="{row}"><el-select v-if="taxIncludedOrder" v-model="row.tax" :disabled="view" aria-label="税率(%)"><el-option v-for="rate in [13,6,3,0]" :key="rate" :label="rate + '%'" :value="rate" /></el-select><span v-else class="sales-tax-empty">—</span></template></el-table-column>
+        <el-table-column :label="taxIncludedOrder ? '含税金额' : '未税金额'" width="120"><template #default="{row}">{{ money(row.price * row.quantity) }}</template></el-table-column>
         <el-table-column label="当前库存" width="120"><template #default="{row}">{{ productValue(row.productId, 'stock') }}</template></el-table-column>
         <el-table-column v-if="!view" fixed="right" label="操作" width="90" align="center" class-name="sales-order-product-actions">
           <template #default="{$index}"><el-button text type="danger" :icon="Delete" aria-label="删除产品" @click="order.lines.splice($index,1); dirty=true" /></template>
@@ -964,17 +981,11 @@ function quickFill() {
       </div>
       <el-form v-if="isOrder || !props.dispatch" label-position="top" class="purchase-form-grid" :disabled="view">
         <template v-if="isOrder">
-          
-
-          
-          
-          <el-form-item label="销售订单金额(含税)/元"
-            ><div class="purchase-read">
-              {{ money(totals.total) }}
-            </div></el-form-item
-          ><el-form-item label="销售金额合计(不含税)/元"
-            ><div class="purchase-read">
-              {{ money(totals.net) }}
+          <el-form-item label="销售订单金额/元" class="sales-amount-cell"
+            ><div class="purchase-read sales-amount-read">
+              <span class="sales-tax-tag" :class="{ 'sales-tax-tag-net': !taxIncludedOrder }">{{ taxIncludedOrder ? "含税" : "不含税" }}</span>
+              <span class="sales-amount-value">{{ money(totals.total) }}</span>
+              <span v-if="taxIncludedOrder" class="sales-net-hint">其中不含税 {{ money(totals.net) }}</span>
             </div></el-form-item
           >
         </template>
@@ -1598,6 +1609,36 @@ function quickFill() {
 }
 .sales-order-dialog .purchase-detail-tabs {
   margin: 20px 0 16px;
+}
+.sales-amount-cell {
+  grid-column: span 2;
+}
+.sales-amount-read {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sales-tax-tag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: #fff4e6;
+  color: #c26b00;
+  font-size: 12px;
+  line-height: 18px;
+}
+.sales-tax-tag-net {
+  background: #eaf3ff;
+  color: #2563eb;
+}
+.sales-amount-value {
+  font-weight: 600;
+  color: #17283f;
+}
+.sales-net-hint {
+  color: #8a94a6;
+  font-size: 12px;
 }
 </style>
 

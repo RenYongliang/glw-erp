@@ -27,6 +27,7 @@ import com.glw.backend.model.entity.SalesOrderItem;
 import com.glw.backend.model.enums.OutboundStatus;
 import com.glw.backend.model.enums.OutboundType;
 import com.glw.backend.model.enums.SalesOrderStatus;
+import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.model.vo.OutboundOrderItemBatchVO;
 import com.glw.backend.model.vo.OutboundOrderVO;
 import com.glw.backend.model.vo.OutboundSalesOrderVO;
@@ -247,8 +248,10 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
             allocation.setSalesOrderItemId(salesOrderItem.getId());
             allocation.setAllocatedQuantity(quantity);
             allocation.setUnitPrice(salesOrderItem.getUnitPrice());
-            allocation.setTaxIncluded(salesOrderItem.getTaxIncluded());
-            allocation.setTaxRate(salesOrderItem.getTaxRate());
+            // 出库明细保留含税口径快照，但口径取整张销售订单，而不是订单行。
+            allocation.setTaxIncluded(salesOrder.getTaxIncluded());
+            allocation.setTaxRate(salesOrder.getTaxIncluded() == TaxIncluded.INCLUDED
+                    ? salesOrderItem.getTaxRate() : null);
             allocation.setAmount(amount(salesOrderItem.getUnitPrice(), quantity));
             allocation.setCurrency(DEFAULT_CURRENCY);
             outboundOrderItemAllocService.save(allocation);

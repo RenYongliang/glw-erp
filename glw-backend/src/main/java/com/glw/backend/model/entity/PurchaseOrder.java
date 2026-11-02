@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
 import com.glw.backend.model.enums.PurchaseOrderStatus;
 import com.glw.backend.model.enums.PurchasePaymentStatus;
+import com.glw.backend.model.enums.TaxIncluded;
 
 import lombok.Data;
 
@@ -42,6 +43,10 @@ public class PurchaseOrder {
     /** 交付日期。 */
     @TableField("delivery_time")
     private LocalDateTime deliveryTime;
+
+    /** 单价口径, EXCLUDED:未税; INCLUDED:含税；整张订单统一。 */
+    @TableField("tax_included")
+    private TaxIncluded taxIncluded;
 
     /** 订单状态, PENDING_RECEIPT:待收货; PARTIALLY_RECEIVED:部分收货; COMPLETED:已完成。 */
     @TableField("order_status")

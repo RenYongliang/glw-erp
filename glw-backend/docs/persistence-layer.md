@@ -24,7 +24,7 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 
 ## 数据库枚举
 
-`model/enums` 定义 11 个枚举，应用于 8 个实体的 13 个字段：TaxIncluded（拜访报价、采购/销售商品是否含税）、SampleDeliveryStatus（送样标志）、InboundType/InboundStatus、OutboundType/OutboundStatus、PurchaseOrderStatus/PurchasePaymentStatus、SalesOrderStatus/SalesPaymentStatus、SettlementType（销售结算类型）。
+`model/enums` 定义 11 个枚举，应用于 8 个实体的 13 个字段：TaxIncluded（拜访报价、采购订单与销售订单的订单级单价口径，以及出入库的含税快照）、SampleDeliveryStatus（送样标志）、InboundType/InboundStatus、OutboundType/OutboundStatus、PurchaseOrderStatus/PurchasePaymentStatus、SalesOrderStatus/SalesPaymentStatus、SettlementType（销售结算类型）。
 
 每个枚举提供 code、description、fromCode。@EnumValue 使 MyBatis-Plus 读写数据库原有编码，@JsonValue / @JsonCreator 保持 JSON 使用原有字符串或数字，非法 JSON 编码会报参数错误；不使用 ordinal。XML 明确标注对应的 javaType，原 jdbcType 不变。数据库默认值仍由 MySQL 处理，不在实体中硬编码初始状态。
 
@@ -33,12 +33,13 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 ## 库存预占字段
 
 产品表只维护供应商、品牌、型号、封装等资料，不维护基础价格或税率。
-采购合同约定的 `unit_price`、`tax_included`、`tax_rate` 保留在 `purchase_order_item`，未入库时也能记录合同价格。
+采购订单与销售订单的含税口径都是订单级的：`purchase_order.tax_included`、`sales_order.tax_included`。明细行只保留逐行 `tax_rate`，未入库/未出库时也能记录合同价格。
+`purchase_order_item.tax_rate` 在未税口径下仍保留：入库时按该税率把未税单价换算成含税库存成本；`sales_order_item.tax_rate` 仅在含税口径下保存，未税订单不保存税率。出库分配、入库分配和应收开项按订单口径写入自己的 `tax_included` 快照，保证历史单据金额不随订单后续变化。
 `inbound_order_item` 通过采购明细关联价格，不重复存储价格及税务字段。
 `inventory.unit_cost` 记录批次单位成本，`outbound_order_batch_item.unit_cost` 保留实际出库时的成本快照。
 销售产品选择接口 `POST /api/product/list` 分页返回真实产品及当前正库存批次的成本参考：平均成本为 `SUM(unit_cost * quantity) / SUM(quantity)`，四舍五入保留4位小数；成本范围为这些批次的最低至最高单位成本。零库存或已耗尽批次不参与成本计算，无正库存时成本返回NULL，产品仍可选择下单。此参考不锁定批次，实际出库成本以出库批次快照为准。
 点击成本范围时，通过 `GET /api/product/{productId}/cost-batches` 查询该产品当前正库存的批次号、剩余数量和单位成本，按批次号、库存ID排序。单一成本的范围同样支持查看明细。
-当前初始化数据的采购明细均为含税价，库存单位成本直接沿用对应合同含税单价，不进行税额剥离或运费分摊；税率未明确时保留NULL。
+当前初始化数据的采购订单均为含税口径，库存单位成本直接沿用对应合同含税单价，不进行税额剥离或运费分摊；未税口径且填写税率时先换算含税成本，税率未明确时保留 NULL 并按单价入库。
 
 批次号只存储在 `inventory.batch_no`，不在入库明细或出库批次明细中重复存储。
 一条产品入库明细形成一个批次，`inventory.inbound_order_item_id` 指向该明细；入库详情通过该关联查询批次号。

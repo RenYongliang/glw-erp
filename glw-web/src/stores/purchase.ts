@@ -63,9 +63,9 @@ export const usePurchaseStore = defineStore('purchase', () => {
     const order: PurchaseOrder = JSON.parse(JSON.stringify(input))
     order.name = order.name.trim()
     order.supplierName = order.supplierName?.trim()
+    order.taxIncluded ??= true
     for (const line of order.lines) {
       line.delivery ??= order.delivery
-      line.taxIncluded ??= true
     }
     order.delivery = order.lines.map(l => l.delivery!).sort().at(-1) || order.signed
     const error = validateOrder(order)

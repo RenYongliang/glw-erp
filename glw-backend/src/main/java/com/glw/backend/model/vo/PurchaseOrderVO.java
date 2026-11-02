@@ -2,6 +2,7 @@ package com.glw.backend.model.vo;
 
 import com.glw.backend.model.enums.PurchaseOrderStatus;
 import com.glw.backend.model.enums.PurchasePaymentStatus;
+import com.glw.backend.model.enums.TaxIncluded;
 
 import lombok.Data;
 
@@ -17,6 +18,10 @@ public class PurchaseOrderVO {
     private String supplierName;
     private String supplierShortName;
     private String deliveryTime;
+
+    /** 单价口径, EXCLUDED:未税; INCLUDED:含税；整张订单统一。 */
+    private TaxIncluded taxIncluded;
+
     private PurchaseOrderStatus orderStatus;
     private PurchasePaymentStatus paymentStatus;
     private String remark;

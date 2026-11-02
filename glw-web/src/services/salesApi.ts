@@ -30,14 +30,13 @@ function toSettleType(term?: string) {
 
 function toSalesOrderRequest(order: SalesOrder) {
   if (!/^\d+$/.test(order.customerId)) throw Error('请从客户列表中选择客户')
+  const taxIncluded = order.taxIncluded !== false
   const items = order.lines.map(line => {
     if (!/^\d+$/.test(line.productId)) throw Error('销售产品需从产品列表中选择')
-    const taxIncluded = line.taxIncluded !== false
     return {
       productId: Number(line.productId),
       customerPartNo: (line.customerPartNo || '').trim().slice(0, 64) || null,
       unitPrice: line.price,
-      taxIncluded: taxIncluded ? 1 : 0,
       taxRate: taxIncluded ? line.tax : null,
       quantity: line.quantity,
     }
@@ -48,6 +47,7 @@ function toSalesOrderRequest(order: SalesOrder) {
     deliveryTime: order.delivery,
     customerOrderNo: (order.purchaseNumber || '').trim().slice(0, 64) || null,
     settleType: toSettleType(order.term),
+    taxIncluded: taxIncluded ? 1 : 0,
     remark: (order.remark || '').trim().slice(0, 256) || null,
     version: order.version,
     items,

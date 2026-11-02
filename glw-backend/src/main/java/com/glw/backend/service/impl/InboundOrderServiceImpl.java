@@ -162,7 +162,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
                         InboundOrderItemAllocMapper.ReceivedQuantity::purchaseOrderItemId,
                         InboundOrderItemAllocMapper.ReceivedQuantity::quantity));
 
-        validateAllocations(createDTO, orderItemMap, receivedMap);
+        validateAllocations(createDTO, orderItemMap, purchaseOrderMap, receivedMap);
         Set<Long> allocatedOrders = createDTO.getAllocations().stream()
                 .map(item -> orderItemMap.get(item.getPurchaseOrderItemId()).getPurchaseOrderId()).collect(Collectors.toSet());
         if (!allocatedOrders.equals(new HashSet<>(purchaseIds)))
@@ -223,7 +223,8 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
             allocation.setLotCode(allocationDTO.getLotCode().trim());
             allocation.setAllocatedQuantity(quantity);
             allocation.setUnitPrice(orderItem.getUnitPrice());
-            allocation.setTaxIncluded(orderItem.getTaxIncluded());
+            // 入库明细保留含税口径快照，但口径取整张采购订单，而不是订单行。
+            allocation.setTaxIncluded(purchaseOrder.getTaxIncluded());
             allocation.setTaxRate(orderItem.getTaxRate());
             allocation.setAmount(amount(orderItem.getUnitPrice(), quantity));
             allocation.setCurrency(DEFAULT_CURRENCY);
@@ -287,6 +288,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     private void validateAllocations(
             InboundOrderCreateDTO createDTO,
             Map<Long, PurchaseOrderItem> orderItemMap,
+            Map<Long, PurchaseOrder> purchaseOrderMap,
             Map<Long, Long> receivedMap) {
         Map<Long, Long> requestedByPurchaseItem = new HashMap<>();
         Set<String> allocationKeys = new HashSet<>();
@@ -295,7 +297,8 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
             if (orderItem == null) {
                 throw new BusinessException(ErrorCode.BAD_REQUEST, "入库产品不属于当前采购订单");
             }
-            taxInclusiveCost(orderItem.getUnitPrice(), orderItem.getTaxIncluded(), orderItem.getTaxRate());
+            PurchaseOrder purchaseOrder = purchaseOrderMap.get(orderItem.getPurchaseOrderId());
+            taxInclusiveCost(orderItem.getUnitPrice(), purchaseOrder.getTaxIncluded(), orderItem.getTaxRate());
             String dateCode = allocationDTO.getDateCode().trim();
             String lotCode = allocationDTO.getLotCode().trim();
             String key = allocationDTO.getPurchaseOrderItemId() + "|"

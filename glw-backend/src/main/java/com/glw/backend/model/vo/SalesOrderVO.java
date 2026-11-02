@@ -3,6 +3,7 @@ package com.glw.backend.model.vo;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
+import com.glw.backend.model.enums.TaxIncluded;
 import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,9 @@ public class SalesOrderVO {
     private String customerShortName;
 
     private SettlementType settleType;
+
+    /** 单价口径, EXCLUDED:未税; INCLUDED:含税。 */
+    private TaxIncluded taxIncluded;
 
     private String deliveryTime;
 

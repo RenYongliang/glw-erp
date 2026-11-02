@@ -77,9 +77,9 @@ const order = ref<PurchaseOrder>(
 )
 order.value.contact = purchaseContact(order.value)
 order.value.phone = purchasePhone(order.value)
+order.value.taxIncluded ??= true
 for (const line of order.value.lines) {
   line.delivery ??= order.value.delivery
-  line.taxIncluded ??= true
 }
 const receipt = ref<PurchaseReceipt>(
   props.receipt
@@ -154,6 +154,13 @@ onMounted(() => {
   void loadProductList()
 })
 const supplier = computed(() => supplierList.value.find((s) => s.id === linkedOrder.value?.supplierId))
+const taxIncludedOrder = computed(() => order.value.taxIncluded !== false)
+/** 切换订单级含税口径：不换算已填单价，只改变价格的口径解释。 */
+function setTaxIncluded(value: boolean | string | number) {
+  const included = value !== false && value !== "false"
+  order.value.taxIncluded = included
+  dirty.value = true
+}
 const totals = computed(() => orderTotals(order.value)),
   received = computed(() => receiptTotals(receipt.value, linkedOrder.value))
 const baseFields = computed(() => [
@@ -274,7 +281,6 @@ function addProducts() {
         quantity: 1,
         price: p.price,
         tax: p.tax,
-        taxIncluded: true,
         delivery: order.value.delivery || '',
         remark: '',
       })
@@ -395,7 +401,7 @@ function quickFill() {
   const changes = rows.map((r) => {
     const key = r[0]?.trim()
     return {
-      p: productList.value.find((p) => [p.code, p.model, p.name].includes(key)),
+      p: key ? productList.value.find((p) => [p.code, p.model, p.name].includes(key)) : undefined,
       q: Number(r[1]),
     }
   })
@@ -422,7 +428,6 @@ function quickFill() {
           quantity: r.q,
           price: r.p!.price,
           tax: r.p!.tax,
-          taxIncluded: true,
           delivery: order.value.delivery || '',
           remark: '',
         })
@@ -537,7 +542,17 @@ function quickFill() {
         >
 
       </el-form>
-      <h3 class="purchase-section">{{ isOrder ? '采购产品信息' : '入库产品明细' }}</h3>
+      <div class="purchase-products-head">
+        <h3 class="purchase-section">{{ isOrder ? '采购产品信息' : '入库产品明细' }}</h3>
+        <div v-if="isOrder" class="purchase-price-mode">
+          <span class="purchase-price-mode-label">单价口径</span>
+          <el-radio-group :model-value="taxIncludedOrder" :disabled="view" size="small"
+            @update:model-value="setTaxIncluded">
+            <el-radio-button :value="true">含税</el-radio-button>
+            <el-radio-button :value="false">未税</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
 
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines purchase-order-lines" empty-text="点击“添加”选择采购产品">
         <el-table-column type="index" label="序号" width="52" />
@@ -546,9 +561,8 @@ function quickFill() {
         <el-table-column label="封装" min-width="80"><template #default="{row}">{{ purchaseLineProductText(row, 'packaging') }}</template></el-table-column>
         <el-table-column label="数量" width="125"><template #default="{row}"><el-input-number v-model="row.quantity" :disabled="view" :min="1" :max="100000000" :step="100" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
         <el-table-column label="单位" width="55"><template #default>pcs</template></el-table-column>
-        <el-table-column label="单价" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价" /></template></el-table-column>
-        <el-table-column label="是否含税" width="85"><template #default="{row}"><el-select v-model="row.taxIncluded" :disabled="view" aria-label="是否含税"><el-option label="是" :value="true" /><el-option label="否" :value="false" /></el-select></template></el-table-column>
-        <el-table-column label="税率(%)" width="110"><template #default="{row}"><el-input-number v-if="row.taxIncluded" v-model="row.tax" :disabled="view" :min="0" :max="100" :precision="0" controls-position="right" aria-label="税率(%)" /><span v-else class="purchase-tax-empty">—</span></template></el-table-column>
+        <el-table-column :label="taxIncludedOrder ? '含税单价' : '未税单价'" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价" /></template></el-table-column>
+        <el-table-column label="税率(%)" width="110"><template #default="{row}"><el-input-number v-model="row.tax" :disabled="view" :min="0" :max="100" :precision="0" controls-position="right" aria-label="税率(%)" /></template></el-table-column>
         <el-table-column label="合计" width="105"><template #default="{$index}">{{ money(totals.details[$index]?.total || 0) }}</template></el-table-column>
         <el-table-column label="交付日期" width="150"><template #default="{row}"><el-date-picker v-model="row.delivery" :disabled="view" value-format="YYYY-MM-DD" aria-label="产品交付日期" /></template></el-table-column>
         <el-table-column label="备注" min-width="160"><template #default="{row}"><el-input v-model="row.remark" :disabled="view" maxlength="200" aria-label="产品备注" /></template></el-table-column>
@@ -674,7 +688,13 @@ function quickFill() {
       <el-form v-if="isOrder" label-position="top" class="purchase-form-grid" :disabled="view">
         <template v-if="isOrder">
           <el-form-item label="合计数量"><div class="purchase-read">{{ order.lines.reduce((n,l) => n + (l.quantity || 0), 0) }}</div></el-form-item>
-          <el-form-item label="合计金额"><div class="purchase-read">{{ money(totals.total) }}</div></el-form-item>
+          <el-form-item label="采购订单金额/元" class="purchase-amount-cell"
+            ><div class="purchase-read purchase-amount-read">
+              <span class="purchase-tax-tag" :class="{ 'purchase-tax-tag-net': !taxIncludedOrder }">{{ taxIncludedOrder ? "含税" : "不含税" }}</span>
+              <span class="purchase-amount-value">{{ money(totals.total) }}</span>
+              <span v-if="taxIncludedOrder" class="purchase-net-hint">其中不含税 {{ money(totals.net) }}</span>
+            </div></el-form-item
+          >
           <el-form-item label="合计金额大写"><div class="purchase-read">{{ chineseMoney(totals.total) }}</div></el-form-item>
         </template>
 </el-form>
@@ -1060,6 +1080,12 @@ function quickFill() {
 .purchase-order-editor .el-form-item { margin-bottom: 10px; }
 .purchase-order-editor .el-form-item__label { margin-bottom: 5px; }
 .purchase-order-editor .purchase-section:not(:first-child) { margin-top: 20px; }
+.purchase-amount-cell { min-width: 0; }
+.purchase-amount-read { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.purchase-tax-tag { flex: none; padding: 0 6px; border-radius: 3px; background: #fff4e6; color: #c26b00; font-size: 12px; line-height: 18px; }
+.purchase-tax-tag-net { background: #eaf3ff; color: #2563eb; }
+.purchase-amount-value { font-weight: 600; color: #17283f; }
+.purchase-net-hint { color: #8a94a6; font-size: 12px; }
 .purchase-order-editor .purchase-line-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 14px; }
 .purchase-order-lines .cell { white-space: nowrap; padding: 0 4px; font-size: 12px; }
 .purchase-order-editor .purchase-order-lines .el-date-editor { width: 100%; }

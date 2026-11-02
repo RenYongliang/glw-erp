@@ -10,7 +10,6 @@
         <result column="part_no" property="partNo" jdbcType="VARCHAR"/>
         <result column="package_type" property="packageType" jdbcType="VARCHAR"/>
         <result column="unit_price" property="unitPrice" jdbcType="DECIMAL"/>
-        <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="tax_rate" property="taxRate" jdbcType="INTEGER"/>
         <result column="quantity" property="quantity" jdbcType="INTEGER"/>
         <result column="amount" property="amount" jdbcType="DECIMAL"/>
@@ -21,6 +20,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `purchase_order_id`, `purchase_order_no`, `product_id`, `brand`, `part_no`, `package_type`, `unit_price`, `tax_included`, `tax_rate`, `quantity`, `amount`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `purchase_order_id`, `purchase_order_no`, `product_id`, `brand`, `part_no`, `package_type`, `unit_price`, `tax_rate`, `quantity`, `amount`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

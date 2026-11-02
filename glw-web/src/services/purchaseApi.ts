@@ -18,7 +18,6 @@ interface PurchaseOrderItemResponse {
   partNo: string
   packageType?: string
   unitPrice: string
-  taxIncluded?: number | null
   taxRate?: number | null
   quantity: number
   pendingQuantity: number
@@ -33,6 +32,8 @@ interface PurchaseOrderResponse {
   supplierName: string
   supplierShortName?: string | null
   deliveryTime?: string | null
+  /** 订单级单价口径：0 未税，1 含税。 */
+  taxIncluded?: number | null
   orderStatus: string
   paymentStatus: string
   remark?: string | null
@@ -109,10 +110,13 @@ function orderStatus(status: string): PurchaseOrder['status'] {
 
 function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
   const delivery = date(order.deliveryTime)
+  // 含税口径是订单级的，后端随订单一起返回；缺省按含税处理。
+  const taxIncluded = order.taxIncluded == null ? true : order.taxIncluded !== 0
   return {
     id: String(order.id),
     code: order.purchaseOrderNo || String(order.id),
     name: `${order.supplierName}采购订单`,
+    taxIncluded,
     supplierId: String(order.supplierId),
     supplierName: order.supplierName,
     supplierShortName: order.supplierShortName?.trim() || undefined,
@@ -132,7 +136,6 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
       quantity: item.quantity,
       pendingQuantity: item.pendingQuantity,
       price: Number(item.unitPrice),
-      taxIncluded: item.taxIncluded !== 0,
       tax: item.taxRate ?? 0,
       amount: Number(item.amount),
       delivery,
@@ -207,14 +210,13 @@ export async function fetchPurchaseOrders() {
 
 function toPurchaseOrderRequest(order: PurchaseOrder) {
   if (!/^\d+$/.test(order.supplierId)) throw Error('请从供应商列表中选择供应商')
+  const taxIncluded = order.taxIncluded !== false
   const items = order.lines.map(line => {
     if (!/^\d+$/.test(line.productId)) throw Error('采购产品需从产品列表中选择')
-    const taxIncluded = line.taxIncluded !== false
     return {
       productId: Number(line.productId),
       unitPrice: line.price,
-      taxIncluded: taxIncluded ? 1 : 0,
-      taxRate: taxIncluded ? line.tax : null,
+      taxRate: line.tax,
       quantity: line.quantity,
     }
   })
@@ -222,6 +224,7 @@ function toPurchaseOrderRequest(order: PurchaseOrder) {
     supplierId: Number(order.supplierId),
     orderTime: order.signed,
     deliveryTime: order.delivery,
+    taxIncluded: taxIncluded ? 1 : 0,
     remark: (order.term || '').trim().slice(0, 256),
     version: order.version,
     items,
