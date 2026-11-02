@@ -92,15 +92,18 @@ export const useSalesStore = defineStore('sales', () => {
       error = validateShipment(shipment, next)
     if (error) throw Error(error)
     const index = next.shipments.findIndex((r) => r.id === shipment.id)
-    if (index < 0 && shipment.confirmed) {
-      await createOutboundOrder(shipment)
+    const existing = index >= 0 ? next.shipments[index]! : undefined
+    // 后端出库单 id 为数字；本地未提交草稿是 UUID。草稿补确认后也必须走后端生成正式出库单。
+    const persisted = !!existing && /^\d+$/.test(existing.id)
+    if (!persisted && shipment.confirmed) {
+      const created = await createOutboundOrder(shipment)
       if (shipment.customerConfirmed && shipment.customerReceivedAt)
-        await signOutboundOrder(shipment.id, shipment.customerReceivedAt)
+        await signOutboundOrder(String(created.id), shipment.customerReceivedAt)
       await load()
       return shipment
     }
-    if (index >= 0 && next.shipments[index]!.confirmed) {
-      const previous = next.shipments[index]!
+    if (persisted && existing.confirmed) {
+      const previous = existing
       if (
         JSON.stringify({ ...previous, customerConfirmed: false, customerReceivedAt: '' }) !==
         JSON.stringify({ ...shipment, customerConfirmed: false, customerReceivedAt: '' })
@@ -131,7 +134,7 @@ export const useSalesStore = defineStore('sales', () => {
       shipment.code = nextSalesCode('OUT', next.shipments, shipment.shippedAt || undefined)
       next.shipments.unshift(shipment)
     } else next.shipments[index] = shipment
-    commit(next, index < 0 ? '新增销售出库' : '修改销售出库', shipment.code)
+    commit(next, index < 0 ? '新增产品出库' : '修改产品出库', shipment.code)
     return shipment
   }
   function remove(kind: 'orders' | 'shipments', ids: string[]) {
@@ -157,7 +160,7 @@ export const useSalesStore = defineStore('sales', () => {
       throw Error('已确认出库单不能删除')
     if (kind === 'orders') next.orders = next.orders.filter((r) => !ids.includes(r.id))
     else next.shipments = next.shipments.filter((r) => !ids.includes(r.id))
-    commit(next, '删除' + (kind === 'orders' ? '销售订单' : '销售出库'), `${ids.length} 条`)
+    commit(next, '删除' + (kind === 'orders' ? '销售订单' : '产品出库'), `${ids.length} 条`)
   }
   function pay(input: SalesPayment) {
     const next = snapshot(),
@@ -212,7 +215,7 @@ export const useSalesStore = defineStore('sales', () => {
       row.code = nextSalesCode('OUT', next.shipments, row.shippedAt || undefined)
       next.shipments.unshift(row)
     }
-    commit(next, '导入销售出库', `${rows.length} 条`)
+    commit(next, '导入产品出库', `${rows.length} 条`)
   }
   return {
     state,

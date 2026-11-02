@@ -42,7 +42,7 @@ const router = createRouter({
       name: 'sales-shipments',
       component: () => import('../views/SalesManagementView.vue'),
       props: { kind: 'shipments' },
-      meta: { title: '销售出库' },
+      meta: { title: '产品出库' },
     },
     {
       path: '/products/query',

@@ -31,7 +31,7 @@ const periods = ['今天', '昨天', '本周', '上周', '本月', '上月', '�
 const business = [
   { title: '客户', icon: User, color: 'blue' },
   { title: '销售订单', icon: Document, color: 'orange' },
-  { title: '销售出库', icon: Right, color: 'blue' },
+  { title: '产品出库', icon: Right, color: 'blue' },
   { title: '供应商信息', icon: OfficeBuilding, color: 'blue' },
   { title: '采购订单', icon: ShoppingCart, color: 'orange' },
   { title: '产品入库', icon: Right, color: 'blue' },

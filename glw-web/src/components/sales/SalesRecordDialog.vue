@@ -61,9 +61,23 @@ async function loadCustomers() {
   if (customersLoading.value) return;
   customersLoading.value = true;
   customersError.value = '';
-  try { customers.value = await fetchCustomerOptions(); }
+  try {
+    customers.value = await fetchCustomerOptions();
+    applyCustomerShippingDefaults();
+  }
   catch (error) { customersError.value = error instanceof Error ? error.message : '客户加载失败'; }
   finally { customersLoading.value = false; }
+}
+/** 后端订单只保存客户 id，发货信息按客户档案补全空字段，避免提交时缺收货信息。 */
+function applyCustomerShippingDefaults() {
+  if (props.shipment) return;
+  const order = linkedOrder.value;
+  const customer = customers.value.find((c) => c.id === order?.customerId);
+  if (!customer) return;
+  const info = shippingInfo.value;
+  if (!info.address.trim()) info.address = customer.address || order?.address || '';
+  if (!info.recipient.trim()) info.recipient = customer.contact || '';
+  if (!info.phone.trim()) info.phone = customer.phone || '';
 }
 const productsLoading = ref(false), productsError = ref('');
 const costBatchesOpen = ref(false), costBatchesLoading = ref(false), costBatchesError = ref('');
@@ -144,7 +158,7 @@ const shipment = ref<SalesShipment>(
       },
 );
 const isOrder = props.kind === "orders",
-  title = isOrder ? "销售订单" : props.dispatch ? "发货" : "销售出库";
+  title = isOrder ? "销售订单" : props.dispatch ? "发货" : "产品出库";
 // 含税口径是订单级的，后端随订单一起返回；缺省按含税处理。
 order.value.taxIncluded ??= true;
 /** 切换订单级含税口径：不换算已填单价，只改变价格的口径解释。 */
@@ -311,6 +325,12 @@ function chooseOrder(o: SalesOrder) {
       batches: [],
       location: "",
     }));
+  // 从销售订单点“发货”进入时，提交即代表确认出库，不再先落本地待出库草稿。
+  if (props.dispatch) {
+    shipment.value.confirmed = true;
+    if (!shipment.value.shippedAt)
+      shipment.value.shippedAt = new Date().toLocaleString("sv-SE").slice(0, 16);
+  }
   picker.value = "";
   dirty.value = true;
 }
@@ -501,7 +521,7 @@ async function save() {
       isOrder
         ? "销售订单已保存"
         : shipment.value.confirmed
-          ? "出库及收货信息已保存"
+          ? "出库成功，可在“产品出库”查看并打印发货单"
           : `已保存${shipment.value.tag}单据`,
     );
     emit("saved");
@@ -752,7 +772,7 @@ function quickFill() {
             {{ linkedOrder?.department || "暂无内容" }}
           </div></el-form-item
         >
-        <el-form-item :label="isOrder ? '销售订单编号' : '销售出库单编号'"
+        <el-form-item :label="isOrder ? '销售订单编号' : '产品出库单编号'"
           ><div class="purchase-read">
             {{ (isOrder ? order.code : shipment.code) || "自动生成无需填写" }}
           </div></el-form-item
@@ -1043,7 +1063,7 @@ function quickFill() {
             v-for="name in [
               '订单明细',
               '财务明细',
-              '销售出库',
+              '产品出库',
               '销售退货',
               '销售订单执行跟踪',
             ]"
@@ -1209,11 +1229,11 @@ function quickFill() {
               prop="note"
               label="备注" /></el-table
         ></template>
-        <template v-else-if="tab === '销售出库'"
+        <template v-else-if="tab === '产品出库'"
           ><el-table :data="linkedShipments" border
             ><el-table-column
               prop="code"
-              label="销售出库单编号"
+              label="产品出库单编号"
             /><el-table-column prop="warehouse" label="仓库" /><el-table-column
               label="出库产品总数"
               ><template #default="{ row }">{{
@@ -1270,7 +1290,7 @@ function quickFill() {
       <template v-else>
         <h3 class="purchase-section">发货信息</h3>
         <ShipmentShippingForm v-model="shippingInfo" :required="shipment.confirmed" :disabled="view || !!props.shipment?.confirmed" @change="dirty = true" />
-        <DeliveryNoteActions :order="linkedOrder" :orders="linkedOrders" :shipment="printableShipment" />
+        <DeliveryNoteActions :order="linkedOrder" :orders="linkedOrders" :shipment="printableShipment" :draft="!shipment.code || !shipment.confirmed" />
         <h3 class="purchase-section">出库确认</h3>
         <el-form
           label-position="top"
@@ -1280,7 +1300,7 @@ function quickFill() {
           <el-form-item label="产品出库确认" required
             ><el-checkbox
               v-model="shipment.confirmed"
-              :disabled="!!props.shipment?.confirmed || shipment.tag !== '出库'"
+              :disabled="props.dispatch || !!props.shipment?.confirmed || shipment.tag !== '出库'"
               aria-label="产品出库确认"
               >确认</el-checkbox
             ></el-form-item

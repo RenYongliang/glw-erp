@@ -20,6 +20,7 @@ import {
 import { emptySalesOrderFilters, salesFulfillmentStatus, salesOrderMonth, salesFilterCount, matchesSalesOrderFilters, type FulfillmentStatus } from "../domain/salesOrderFilters";
 import SalesRecordDialog from "../components/sales/SalesRecordDialog.vue";
 import MultiOrderOutboundDialog from "../components/sales/MultiOrderOutboundDialog.vue";
+import DeliveryNoteActions from "../components/sales/DeliveryNoteActions.vue";
 import { useSalesStore } from "../stores/sales";
 import {
   customers,
@@ -515,7 +516,7 @@ async function exportData() {
       sortKey: sortKey.value, sortDirection: sortDirection.value,
       filterOpen: filterOpen.value, filterKey: filterKey.value,
       filterOperator: filterOperator.value, filterValue: filterValue.value,
-    }, `${isOrder ? '销售订单' : '销售出库'}-${today()}`);
+    }, `${isOrder ? '销售订单' : '产品出库'}-${today()}`);
     ElMessage.success('导出成功');
   } catch (e) { ElMessage.error((e as Error).message); }
   finally { exporting.value = false; }
@@ -553,7 +554,7 @@ function downloadTemplate() {
   const sampleLine = sampleOrder?.lines.find(
     (l) => remainingQuantity(store.state, sampleOrder.id, l.id) > 0,
   );
-  download(`${isOrder ? "销售订单" : "销售出库"}导入模板.csv`, [
+  download(`${isOrder ? "销售订单" : "产品出库"}导入模板.csv`, [
     importHeaders,
     isOrder
       ? [
@@ -770,7 +771,7 @@ function confirmImport() {
         >
 
         <el-dropdown trigger="click" @command="changeGrouping">
-          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain :aria-label="isOrder ? '订单分组方式' : '销售出库分组方式'">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'customer' ? '按客户分组' : '不分组' }}</el-button>
+          <el-button :icon="Operation" :type="grouped ? 'primary' : ''" plain :aria-label="isOrder ? '订单分组方式' : '产品出库分组方式'">{{ groupMode === 'month' ? '按月份分组' : groupMode === 'customer' ? '按客户分组' : '不分组' }}</el-button>
           <template #dropdown><el-dropdown-menu>
             <el-dropdown-item command="month">{{ isOrder ? '按订单日期月份分组' : '按出库日期月份分组' }}</el-dropdown-item>
             <el-dropdown-item command="customer">按客户分组</el-dropdown-item>
@@ -865,7 +866,6 @@ function confirmImport() {
               {{ c.label }}
             </th>
             <th
-              v-if="isOrder"
               class="purchase-fixed-actions"
               :rowspan="productColumns.length ? 2 : 1"
             >
@@ -898,7 +898,7 @@ function confirmImport() {
                   @change="selectRows(group.rows, !!$event)"
                 />
               </td>
-              <td :colspan="shownColumns.length + (isOrder ? 1 : 0)">
+              <td :colspan="shownColumns.length + 1">
                 <button
                   :aria-expanded="!collapsed.includes(group.name)"
                   @click="toggleGroup(group.name)"
@@ -979,32 +979,42 @@ function confirmImport() {
                   <span v-else-if="c.key === 'customer'">{{ row.values.customerShortName }}</span>
                   <span v-else>{{ display(row, c.key) ?? "—" }}</span>
                 </td>
-                <td v-if="isOrder" class="purchase-fixed-actions">
-                  <el-button
-                    class="purchase-pay"
-                    size="small"
-                    plain
-                    :disabled="!['待发货', '部分发货', '已完成'].includes(row.order?.status ?? '')"
-                    @click="business(row.order!, '收款')"
-                    >收款</el-button
-                  ><el-button
-                    class="purchase-ship"
-                    size="small"
-                    plain
-                    :disabled="
-                      !row.order?.lines.some(
-                        (l) => pendingShipmentQuantity(row.order!, l, store.state.shipments) > 0,
-                      )
-                    "
-                    @click="ship(row.order!)"
-                    >发货</el-button
-                  >
+                <td class="purchase-fixed-actions" :class="{ 'sales-shipment-actions': !isOrder }">
+                  <template v-if="isOrder">
+                    <el-button
+                      class="purchase-pay"
+                      size="small"
+                      plain
+                      :disabled="!['待发货', '部分发货', '已完成'].includes(row.order?.status ?? '')"
+                      @click="business(row.order!, '收款')"
+                      >收款</el-button
+                    ><el-button
+                      class="purchase-ship"
+                      size="small"
+                      plain
+                      :disabled="
+                        !row.order?.lines.some(
+                          (l) => pendingShipmentQuantity(row.order!, l, store.state.shipments) > 0,
+                        )
+                      "
+                      @click="ship(row.order!)"
+                      >发货</el-button
+                    >
+                  </template>
+                  <DeliveryNoteActions
+                    v-else-if="row.shipment"
+                    compact
+                    :order="shipmentOrders(row.shipment, store.state.orders)[0]"
+                    :orders="shipmentOrders(row.shipment, store.state.orders)"
+                    :shipment="row.shipment"
+                    :draft="!row.shipment.confirmed || !row.shipment.code"
+                  />
                 </td>
               </tr></template
             >
           </template>
           <tr v-if="!filtered.length">
-            <td :colspan="shownColumns.length + (isOrder ? 2 : 1)">
+            <td :colspan="shownColumns.length + 2">
               <el-empty description="暂无符合条件的数据" />
             </td>
           </tr>
@@ -1150,7 +1160,7 @@ function confirmImport() {
   </el-dialog>
   <el-dialog
     v-model="importOpen"
-    :title="'导入' + (isOrder ? '销售订单' : '销售出库')"
+    :title="'导入' + (isOrder ? '销售订单' : '产品出库')"
     width="min(850px,94vw)"
     class="purchase-dialog"
     destroy-on-close
@@ -1242,6 +1252,13 @@ function confirmImport() {
 .sales-management-table .purchase-fixed-actions {
   min-width: 116px;
   width: 116px;
+}
+.sales-management-table .sales-shipment-actions {
+  text-align: center;
+  vertical-align: middle;
+}
+.sales-shipment-actions .delivery-document-actions.compact {
+  justify-content: center;
 }
 .sales-order-page .sales-management-table td:not(.sales-product-cell),
 .sales-order-page .sales-management-table th {

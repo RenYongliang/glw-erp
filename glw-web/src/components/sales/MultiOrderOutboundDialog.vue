@@ -603,6 +603,7 @@ async function close() {
       :order="selectedOrders[0]?.order"
       :orders="selectedOrders.map((e) => e.order)"
       :shipment="printableShipment"
+      draft
     />
     <template #footer
       ><span class="outbound-totals"

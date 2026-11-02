@@ -100,7 +100,7 @@ export async function createOutboundOrder(shipment: SalesShipment) {
     allocations,
     shipping: shipment.shipping,
   }
-  await apiRequest<unknown>('/outbound-order', { method: 'POST', body: JSON.stringify(request) })
+  return apiRequest<OutboundOrderResponse>('/outbound-order', { method: 'POST', body: JSON.stringify(request) })
 }
 
 /** 登记客户签收日期，应收记录据此归入账单月。 */

@@ -67,7 +67,7 @@ const customerMenus = [
 ]
 const salesMenus = [
   { title: '销售订单', path: '/sales/orders' },
-  { title: '销售出库', path: '/sales/shipments' },
+  { title: '产品出库', path: '/sales/shipments' },
 ]
 const salesExpanded = ref(route.path.startsWith('/sales/'))
 const financeMenus = [
