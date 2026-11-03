@@ -132,7 +132,8 @@ const order = ref<SalesOrder>(
         payments: [],
         attachments: [],
         term: "月结30天",
-        status: "待发货",
+        orderStatus: "执行中",
+        deliveryStatus: "未发货",
         reason: "",
         approver: "",
         approvedAt: "",
@@ -212,7 +213,7 @@ const locked = computed(
 const availableOrders = computed(() =>
   store.state.orders.filter(
     (o) =>
-      ['待发货', '部分发货'].includes(o.status) &&
+      o.orderStatus === '执行中' &&
       o.lines.some(
         (l) =>
           remainingQuantity(store.state, o.id, l.id, shipment.value.id) > 0,
@@ -224,8 +225,7 @@ const availableProducts = computed(() =>
   productCatalog.value.filter(
     (p) =>
       (isOrder ||
-        linkedOrder.value?.lines.some(
-          (l) =>
+        linkedOrder.value?.lines.some(          (l) =>
             l.productId === p.id &&
             remainingQuantity(
               store.state,
@@ -662,13 +662,19 @@ function quickFill() {
             v-if="isOrder && order.code"
             size="small"
             :type="
-              order.status === '已完成'
+              order.orderStatus === '已完结'
                 ? 'success'
-                : order.status === '部分发货'
+                : order.orderStatus === '执行中'
                   ? 'warning'
                   : 'info'
             "
-            >{{ order.status }}</el-tag
+            >{{ order.orderStatus }}</el-tag
+          ><el-tag
+            v-if="isOrder && order.code"
+            size="small"
+            type="info"
+            style="margin-left: 6px"
+            >{{ order.deliveryStatus }}</el-tag
           ></span
         ><el-button
           :icon="FullScreen"

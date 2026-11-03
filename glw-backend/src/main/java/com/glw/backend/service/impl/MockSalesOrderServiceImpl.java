@@ -33,7 +33,8 @@ public class MockSalesOrderServiceImpl implements SalesOrderService {
         salesOrder.setCustomerId(1L);
         salesOrder.setCustomerName("Mock Customer");
         salesOrder.setDeliveryTime(LocalDateTime.of(2026, 10, 16, 18, 0));
-        salesOrder.setOrderStatus(com.glw.backend.model.enums.SalesOrderStatus.PENDING_SHIPMENT);
+        salesOrder.setOrderStatus(com.glw.backend.model.enums.SalesOrderStatus.CONFIRMED);
+        salesOrder.setDeliveryStatus(com.glw.backend.model.enums.SalesDeliveryStatus.PENDING_SHIPMENT);
         salesOrder.setPaymentStatus(com.glw.backend.model.enums.SalesPaymentStatus.UNPAID);
         salesOrder.setVersion(0);
 
@@ -51,5 +52,10 @@ public class MockSalesOrderServiceImpl implements SalesOrderService {
     @Override
     public SalesOrderVO updateSalesOrder(Long id, SalesOrderCreateDTO createDTO) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "演示模式不支持保存销售订单");
+    }
+
+    @Override
+    public void refreshCompletionStatus(Long orderId) {
+        // 演示模式没有真实出库与财务数据，无需重算。
     }
 }

@@ -165,7 +165,7 @@ export const useSalesStore = defineStore('sales', () => {
   function pay(input: SalesPayment) {
     const next = snapshot(),
       order = next.orders.find((o) => o.id === input.orderId)
-    if (!order || !['待发货', '部分发货', '已完成'].includes(order.status))
+    if (!order || order.orderStatus !== '执行中')
       throw Error('当前订单状态不能收款')
     const remaining =
       orderTotals(order).total -
@@ -202,7 +202,8 @@ export const useSalesStore = defineStore('sales', () => {
       const error = validateOrder(row)
       if (error) throw Error(error)
       row.code = nextSalesCode('SO', next.orders, row.signed)
-      row.status = '待发货'
+      row.orderStatus = '执行中'
+      row.deliveryStatus = '未发货'
       next.orders.unshift(row)
     }
     commit(next, '导入销售订单', `${rows.length} 条`)

@@ -2,6 +2,10 @@ import catalog from '../data/products.json' with { type: 'json' }
 import { nextDocumentNumber } from './documentNumbers.ts'
 import type { ShipmentBatch } from './shipmentBatches'
 export type SalesKind = 'orders' | 'shipments'
+/** 订单生命周期状态：发货与收款共同决定是否已完结。 */
+export type SalesOrderStatus = '待审核' | '执行中' | '已完结' | '已取消'
+/** 订单发货执行进度。 */
+export type SalesDeliveryStatus = '未发货' | '部分发货' | '全部发货'
 export interface Product {
   id: string
   name: string
@@ -81,7 +85,8 @@ export interface SalesOrder {
   payments: PaymentPlan[]
   attachments: Attachment[]
   term: string
-  status: '待发货' | '部分发货' | '已完成' | '剩余未交取消'
+  orderStatus: SalesOrderStatus
+  deliveryStatus: SalesDeliveryStatus
   reason: string
   approver: string
   approvedAt: string
@@ -476,7 +481,7 @@ export function validateOrder(order: SalesOrder, catalog: Pick<Product, 'id'>[] 
 export function validateShipment(shipment: SalesShipment, state: SalesState) {
   const orders = shipmentOrders(shipment, state.orders)
   if (!orders.length) return '请选择可发货的销售订单'
-  if (orders.some((o) => !['待发货', '部分发货'].includes(o.status)))
+  if (orders.some((o) => o.orderStatus !== '执行中'))
     return '请选择可发货的销售订单'
   if (shipment.shipping && shipment.confirmed) {
     if (!shipment.shipping.address.trim()) return '请填写收货地址'

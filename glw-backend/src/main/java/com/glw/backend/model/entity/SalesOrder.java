@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
+import com.glw.backend.model.enums.SalesDeliveryStatus;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
@@ -57,9 +58,13 @@ public class SalesOrder {
     @TableField("delivery_time")
     private LocalDateTime deliveryTime;
 
-    /** 订单状态, PENDING_SHIPMENT:待发货; PARTIALLY_SHIPPED:部分发货; COMPLETED:已完成; CANCELLED:剩余未交取消。 */
+    /** 订单状态, PENDING_APPROVAL:待审核（预留）; CONFIRMED:执行中; COMPLETED:已完结; CANCELLED:已取消。 */
     @TableField("order_status")
     private SalesOrderStatus orderStatus;
+
+    /** 发货状态, PENDING_SHIPMENT:未发货; PARTIALLY_SHIPPED:部分发货; SHIPPED:全部发货。 */
+    @TableField("delivery_status")
+    private SalesDeliveryStatus deliveryStatus;
 
     /** 收款状态, UNPAID:待收款; PARTIALLY_PAID:部分收款; PAID:已收款。 */
     @TableField("payment_status")

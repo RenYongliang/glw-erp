@@ -10,9 +10,12 @@ public interface SalesOrderService {
 
     IPage<SalesOrderVO> pageSalesOrder(SalesOrderPageDTO pageDTO);
 
-    /** 新增销售订单，直接进入待发货状态。 */
+    /** 新增销售订单，直接进入执行中。 */
     SalesOrderVO createSalesOrder(SalesOrderCreateDTO createDTO);
 
     /** 修改销售订单基础数据；已有出库记录时拒绝修改。 */
     SalesOrderVO updateSalesOrder(Long id, SalesOrderCreateDTO createDTO);
+
+    /** 根据发货状态与应收核销结果重算订单生命周期状态。 */
+    void refreshCompletionStatus(Long orderId);
 }

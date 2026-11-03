@@ -1,5 +1,6 @@
 package com.glw.backend.model.vo;
 
+import com.glw.backend.model.enums.SalesDeliveryStatus;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
@@ -33,6 +34,8 @@ public class SalesOrderVO {
     private String deliveryTime;
 
     private SalesOrderStatus orderStatus;
+
+    private SalesDeliveryStatus deliveryStatus;
 
     private SalesPaymentStatus paymentStatus;
 

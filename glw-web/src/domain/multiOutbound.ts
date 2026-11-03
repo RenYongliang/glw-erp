@@ -22,7 +22,7 @@ export interface MultiOutboundProduct {
   batches: MultiOutboundBatch[]
 }
 const active = (entry: PendingOutboundLine) =>
-  entry.pending > 0 && ['待发货', '部分发货'].includes(entry.order.status)
+  entry.pending > 0 && entry.order.orderStatus === '执行中'
 
 export function pendingOutboundProducts(entries: PendingOutboundLine[]) {
   const products = new Map<string, MultiOutboundProduct>()

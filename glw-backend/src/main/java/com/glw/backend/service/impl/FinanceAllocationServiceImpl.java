@@ -14,6 +14,7 @@ import com.glw.backend.service.FinancePaymentService;
 import com.glw.backend.service.FinanceAllocationService;
 import com.glw.backend.service.FinanceAuditService;
 import com.glw.backend.service.FinanceLockService;
+import com.glw.backend.service.SalesOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
     private final FinanceAuditService auditService;
     private final FinanceOpenItemService openItemService;
     private final FinancePaymentService paymentService;
+    private final SalesOrderService salesOrderService;
 
     @Transactional
     @Override
@@ -54,6 +56,8 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         row.setOpenItemId(o.getId()); row.setAmount(input.getAmount());
         finAllocationMapper.insertAllocation(row);
         auditService.record("ALLOCATION", row.getId(), "ALLOCATE", input.getAmount().toPlainString());
+        if ("AR".equals(o.getDirection()) && o.getOrderId() != null)
+            salesOrderService.refreshCompletionStatus(o.getOrderId());
         return finAllocationMapper.allocation(row.getId());
     }
 
@@ -74,8 +78,11 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         Allocation row = finAllocationMapper.allocation(id);
         if (row == null) throw missing();
         if ("REVERSED".equals(row.getStatus())) return;
+        OpenItem o = finOpenItemMapper.openItem(row.getOpenItemId());
         changed(finPaymentMapper.allocate(row.getPaymentId(), row.getAmount().negate()));
         changed(finOpenItemMapper.settle(row.getOpenItemId(), row.getAmount().negate()));
         changed(finAllocationMapper.reverse(id)); auditService.record("ALLOCATION", id, "REVERSE", row.getAmount().toPlainString());
+        if (o != null && "AR".equals(o.getDirection()) && o.getOrderId() != null)
+            salesOrderService.refreshCompletionStatus(o.getOrderId());
     }
 }

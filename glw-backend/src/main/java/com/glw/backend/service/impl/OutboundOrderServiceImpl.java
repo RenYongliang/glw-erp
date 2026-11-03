@@ -26,6 +26,7 @@ import com.glw.backend.model.entity.SalesOrder;
 import com.glw.backend.model.entity.SalesOrderItem;
 import com.glw.backend.model.enums.OutboundStatus;
 import com.glw.backend.model.enums.OutboundType;
+import com.glw.backend.model.enums.SalesDeliveryStatus;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.model.vo.OutboundOrderItemBatchVO;
@@ -81,6 +82,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
     private final CustomerMapper customerMapper;
     private final DocumentNumberService documentNumberService;
     private final com.glw.backend.service.FinanceOpenItemService financeService;
+    private final com.glw.backend.service.SalesOrderService salesOrderService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -142,8 +144,10 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
             throw new BusinessException(ErrorCode.BAD_REQUEST, "同一出库单只能关联同一客户的销售订单");
         if (salesOrders.stream().anyMatch(order -> order.getOrderStatus() == SalesOrderStatus.CANCELLED))
             throw new BusinessException(ErrorCode.BAD_REQUEST, "已取消的销售订单不能出库");
+        if (salesOrders.stream().anyMatch(order -> order.getOrderStatus() == SalesOrderStatus.PENDING_APPROVAL))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "待审核的销售订单不能出库");
         if (salesOrders.stream().anyMatch(order -> order.getOrderStatus() == SalesOrderStatus.COMPLETED))
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "已完成的销售订单不能再出库");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已完结的销售订单不能再出库");
         Map<Long, SalesOrder> salesOrderMap = salesOrders.stream()
                 .collect(Collectors.toMap(SalesOrder::getId, order -> order));
 
@@ -280,11 +284,18 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
                     .filter(item -> item.getSalesOrderId().equals(salesOrder.getId())).toList();
             long totalShippedAfter = items.stream()
                     .mapToLong(item -> shippedAfter.getOrDefault(item.getId(), 0L)).sum();
-            salesOrder.setOrderStatus(resolveOrderStatus(items, totalShippedAfter));
+            long totalCommitted = items.stream()
+                    .mapToLong(item -> item.getQuantity()
+                            - (item.getCancelledQuantity() == null ? 0 : item.getCancelledQuantity()))
+                    .sum();
+            salesOrder.setDeliveryStatus(totalShippedAfter >= totalCommitted
+                    ? SalesDeliveryStatus.SHIPPED : SalesDeliveryStatus.PARTIALLY_SHIPPED);
             if (salesOrderMapper.updateById(salesOrder) == 0)
                 throw new BusinessException(ErrorCode.CONFLICT, "销售订单已发生变化，请刷新后重试");
         }
         financeService.project("AR", outboundOrder.getId());
+        // 发货状态变化后重算订单生命周期（已发完且已收款则为已完结）。
+        salesOrders.forEach(order -> salesOrderService.refreshCompletionStatus(order.getId()));
         OutboundOrderVO result = converter.toVO(outboundOrder);
         fillItems(List.of(result));
         return result;
@@ -391,18 +402,6 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         } catch (DateTimeParseException ex) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "出库时间格式不正确");
         }
-    }
-
-    private SalesOrderStatus resolveOrderStatus(
-            List<SalesOrderItem> salesOrderItems, long totalShippedAfter) {
-        long totalCommitted = salesOrderItems.stream()
-                .filter(Objects::nonNull)
-                .mapToLong(item -> item.getQuantity()
-                        - (item.getCancelledQuantity() == null ? 0 : item.getCancelledQuantity()))
-                .sum();
-        return totalShippedAfter >= totalCommitted
-                ? SalesOrderStatus.COMPLETED
-                : SalesOrderStatus.PARTIALLY_SHIPPED;
     }
 
     private void fillItems(List<OutboundOrderVO> records) {

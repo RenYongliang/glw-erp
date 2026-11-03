@@ -28,7 +28,7 @@ test('batch selection rejects stale stock, duplicates, invalid quantities and ex
   assert.equal(validateBatchSelection([], stock, 250), '')
 })
 test('shipment validation uses actual batch quantities for real products and checks the sum', () => {
-  const order = {id: 'o1', status: '待发货', warehouse: '', lines: [{id: 'l1', productId: '1', quantity: 500, pendingQuantity: 500}]}
+  const order = {id: 'o1', orderStatus: '执行中', deliveryStatus: '未发货', warehouse: '', lines: [{id: 'l1', productId: '1', quantity: 500, pendingQuantity: 500}]}
   const state = {orders: [order], shipments: [], returns: []}
   const shipment = {id: 'new', orderId: 'o1', warehouse: '', tag: '出库', confirmed: false, customerConfirmed: false,
     lines: [{lineId: 'l1', arrived: 250, batches: allocateFifo(stock, 250)}]}

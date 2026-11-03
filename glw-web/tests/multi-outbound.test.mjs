@@ -2,11 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pendingOutboundProducts, matchingOutboundOrders, outboundAllocationColumns, buildMultiOutboundLines } from '../src/domain/multiOutbound.ts'
 
-const order = (id, customerId = 'c1', status = '部分发货') => ({ id, code: `SO-${id}`, customerId, status, signed: '2026-10-01' })
+const order = (id, customerId = 'c1', orderStatus = '执行中') => ({ id, code: `SO-${id}`, customerId, orderStatus, deliveryStatus: '未发货', signed: '2026-10-01' })
 const entry = (order, id, productId, pending) => ({ order, line: { id, productId, model: productId, brand: 'Brand', packaging: 'QFN' }, pending })
 const entries = () => [entry(order('1'), '11', 'A', 100), entry(order('1'), '12', 'B', 60),
   entry(order('2'), '21', 'A', 80), entry(order('3', 'c2'), '31', 'A', 70),
-  entry(order('4'), '41', 'A', 0), entry(order('5', 'c1', '剩余未交取消'), '51', 'C', 100)]
+  entry(order('4'), '41', 'A', 0), entry(order('5', 'c1', '已取消'), '51', 'C', 100)]
 const products = () => [{ productId: 'A', model: 'A', pending: 250, batches: [
   { inventoryId: '101', batchNo: 'BAT-101', quantity: 70, unitCost: 0.075, selected: true, outboundQuantity: 50, quantities: { '11': 30, '21': 20, '12': 999 } },
   { inventoryId: '102', batchNo: 'BAT-102', quantity: 100, unitCost: 0.09, selected: true, outboundQuantity: 40, quantities: { '11': 40 } },

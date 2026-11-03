@@ -49,7 +49,7 @@ const props = defineProps<{ kind: SalesKind }>(),
   store = useSalesStore(),
   isOrder = props.kind === "orders";
 const tabs = isOrder
-  ? ["全部订单", "待发货订单", "部分发货订单", "已完成订单", "剩余未交取消订单"]
+  ? ["全部订单", "待发货", "待收款", "已完结"]
   : ["全部出库", "已出库", "待出库"];
 const tab = ref(tabs[0]!),
   keyword = ref(""),
@@ -116,6 +116,8 @@ const orderColumns = [
   ["purchaseNumber", "客户采购单号"],
   ["customer", "客户名称"],
   ["signed", "订单日期"],
+  ["orderStatus", "订单状态"],
+  ["deliveryStatus", "发货状态"],
   ["brands", "品牌"],
   ["productNames", "型号"],
   ["models", "封装"],
@@ -144,6 +146,8 @@ const orderWidths: Record<string, number> = {
   term: 90,
   delivery: 95,
   owner: 95,
+  orderStatus: 90,
+  deliveryStatus: 95,
 };
 function columnWidth(key: string) {
   if (['code', 'orderCode', 'purchaseNumber'].includes(key)) return 140;
@@ -224,7 +228,7 @@ const productColumns = computed(() =>
 const leadingColumns = computed(() =>
   shownColumns.value.filter((c) =>
     isOrder
-      ? ["code", "purchaseNumber", "signed", "customer"].includes(c.key)
+      ? ["code", "purchaseNumber", "signed", "customer", "orderStatus", "deliveryStatus"].includes(c.key)
       : (!productKeys.includes(c.key) &&
           !["total", "quantity", "status"].includes(c.key)) ||
         (isOrder && c.key === "status"),
@@ -272,7 +276,8 @@ const records = computed<TableRow[]>(() =>
             net: t.net,
             attachments: o.attachments.map((a) => a.name).join("、"),
             address: o.address,
-            status: o.status,
+            orderStatus: o.orderStatus,
+            deliveryStatus: o.deliveryStatus,
             fulfillmentStatus: salesFulfillmentStatus(o, store.state.shipments),
           },
         };
@@ -310,9 +315,24 @@ const records = computed<TableRow[]>(() =>
         };
       }),
 );
+function matchesOrderTab(order: SalesOrder, tabName: string) {
+  if (tabName === '待发货')
+    return (
+      order.orderStatus === '执行中' &&
+      order.lines.some((l) => pendingShipmentQuantity(order, l, store.state.shipments) > 0)
+    )
+  if (tabName === '待收款')
+    return (
+      !['已取消', '待审核'].includes(order.orderStatus) &&
+      order.deliveryStatus !== '未发货' &&
+      (order.paymentStatus ?? '未收款') !== '已收款'
+    )
+  if (tabName === '已完结') return order.orderStatus === '已完结'
+  return true
+}
 const filtered = computed(() => {
   const rows = records.value.filter((r) => {
-    if (isOrder && tab.value !== tabs[0] && r.values.fulfillmentStatus !== tab.value.replace(/订单$/, '')) return false;
+    if (isOrder && r.order && !matchesOrderTab(r.order, tab.value)) return false;
     if (!isOrder && tab.value === "已出库" && !r.shipment?.confirmed)
       return false;
     if (!isOrder && tab.value === "待出库" && r.shipment?.confirmed)
@@ -391,6 +411,13 @@ function toggleGroup(name: string) {
 function display(row: TableRow, key: string) {
   const value = row.values[key];
   return typeof value === "number" && key !== "quantity" ? money(value) : value;
+}
+function statusTagType(key: string, value: string) {
+  if (key === 'orderStatus')
+    return value === '已完结' ? 'success' : value === '执行中' ? 'warning' : value === '已取消' ? 'danger' : 'info'
+  if (key === 'deliveryStatus')
+    return value === '全部发货' ? 'success' : value === '部分发货' ? 'warning' : 'info'
+  return value === '已出库' ? 'success' : 'warning'
 }
 function open(row?: TableRow, read = false) {
   if (!isOrder && !row) {
@@ -548,7 +575,7 @@ const importHeaders = isOrder
 function downloadTemplate() {
   const sampleOrder = store.state.orders.find(
     (o) =>
-      ["待发货", "部分发货"].includes(o.status) &&
+      o.orderStatus === '执行中' &&
       o.lines.some((l) => remainingQuantity(store.state, o.id, l.id) > 0),
   );
   const sampleLine = sampleOrder?.lines.find(
@@ -628,9 +655,9 @@ function confirmImport() {
             payments: [],
             attachments: [],
             term: "月结30天",
-            status: "待发货",
-            reason: "",
-            approver: "",
+            orderStatus: "执行中",
+            deliveryStatus: "未发货",
+            reason: "",            approver: "",
             approvedAt: "",
           };
           result.push(o);
@@ -951,16 +978,10 @@ function confirmImport() {
                   >
                     {{ display(row, c.key) }}</button
                   ><el-tag
-                    v-else-if="c.key === 'status'"
+                    v-else-if="['orderStatus', 'deliveryStatus', 'status'].includes(c.key)"
                     size="small"
-                    :type="
-                      ['已完成', '已出库'].includes(String(row.values.status))
-                        ? 'success'
-                        : ['待发货', '部分发货'].includes(String(row.values.status))
-                          ? 'warning'
-                          : 'info'
-                    "
-                    >{{ row.values.status }}</el-tag
+                    :type="statusTagType(c.key, String(row.values[c.key] ?? ''))"
+                    >{{ row.values[c.key] }}</el-tag
                   >
                   <div
                     v-else-if="productKeys.includes(c.key)"
@@ -985,7 +1006,7 @@ function confirmImport() {
                       class="purchase-pay"
                       size="small"
                       plain
-                      :disabled="!['待发货', '部分发货', '已完成'].includes(row.order?.status ?? '')"
+                      :disabled="row.order?.orderStatus !== '执行中'"
                       @click="business(row.order!, '收款')"
                       >收款</el-button
                     ><el-button
@@ -1043,7 +1064,8 @@ function confirmImport() {
         <el-form-item v-for="field in orderTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.text[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item>
         <el-form-item label="客户名称"><el-select v-model="draftFilters.text.customer" filterable clearable placeholder="全部客户" aria-label="筛选客户名称"><el-option v-for="name in filterCustomers" :key="name" :label="name" :value="name" /></el-select></el-form-item>
         <el-form-item label="收款状态"><el-select v-model="draftFilters.paymentStatus" clearable placeholder="不限" aria-label="筛选收款状态"><el-option v-for="status in ['未收款','部分收款','已收款']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
-        <el-form-item label="发货状态"><el-select v-model="draftFilters.status" aria-label="筛选发货状态" placeholder="不限" clearable><el-option v-for="status in ['待发货','部分发货','已完成','剩余未交取消']" :key="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="订单状态"><el-select v-model="draftFilters.orderStatus" clearable placeholder="不限" aria-label="筛选订单状态"><el-option v-for="status in ['待审核','执行中','已完结','已取消']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="发货状态"><el-select v-model="draftFilters.status" aria-label="筛选发货状态" placeholder="不限" clearable><el-option v-for="status in ['未发货','部分发货','全部发货']" :key="status" :value="status" /></el-select></el-form-item>
         <el-form-item label="订单日期"><el-date-picker v-model="draftFilters.dates.signed" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选订单日期" /></el-form-item>
       </div>
       <h3>产品信息</h3>
@@ -1168,7 +1190,7 @@ function confirmImport() {
     <p>
       使用 UTF-8 CSV 模板，每行一条产品明细。{{
         isOrder
-          ? "同名订单会合并，导入后进入待发货。"
+          ? "同名订单会合并，导入后进入执行中。"
           : "同一订单会合并，导入后进入待出库。"
       }}
     </p>

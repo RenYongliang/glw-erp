@@ -8,7 +8,7 @@ const source = () => ({
   id: 1, orderNo: 'SO-real', customerOrderNo: 'CO-real', customerId: 9, customerName: '真实客户',
   customerShortName: '  简称  ',
   orderTime: '2026-10-17T10:00:00', deliveryTime: null, settleType: 'MONTHLY',
-  orderStatus: 'CANCELLED', paymentStatus: 'PARTIALLY_PAID',
+  orderStatus: 'CANCELLED', deliveryStatus: 'SHIPPED', paymentStatus: 'PARTIALLY_PAID',
   items: [{ id: 11, salesOrderId: 1, productId: 8, brand: 'TI', partNo: 'TPS63020',
     packageType: 'WLCSP12(0.4 Pitch)', unitPrice: '0.0750', taxRate: 13,
     quantity: 1000, cancelledQuantity: 600, amount: '75.00' }],
@@ -27,9 +27,12 @@ test('real sales rows retain snapshots, precise prices, cancellation and collect
   assert.deepEqual(salesLineProduct(order.lines[0], []), {
     brand: 'TI', name: 'TPS63020', model: 'WLCSP12(0.4 Pitch)',
   })
-  assert.equal(salesFulfillmentStatus(order, []), '剩余未交取消')
+  assert.equal(order.orderStatus, '已取消')
+  assert.equal(order.deliveryStatus, '全部发货')
+  assert.equal(salesFulfillmentStatus(order, []), '全部发货')
   const filters = emptySalesOrderFilters()
-  filters.status = '剩余未交取消'
+  filters.status = '全部发货'
+  filters.orderStatus = '已取消'
   filters.paymentStatus = '部分收款'
   filters.text.models = 'WLCSP12'
   assert.equal(matchesSalesOrderFilters(order, [], order.customerName, 75,
@@ -60,8 +63,8 @@ test('outbound rows retain actual quantities and multiple batch costs without do
 })
 
 test('backend completion status stays correct when only part of the outbound history is loaded', () => {
-  for (const [status, label] of [['PENDING_SHIPMENT', '待发货'], ['PARTIALLY_SHIPPED', '部分发货'], ['COMPLETED', '已完成']]) {
-    assert.equal(salesFulfillmentStatus(toSalesOrder({ ...source(), orderStatus: status }), []), label)
+  for (const [status, label] of [['PENDING_SHIPMENT', '未发货'], ['PARTIALLY_SHIPPED', '部分发货'], ['SHIPPED', '全部发货']]) {
+    assert.equal(salesFulfillmentStatus(toSalesOrder({ ...source(), deliveryStatus: status }), []), label)
   }
 })
 

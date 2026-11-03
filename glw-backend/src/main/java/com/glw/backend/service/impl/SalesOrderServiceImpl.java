@@ -21,6 +21,7 @@ import com.glw.backend.model.entity.OutboundOrderItemAlloc;
 import com.glw.backend.model.entity.Product;
 import com.glw.backend.model.entity.SalesOrder;
 import com.glw.backend.model.entity.SalesOrderItem;
+import com.glw.backend.model.enums.SalesDeliveryStatus;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
@@ -89,8 +90,9 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         // 含税口径是订单级的：明细单价统一按订单口径解释，不再逐行选择。
         order.setTaxIncluded(createDTO.getTaxIncluded() == null ? TaxIncluded.INCLUDED : createDTO.getTaxIncluded());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
-        // 后端不设审批环节，新建销售订单直接进入待发货。
-        order.setOrderStatus(SalesOrderStatus.PENDING_SHIPMENT);
+        // 后端不设审批环节，新建销售订单直接进入执行中；待审核状态保留给以后启用。
+        order.setOrderStatus(SalesOrderStatus.CONFIRMED);
+        order.setDeliveryStatus(SalesDeliveryStatus.PENDING_SHIPMENT);
         order.setPaymentStatus(SalesPaymentStatus.UNPAID);
         order.setRemark(trimText(createDTO.getRemark(), 256, "备注"));
         order.setVersion(0);
@@ -289,6 +291,11 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
             result.getRecords().forEach(order -> {
                 if (financialStatuses.containsKey(order.getId())) order.setPaymentStatus(
                         com.glw.backend.model.enums.SalesPaymentStatus.fromCode(financialStatuses.get(order.getId())));
+                // 兜底：已全部发货且已收款的历史数据即使漏了重算，也显示为已完结。
+                if (order.getOrderStatus() == SalesOrderStatus.CONFIRMED
+                        && order.getDeliveryStatus() == SalesDeliveryStatus.SHIPPED
+                        && SalesPaymentStatus.PAID.name().equals(financialStatuses.get(order.getId())))
+                    order.setOrderStatus(SalesOrderStatus.COMPLETED);
             });
             var shipped = outboundOrderItemAllocMapper.sumCompletedBySalesOrderIds(orderIds).stream()
                     .collect(Collectors.toMap(OutboundOrderItemAllocMapper.ShippedQuantity::salesOrderItemId,
@@ -308,5 +315,25 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
                     }).toList()));
         }
         return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void refreshCompletionStatus(Long orderId) {
+        if (orderId == null) return;
+        SalesOrder order = getById(orderId);
+        if (order == null) return;
+        // 待审核和已取消不参与自动闭环。
+        if (order.getOrderStatus() == SalesOrderStatus.CANCELLED
+                || order.getOrderStatus() == SalesOrderStatus.PENDING_APPROVAL) return;
+        String paymentStatus = financeMapper.orderStatuses("AR", List.of(orderId)).stream()
+                .findFirst().map(com.glw.backend.finance.FinanceOrderStatus.OrderStatus::paymentStatus).orElse(null);
+        SalesOrderStatus target = order.getDeliveryStatus() == SalesDeliveryStatus.SHIPPED
+                && SalesPaymentStatus.PAID.name().equals(paymentStatus)
+                ? SalesOrderStatus.COMPLETED : SalesOrderStatus.CONFIRMED;
+        if (order.getOrderStatus() != target) {
+            order.setOrderStatus(target);
+            updateById(order);
+        }
     }
 }

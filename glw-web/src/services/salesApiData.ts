@@ -34,6 +34,7 @@ export interface SalesOrderResponse {
   taxIncluded?: number | null
   deliveryTime?: string | null
   orderStatus: string
+  deliveryStatus?: string | null
   paymentStatus: string
   remark?: string | null
   version?: number
@@ -79,8 +80,11 @@ export interface OutboundOrderResponse {
 }
 
 const date = (value?: string | null) => value?.slice(0, 10) || ''
-const statuses: Record<string, SalesOrder['status']> = {
-  PENDING_SHIPMENT: '待发货', PARTIALLY_SHIPPED: '部分发货', COMPLETED: '已完成', CANCELLED: '剩余未交取消',
+const orderStatuses: Record<string, SalesOrder['orderStatus']> = {
+  PENDING_APPROVAL: '待审核', CONFIRMED: '执行中', COMPLETED: '已完结', CANCELLED: '已取消',
+}
+const deliveryStatuses: Record<string, SalesOrder['deliveryStatus']> = {
+  PENDING_SHIPMENT: '未发货', PARTIALLY_SHIPPED: '部分发货', SHIPPED: '全部发货',
 }
 const payments: Record<string, NonNullable<SalesOrder['paymentStatus']>> = {
   UNPAID: '未收款', PARTIALLY_PAID: '部分收款', PAID: '已收款',
@@ -99,9 +103,9 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
     signed: date(order.orderTime), delivery: date(order.deliveryTime),
     owner: '', department: '', warehouse: '', address: '', discount: 0,
     term: terms[order.settleType || ''] || '',
-    status: statuses[order.orderStatus] || '待发货',
-    paymentStatus: payments[order.paymentStatus],
-    remark: order.remark || '',
+    orderStatus: orderStatuses[order.orderStatus] || '执行中',
+    deliveryStatus: deliveryStatuses[order.deliveryStatus || ''] || '未发货',
+    paymentStatus: payments[order.paymentStatus],    remark: order.remark || '',
     version: order.version,
     lines: order.items.map(item => ({
       id: String(item.id), productId: String(item.productId),

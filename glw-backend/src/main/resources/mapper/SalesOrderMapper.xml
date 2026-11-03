@@ -12,6 +12,7 @@
         <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="delivery_time" property="deliveryTime" jdbcType="TIMESTAMP"/>
         <result column="order_status" property="orderStatus" javaType="com.glw.backend.model.enums.SalesOrderStatus" jdbcType="VARCHAR"/>
+        <result column="delivery_status" property="deliveryStatus" javaType="com.glw.backend.model.enums.SalesDeliveryStatus" jdbcType="VARCHAR"/>
         <result column="payment_status" property="paymentStatus" javaType="com.glw.backend.model.enums.SalesPaymentStatus" jdbcType="VARCHAR"/>
         <result column="remark" property="remark" jdbcType="VARCHAR"/>
         <result column="version" property="version" jdbcType="INTEGER"/>
@@ -22,6 +23,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `order_no`, `customer_order_no`, `order_time`, `customer_id`, `customer_name`, `settle_type`, `tax_included`, `delivery_time`, `order_status`, `payment_status`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `order_no`, `customer_order_no`, `order_time`, `customer_id`, `customer_name`, `settle_type`, `tax_included`, `delivery_time`, `order_status`, `delivery_status`, `payment_status`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

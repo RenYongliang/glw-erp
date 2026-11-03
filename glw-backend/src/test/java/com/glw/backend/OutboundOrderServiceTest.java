@@ -9,6 +9,7 @@ import com.glw.backend.converter.OutboundOrderConverter;
 import com.glw.backend.mapper.*;
 import com.glw.backend.model.dto.*;
 import com.glw.backend.model.entity.*;
+import com.glw.backend.model.enums.SalesDeliveryStatus;
 import com.glw.backend.model.enums.SalesOrderStatus;
 import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.service.*;
@@ -36,7 +37,8 @@ class OutboundOrderServiceTest {
         final OutboundOrderServiceImpl service = spy(new OutboundOrderServiceImpl(items, allocations, batches,
                 mock(OutboundOrderItemAllocMapper.class), orders, salesItems, inventory,
                 Mappers.getMapper(OutboundOrderConverter.class), mock(CustomerMapper.class), mock(DocumentNumberService.class),
-                mock(com.glw.backend.service.FinanceOpenItemService.class)));
+                mock(com.glw.backend.service.FinanceOpenItemService.class),
+                mock(com.glw.backend.service.SalesOrderService.class)));
         final List<OutboundOrderItem> savedItems = new ArrayList<>();
         final List<OutboundOrderItemAlloc> savedAllocations = new ArrayList<>();
         final List<OutboundOrderItemBatch> savedBatches = new ArrayList<>();
@@ -138,7 +140,8 @@ class OutboundOrderServiceTest {
 
     private static SalesOrder order(Long id) {
         var row = new SalesOrder(); row.setId(id); row.setOrderNo("SO-" + id); row.setCustomerId(3L);
-        row.setCustomerName("Customer"); row.setOrderStatus(SalesOrderStatus.PENDING_SHIPMENT);
+        row.setCustomerName("Customer"); row.setOrderStatus(SalesOrderStatus.CONFIRMED);
+        row.setDeliveryStatus(SalesDeliveryStatus.PENDING_SHIPMENT);
         row.setTaxIncluded(TaxIncluded.INCLUDED); return row;
     }
     private static SalesOrderItem item(Long id, Long orderId) {
