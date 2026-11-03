@@ -23,6 +23,7 @@ import com.glw.backend.model.entity.PurchaseOrderItem;
 import com.glw.backend.model.enums.InboundStatus;
 import com.glw.backend.model.enums.InboundType;
 import com.glw.backend.model.enums.PurchaseOrderStatus;
+import com.glw.backend.model.enums.PurchaseReceiptStatus;
 import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.model.vo.InboundOrderItemAllocVO;
 import com.glw.backend.model.vo.InboundOrderVO;
@@ -144,8 +145,12 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         PurchaseOrder supplierOrder = purchaseOrders.getFirst();
         if (purchaseOrders.stream().anyMatch(order -> !Objects.equals(order.getSupplierId(), supplierOrder.getSupplierId())))
             throw new BusinessException(ErrorCode.BAD_REQUEST, "同一入库单只能关联同一供应商的采购订单");
+        if (purchaseOrders.stream().anyMatch(order -> order.getOrderStatus() == PurchaseOrderStatus.CANCELLED))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已取消的采购订单不能入库");
+        if (purchaseOrders.stream().anyMatch(order -> order.getOrderStatus() == PurchaseOrderStatus.PENDING_APPROVAL))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "待审核的采购订单不能入库");
         if (purchaseOrders.stream().anyMatch(order -> order.getOrderStatus() == PurchaseOrderStatus.COMPLETED))
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "已完成的采购订单不能再次入库");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已完结的采购订单不能再次入库");
         Map<Long, PurchaseOrder> purchaseOrderMap = purchaseOrders.stream()
                 .collect(Collectors.toMap(PurchaseOrder::getId, order -> order));
 
@@ -237,11 +242,13 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
             List<PurchaseOrderItem> items = orderItems.stream()
                     .filter(item -> item.getPurchaseOrderId().equals(purchaseOrder.getId())).toList();
             long totalReceivedAfter = items.stream().mapToLong(item -> receivedAfter.getOrDefault(item.getId(), 0L)).sum();
-            purchaseOrder.setOrderStatus(resolveOrderStatus(items, totalReceivedAfter));
+            purchaseOrder.setReceiptStatus(resolveReceiptStatus(items, totalReceivedAfter));
             if (!purchaseOrderService.updateById(purchaseOrder))
                 throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
         }
         financeService.project("AP", inboundOrder.getId());
+        // 收货状态变化后重算订单生命周期（全部收货且已付款则为已完结）。
+        purchaseOrders.forEach(order -> purchaseOrderService.refreshCompletionStatus(order.getId()));
         InboundOrderVO result = inboundOrderConverter.toVO(inboundOrder);
         fillItems(List.of(result));
         return result;
@@ -365,15 +372,15 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         }
     }
 
-    private PurchaseOrderStatus resolveOrderStatus(
+    private PurchaseReceiptStatus resolveReceiptStatus(
             List<PurchaseOrderItem> orderItems, long totalReceivedAfter) {
         long totalQuantity = orderItems.stream()
                 .filter(Objects::nonNull)
                 .mapToLong(PurchaseOrderItem::getQuantity)
                 .sum();
         return totalReceivedAfter >= totalQuantity
-                ? PurchaseOrderStatus.COMPLETED
-                : PurchaseOrderStatus.PARTIALLY_RECEIVED;
+                ? PurchaseReceiptStatus.RECEIVED
+                : PurchaseReceiptStatus.PARTIALLY_RECEIVED;
     }
 
     private String nextBatchNo(Long productId, LocalDateTime inboundTime) {

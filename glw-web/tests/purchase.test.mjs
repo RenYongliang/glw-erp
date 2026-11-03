@@ -17,7 +17,8 @@ import {
 } from '../src/domain/purchase.ts'
 const order = {
   id: 'o1',
-  status: '待收货',
+  orderStatus: '执行中',
+  receiptStatus: '未收货',
   warehouse: '杭州仓',
   discount: 0.01,
   lines: [
@@ -102,7 +103,7 @@ test('pending delivery uses server totals regardless of loaded receipt paginatio
 })
 test('receiving uses server pending totals without counting completed receipts twice', () => {
   const s = state()
-  s.orders[0].status = '部分收货'
+  s.orders[0].receiptStatus = '部分收货'
   s.orders[0].lines[0].pendingQuantity = 2
   s.receipts.push(receipt())
   assert.equal(remainingQuantity(s, 'o1', 'l1'), 2)
@@ -110,7 +111,7 @@ test('receiving uses server pending totals without counting completed receipts t
   s.receipts.push({ ...receipt(), id: 'pending', confirmed: false })
   assert.equal(remainingQuantity(s, 'o1', 'l1'), 1)
   assert.equal(remainingQuantity(s, 'o1', 'l1', 'pending'), 2)
-  s.orders[0].status = '待收货'
+  s.orders[0].receiptStatus = '未收货'
   assert.equal(validateReceipt({ ...receipt(), id: 'pending' }, s), '')
   s.orders[0].lines[0].pendingQuantity = 0
   s.receipts = []
@@ -178,7 +179,7 @@ test('invalid quality, quantities, approval and confirmation cannot be submitted
   r.receivedAt = ''
   assert.match(validateReceipt(r, s), /入库员和入库时间/)
   r.receivedAt = '2026-09-24 10:00'
-  s.orders[0].status = '待审批'
+  s.orders[0].orderStatus = '待审核'
   assert.match(validateReceipt(r, s), /可入库/)
 })
 test('receipt quantities are summed per date and lot, with missing codes and duplicate combinations rejected', () => {

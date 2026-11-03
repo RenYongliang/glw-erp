@@ -2,6 +2,7 @@ package com.glw.backend.model.vo;
 
 import com.glw.backend.model.enums.PurchaseOrderStatus;
 import com.glw.backend.model.enums.PurchasePaymentStatus;
+import com.glw.backend.model.enums.PurchaseReceiptStatus;
 import com.glw.backend.model.enums.TaxIncluded;
 
 import lombok.Data;
@@ -23,6 +24,7 @@ public class PurchaseOrderVO {
     private TaxIncluded taxIncluded;
 
     private PurchaseOrderStatus orderStatus;
+    private PurchaseReceiptStatus receiptStatus;
     private PurchasePaymentStatus paymentStatus;
     private String remark;
     private Integer version;

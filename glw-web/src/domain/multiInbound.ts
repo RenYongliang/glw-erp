@@ -21,7 +21,7 @@ export interface MultiInboundProduct {
 }
 
 const active = (entry: PendingInboundLine) =>
-  entry.pending > 0 && ['待收货', '部分收货'].includes(entry.order.status)
+  entry.pending > 0 && entry.order.orderStatus === '执行中'
 
 export function pendingInboundProducts(entries: PendingInboundLine[]) {
   const products = new Map<string, MultiInboundProduct & { pending: number }>()

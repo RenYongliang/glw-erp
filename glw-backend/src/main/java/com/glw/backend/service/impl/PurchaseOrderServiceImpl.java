@@ -21,6 +21,7 @@ import com.glw.backend.model.entity.PurchaseOrder;
 import com.glw.backend.model.entity.PurchaseOrderItem;
 import com.glw.backend.model.enums.PurchaseOrderStatus;
 import com.glw.backend.model.enums.PurchasePaymentStatus;
+import com.glw.backend.model.enums.PurchaseReceiptStatus;
 import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.model.vo.PurchaseOrderVO;
 import com.glw.backend.service.PurchaseOrderItemService;
@@ -83,8 +84,9 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierName(supplier.getName());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
         order.setTaxIncluded(createDTO.getTaxIncluded() == null ? TaxIncluded.INCLUDED : createDTO.getTaxIncluded());
-        // 业务上不设审批环节，新建订单直接进入待收货。
-        order.setOrderStatus(PurchaseOrderStatus.PENDING_RECEIPT);
+        // 业务上不设审批环节，新建订单直接进入执行中；待审核状态保留给以后启用。
+        order.setOrderStatus(PurchaseOrderStatus.CONFIRMED);
+        order.setReceiptStatus(PurchaseReceiptStatus.PENDING_RECEIPT);
         order.setPaymentStatus(PurchasePaymentStatus.UNPAID);
         order.setRemark(trimRemark(createDTO.getRemark()));
         order.setVersion(0);
@@ -260,6 +262,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         records.forEach(order -> {
             if (financialStatuses.containsKey(order.getId())) order.setPaymentStatus(
                     com.glw.backend.model.enums.PurchasePaymentStatus.fromCode(financialStatuses.get(order.getId())));
+            // 兜底：已全部收货且已付款的历史数据即使漏了重算，也显示为已完结。
+            if (order.getOrderStatus() == PurchaseOrderStatus.CONFIRMED
+                    && order.getReceiptStatus() == PurchaseReceiptStatus.RECEIVED
+                    && PurchasePaymentStatus.PAID.name().equals(financialStatuses.get(order.getId())))
+                order.setOrderStatus(PurchaseOrderStatus.COMPLETED);
         });
         List<Long> supplierIds = records.stream().map(PurchaseOrderVO::getSupplierId)
                 .filter(java.util.Objects::nonNull).distinct().toList();
@@ -291,5 +298,25 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                             return result;
                         })
                         .toList()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void refreshCompletionStatus(Long orderId) {
+        if (orderId == null) return;
+        PurchaseOrder order = getById(orderId);
+        if (order == null) return;
+        // 待审核和已取消不参与自动闭环。
+        if (order.getOrderStatus() == PurchaseOrderStatus.CANCELLED
+                || order.getOrderStatus() == PurchaseOrderStatus.PENDING_APPROVAL) return;
+        String paymentStatus = financeMapper.orderStatuses("AP", List.of(orderId)).stream()
+                .findFirst().map(com.glw.backend.finance.FinanceOrderStatus.OrderStatus::paymentStatus).orElse(null);
+        PurchaseOrderStatus target = order.getReceiptStatus() == PurchaseReceiptStatus.RECEIVED
+                && PurchasePaymentStatus.PAID.name().equals(paymentStatus)
+                ? PurchaseOrderStatus.COMPLETED : PurchaseOrderStatus.CONFIRMED;
+        if (order.getOrderStatus() != target) {
+            order.setOrderStatus(target);
+            updateById(order);
+        }
     }
 }

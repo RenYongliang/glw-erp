@@ -18,6 +18,7 @@ import {
   Document,
 } from "@element-plus/icons-vue";
 import { emptySalesOrderFilters, salesFulfillmentStatus, salesOrderMonth, salesFilterCount, matchesSalesOrderFilters, type FulfillmentStatus } from "../domain/salesOrderFilters";
+import { orderStatusBadge } from "../domain/orderStatusBadge";
 import SalesRecordDialog from "../components/sales/SalesRecordDialog.vue";
 import MultiOrderOutboundDialog from "../components/sales/MultiOrderOutboundDialog.vue";
 import DeliveryNoteActions from "../components/sales/DeliveryNoteActions.vue";
@@ -116,7 +117,6 @@ const orderColumns = [
   ["purchaseNumber", "客户采购单号"],
   ["customer", "客户名称"],
   ["signed", "订单日期"],
-  ["orderStatus", "订单状态"],
   ["deliveryStatus", "发货状态"],
   ["brands", "品牌"],
   ["productNames", "型号"],
@@ -228,7 +228,7 @@ const productColumns = computed(() =>
 const leadingColumns = computed(() =>
   shownColumns.value.filter((c) =>
     isOrder
-      ? ["code", "purchaseNumber", "signed", "customer", "orderStatus", "deliveryStatus"].includes(c.key)
+      ? ["code", "purchaseNumber", "signed", "customer", "deliveryStatus"].includes(c.key)
       : (!productKeys.includes(c.key) &&
           !["total", "quantity", "status"].includes(c.key)) ||
         (isOrder && c.key === "status"),
@@ -971,14 +971,31 @@ function confirmImport() {
                     ].includes(c.key),
                   }"
                 >
-                  <button
+                  <span
                     v-if="['name', 'code', 'orderCode'].includes(c.key)"
-                    class="purchase-record-link"
-                    @click="open(row, true)"
+                    class="sales-order-code"
                   >
-                    {{ display(row, c.key) }}</button
-                  ><el-tag
-                    v-else-if="['orderStatus', 'deliveryStatus', 'status'].includes(c.key)"
+                    <button
+                      class="purchase-record-link"
+                      @click="open(row, true)"
+                    >
+                      {{ display(row, c.key) }}</button
+                    ><el-tooltip
+                      v-if="isOrder && c.key === 'code' && row.order && row.order.orderStatus !== '执行中'"
+                      :content="row.order.orderStatus"
+                      placement="top"
+                    >
+                      <span
+                        class="order-status-badge"
+                        :class="orderStatusBadge(row.order.orderStatus).className"
+                        tabindex="0"
+                        :aria-label="row.order.orderStatus"
+                        >{{ orderStatusBadge(row.order.orderStatus).text }}</span
+                      >
+                    </el-tooltip>
+                  </span>
+                  <el-tag
+                    v-else-if="['deliveryStatus', 'status'].includes(c.key)"
                     size="small"
                     :type="statusTagType(c.key, String(row.values[c.key] ?? ''))"
                     >{{ row.values[c.key] }}</el-tag
@@ -1266,6 +1283,15 @@ function confirmImport() {
 }
 .sales-code-cell .purchase-record-link {
   white-space: nowrap;
+}
+.sales-order-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+}
+.sales-order-page .sales-management-table tbody td.sales-code-cell {
+  text-align: left;
 }
 .sales-management-table .sales-code-cell { width: 1%; padding-left: 8px; padding-right: 8px; }
 .sales-management-table .sales-packaging-cell { width: 160px; max-width: 160px; }

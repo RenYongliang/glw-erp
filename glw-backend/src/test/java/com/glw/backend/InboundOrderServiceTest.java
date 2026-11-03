@@ -10,7 +10,7 @@ import com.glw.backend.mapper.InboundOrderItemAllocMapper;
 import com.glw.backend.mapper.ProductMapper;
 import com.glw.backend.model.dto.*;
 import com.glw.backend.model.entity.*;
-import com.glw.backend.model.enums.PurchaseOrderStatus;
+import com.glw.backend.model.enums.PurchaseReceiptStatus;
 import com.glw.backend.model.enums.TaxIncluded;
 import com.glw.backend.model.vo.InboundOrderItemAllocVO;
 import com.glw.backend.service.*;
@@ -98,8 +98,8 @@ class InboundOrderServiceTest {
                 .containsExactly(11L, 22L);
         assertThat(f.stock).extracting(Inventory::getUnitCost).containsExactly(new BigDecimal("0.8500"), new BigDecimal("0.9000"));
         assertThat(f.stock).extracting(Inventory::getBatchNo).containsExactly("BAT26101800006001", "BAT26101800006002");
-        assertThat(f.first.getOrderStatus()).isEqualTo(PurchaseOrderStatus.COMPLETED);
-        assertThat(f.second.getOrderStatus()).isEqualTo(PurchaseOrderStatus.PARTIALLY_RECEIVED);
+        assertThat(f.first.getReceiptStatus()).isEqualTo(PurchaseReceiptStatus.RECEIVED);
+        assertThat(f.second.getReceiptStatus()).isEqualTo(PurchaseReceiptStatus.PARTIALLY_RECEIVED);
         doReturn(receipt()).when(f.service).getById(100L);
         var scoped = f.service.detail(100L, 2L);
         assertThat(scoped.getItems()).hasSize(1);
@@ -225,7 +225,8 @@ class InboundOrderServiceTest {
     }
     private static PurchaseOrder order(Long id) {
         var row = new PurchaseOrder(); row.setId(id); row.setPurchaseOrderNo("PO-" + id);
-        row.setSupplierId(3L); row.setSupplierName("Supplier"); row.setOrderStatus(PurchaseOrderStatus.PENDING_RECEIPT);
+        row.setSupplierId(3L); row.setSupplierName("Supplier"); row.setOrderStatus(com.glw.backend.model.enums.PurchaseOrderStatus.CONFIRMED);
+        row.setReceiptStatus(PurchaseReceiptStatus.PENDING_RECEIPT);
         row.setTaxIncluded(TaxIncluded.INCLUDED); return row;
     }
     private static PurchaseOrderItem item(Long id, Long orderId, String cost) {

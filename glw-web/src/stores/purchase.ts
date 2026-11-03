@@ -117,7 +117,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
   function pay(input: PurchasePayment) {
     const next = snapshot(),
       order = next.orders.find((o) => o.id === input.orderId)
-    if (!order || !['待收货', '部分收货', '已完成'].includes(order.status))
+    if (!order || order.orderStatus !== '执行中')
       throw Error('当前订单状态不能付款')
     const remaining =
       orderTotals(order).total -
@@ -154,7 +154,8 @@ export const usePurchaseStore = defineStore('purchase', () => {
       const error = validateOrder(row)
       if (error) throw Error(error)
       row.code = nextPurchaseCode('GL', next.orders, row.signed)
-      row.status = '待收货'
+      row.orderStatus = '执行中'
+      row.receiptStatus = '未收货'
       next.orders.unshift(row)
     }
     commit(next, '导入采购订单', `${rows.length} 条`)

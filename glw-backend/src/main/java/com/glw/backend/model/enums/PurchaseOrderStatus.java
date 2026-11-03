@@ -7,13 +7,16 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-/** 采购订单状态，编码与 glw.sql 保持一致。 */
+/** 采购订单状态（生命周期），编码与 glw.sql 保持一致。 */
 @Getter
 @RequiredArgsConstructor
 public enum PurchaseOrderStatus {
-    PENDING_RECEIPT("PENDING_RECEIPT", "待收货"),
-    PARTIALLY_RECEIVED("PARTIALLY_RECEIVED", "部分收货"),
-    COMPLETED("COMPLETED", "已完成");
+    /** 预留：以后启用审核时使用，当前创建订单直接进入 CONFIRMED。 */
+    PENDING_APPROVAL("PENDING_APPROVAL", "待审核"),
+    CONFIRMED("CONFIRMED", "执行中"),
+    /** 全部收货且应付全部核销。 */
+    COMPLETED("COMPLETED", "已完结"),
+    CANCELLED("CANCELLED", "已取消");
 
     @EnumValue @JsonValue private final String code;
 

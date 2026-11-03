@@ -2,9 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pendingInboundProducts, matchingInboundOrders, inboundAllocationColumns, buildMultiInboundLines } from '../src/domain/multiInbound.ts'
 
-const order = (id, supplierId = 's1', status = '部分收货') => ({ id, code: `PO-${id}`, supplierId, status })
+const order = (id, supplierId = 's1', orderStatus = '执行中') => ({ id, code: `PO-${id}`, supplierId, orderStatus, receiptStatus: '未收货' })
 const entry = (order, id, productId, pending, price = 1) => ({ order, line: { id, productId, model: `Product-${productId}`, brand: 'Brand', packaging: 'QFN', price }, pending })
-const entries = () => [entry(order('1'), '11', 'A', 100, 0.85), entry(order('1'), '12', 'B', 60), entry(order('2'), '21', 'A', 80, 0.9), entry(order('3'), '31', 'C', 70), entry(order('4'), '41', 'A', 0), entry(order('5', 's1', '已完成'), '51', 'D', 100)]
+const entries = () => [entry(order('1'), '11', 'A', 100, 0.85), entry(order('1'), '12', 'B', 60), entry(order('2'), '21', 'A', 80, 0.9), entry(order('3'), '31', 'C', 70), entry(order('4'), '41', 'A', 0), entry(order('5', 's1', '已取消'), '51', 'D', 100)]
 const products = () => [{ productId: 'A', model: 'Product-A', batches: [
   { id: 'b1', dateCode: ' 2610 ', lotCode: ' LOT-A ', quantity: 50, quantities: { '11': 30, '21': 20, '31': 999 } },
   { id: 'b2', dateCode: '2611', lotCode: 'LOT-B', quantity: 40, quantities: { '11': 40, '21': 0 } },

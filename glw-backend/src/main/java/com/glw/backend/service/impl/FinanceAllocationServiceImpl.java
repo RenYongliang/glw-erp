@@ -15,6 +15,7 @@ import com.glw.backend.service.FinanceAllocationService;
 import com.glw.backend.service.FinanceAuditService;
 import com.glw.backend.service.FinanceLockService;
 import com.glw.backend.service.SalesOrderService;
+import com.glw.backend.service.PurchaseOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
     private final FinanceOpenItemService openItemService;
     private final FinancePaymentService paymentService;
     private final SalesOrderService salesOrderService;
+    private final PurchaseOrderService purchaseOrderService;
 
     @Transactional
     @Override
@@ -58,6 +60,8 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         auditService.record("ALLOCATION", row.getId(), "ALLOCATE", input.getAmount().toPlainString());
         if ("AR".equals(o.getDirection()) && o.getOrderId() != null)
             salesOrderService.refreshCompletionStatus(o.getOrderId());
+        else if ("AP".equals(o.getDirection()) && o.getOrderId() != null)
+            purchaseOrderService.refreshCompletionStatus(o.getOrderId());
         return finAllocationMapper.allocation(row.getId());
     }
 
@@ -84,5 +88,7 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         changed(finAllocationMapper.reverse(id)); auditService.record("ALLOCATION", id, "REVERSE", row.getAmount().toPlainString());
         if (o != null && "AR".equals(o.getDirection()) && o.getOrderId() != null)
             salesOrderService.refreshCompletionStatus(o.getOrderId());
+        if (o != null && "AP".equals(o.getDirection()) && o.getOrderId() != null)
+            purchaseOrderService.refreshCompletionStatus(o.getOrderId());
     }
 }

@@ -69,7 +69,7 @@ const availableOrders = computed(() =>
   store.state.orders.filter(
     (order) =>
       !receiptOrderIds(receipt.value).includes(order.id) &&
-      ['待收货', '部分收货'].includes(order.status) &&
+      order.orderStatus === '执行中' &&
       (!orders.value.length || order.supplierId === orders.value[0]?.supplierId) &&
       order.lines.some((line) => remainingQuantity(store.state, order.id, line.id) > 0),
   ),

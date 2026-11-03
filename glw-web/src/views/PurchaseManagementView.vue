@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { emptyPurchaseOrderFilters, purchaseFilterCount, matchesPurchaseOrderFilters } from "../domain/purchaseOrderFilters";
+import { orderStatusBadge } from "../domain/orderStatusBadge";
 import { useListPagination } from "../composables/useListPagination";
 import { computed, ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -53,7 +54,7 @@ const props = defineProps<{ kind: PurchaseKind }>(),
   store = usePurchaseStore(),
   isOrder = props.kind === 'orders'
 const tabs = isOrder
-  ? ['全部订单']
+  ? ['全部订单', '待收货', '待付款', '已完结']
   : ['全部入库', '已入库', '待入库']
 const tab = ref(tabs[0]!),
   keyword = ref(''),
@@ -112,6 +113,7 @@ type TableRow = {
 }
 const orderColumns = [
   ['code', '采购单号'], ['supplier', '供应商'], ['signed', '采购日期'],
+  ['receiptStatus', '收货状态'],
   ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
   ['prices', '单价'], ['quantities', '采购数量'], ['pendingDelivery', '待交数量'],
   ['amounts', '金额'], ['deliveries', '交付日期'],
@@ -177,7 +179,8 @@ const records = computed<TableRow[]>(() =>
             net: t.net,
             attachments: o.attachments.map((a) => a.name).join('、'),
             address: o.address,
-            status: o.status,
+            orderStatus: o.orderStatus,
+            receiptStatus: o.receiptStatus,
           },
         }
       })
@@ -210,8 +213,31 @@ const records = computed<TableRow[]>(() =>
         }
       }),
 )
+function matchesOrderTab(order: PurchaseOrder, tabName: string) {
+  if (tabName === '待收货')
+    return (
+      order.orderStatus === '执行中' &&
+      order.lines.some((l) => pendingDeliveryQuantity(order, l, store.state.receipts) > 0)
+    )
+  if (tabName === '待付款')
+    return (
+      !['已取消', '待审核'].includes(order.orderStatus) &&
+      order.receiptStatus !== '未收货' &&
+      (order.paymentStatus ?? '未付款') !== '已付款'
+    )
+  if (tabName === '已完结') return order.orderStatus === '已完结'
+  return true
+}
+function statusTagType(key: string, value: string) {
+  if (key === 'orderStatus')
+    return value === '已完结' ? 'success' : value === '执行中' ? 'warning' : value === '已取消' ? 'danger' : 'info'
+  if (key === 'receiptStatus')
+    return value === '全部收货' ? 'success' : value === '部分收货' ? 'warning' : 'info'
+  return value === '已入库' ? 'success' : 'warning'
+}
 const filtered = computed(() => {
   const rows = records.value.filter((r) => {
+    if (isOrder && r.order && !matchesOrderTab(r.order, tab.value)) return false
     if (!isOrder && tab.value === '待入库' && r.receipt?.confirmed) return false
     if (!isOrder && tab.value === '已入库' && !r.receipt?.confirmed) return false
     if (
@@ -446,7 +472,7 @@ function downloadTemplate() {
           store.state.orders.find(
             (o) =>
               o.lines.some((l) => remainingQuantity(store.state, o.id, l.id) > 0) &&
-              ['待收货', '部分收货'].includes(o.status),
+              o.orderStatus === '执行中' && o.receiptStatus !== '全部收货'
           )?.code || '请填写订单编号',
           '杭州仓',
           'CP001',
@@ -508,7 +534,8 @@ function confirmImport() {
             payments: [],
             attachments: [],
             term: '月结30天',
-            status: '待收货',
+            orderStatus: '执行中',
+            receiptStatus: '未收货',
             reason: '',
             approver: '',
             approvedAt: '',
@@ -778,23 +805,34 @@ function confirmImport() {
                   <div v-else-if="row.order && productKeys.includes(c.key)" class="purchase-product-cell">
                     <div v-for="(value,index) in productCells(row.order, c.key, row.receipt)" :key="index" :title="c.key === 'models' ? value : undefined">{{ value }}</div>
                   </div>
-                  <button
+                  <span
                     v-else-if="['name', 'code', 'orderCode'].includes(c.key)"
-                    class="purchase-record-link"
-                    @click="open(row, true)"
+                    class="purchase-order-code"
                   >
-                    {{ display(row, c.key) }}</button
-                  ><el-tag
-                    v-else-if="c.key === 'status'"
+                    <button
+                      class="purchase-record-link"
+                      @click="open(row, true)"
+                    >
+                      {{ display(row, c.key) }}</button
+                    ><el-tooltip
+                      v-if="isOrder && c.key === 'code' && row.order && row.order.orderStatus !== '执行中'"
+                      :content="row.order.orderStatus"
+                      placement="top"
+                    >
+                      <span
+                        class="order-status-badge"
+                        :class="orderStatusBadge(row.order.orderStatus).className"
+                        tabindex="0"
+                        :aria-label="row.order.orderStatus"
+                        >{{ orderStatusBadge(row.order.orderStatus).text }}</span
+                      >
+                    </el-tooltip>
+                  </span>
+                  <el-tag
+                    v-else-if="['receiptStatus', 'status'].includes(c.key)"
                     size="small"
-                    :type="
-                      ['已完成', '已入库'].includes(String(row.values.status))
-                        ? 'success'
-                        : ['待收货', '部分收货'].includes(String(row.values.status))
-                          ? 'warning'
-                          : 'info'
-                    "
-                    >{{ row.values.status }}</el-tag
+                    :type="statusTagType(c.key, String(row.values[c.key] ?? ''))"
+                    >{{ row.values[c.key] }}</el-tag
                   ><span v-else>{{ display(row, c.key) || '—' }}</span>
                 </td>
                 <td v-if="isOrder" class="purchase-fixed-actions">
@@ -802,7 +840,7 @@ function confirmImport() {
                     class="purchase-pay"
                     size="small"
                     plain
-                    :disabled="!['待收货', '部分收货', '已完成'].includes(row.order?.status ?? '')"
+                    :disabled="row.order?.orderStatus !== '执行中'"
                     @click="business(row.order!, '付款')"
                     >付款</el-button
                   ><el-button
@@ -843,7 +881,8 @@ function confirmImport() {
         <el-form-item label="采购单号"><el-input v-model="draftFilters.code" aria-label="筛选采购单号" placeholder="包含关键词" clearable /></el-form-item>
         <el-form-item label="供应商名称"><el-select v-model="draftFilters.supplier" filterable clearable placeholder="全部供应商" aria-label="筛选供应商名称"><el-option v-for="name in filterSuppliers" :key="name" :label="name" :value="name" /></el-select></el-form-item>
         <el-form-item label="付款状态"><el-select v-model="draftFilters.paymentStatus" clearable placeholder="不限" aria-label="筛选付款状态"><el-option v-for="status in ['未付款','部分付款','已付款']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
-        <el-form-item label="收货状态"><el-select v-model="draftFilters.receiptStatus" clearable placeholder="不限" aria-label="筛选收货状态"><el-option v-for="status in ['待收货','部分收货','已收货']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="订单状态"><el-select v-model="draftFilters.orderStatus" clearable placeholder="不限" aria-label="筛选订单状态"><el-option v-for="status in ['待审核','执行中','已完结','已取消']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="收货状态"><el-select v-model="draftFilters.receiptStatus" clearable placeholder="不限" aria-label="筛选收货状态"><el-option v-for="status in ['未收货','部分收货','全部收货']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
         <el-form-item label="订单日期"><el-date-picker v-model="draftFilters.dates" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选订单日期" /></el-form-item>
       </div>
       <h3>产品信息</h3>
@@ -938,7 +977,7 @@ function confirmImport() {
   >
     <p>
       使用 UTF-8 CSV 模板，每行一条产品明细。{{
-        isOrder ? '同名订单会合并，导入后进入待收货。' : '同一订单会合并，导入后进入待入库。'
+        isOrder ? '同名订单会合并，导入后进入执行中。' : '同一订单会合并，导入后进入待入库。'
       }}
     </p>
     <el-button :icon="Download" @click="downloadTemplate">下载导入模板</el-button
@@ -972,6 +1011,7 @@ function confirmImport() {
 .purchase-product-cell > div + div { border-top: 1px solid #eef0f3; }
 .purchase-table .purchase-packaging-compact { width: 160px; max-width: 160px; }
 .purchase-table .purchase-code-compact { width: 1%; padding-left: 8px; padding-right: 8px; }
+.purchase-order-code { display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px; }
 .purchase-packaging-compact .purchase-product-cell { width: 160px; }
 .purchase-packaging-compact .purchase-product-cell > div { overflow: hidden; text-overflow: ellipsis; }
 .purchase-table tbody > tr:nth-child(even of :not(.purchase-group)) > td {

@@ -1,6 +1,10 @@
 import catalog from '../data/products.json' with { type: 'json' }
 import { nextDocumentNumber } from './documentNumbers.ts'
 export type PurchaseKind = 'orders' | 'receipts'
+/** 采购订单生命周期状态：收货与付款共同决定是否已完结。 */
+export type PurchaseOrderStatus = '待审核' | '执行中' | '已完结' | '已取消'
+/** 采购订单收货执行进度。 */
+export type PurchaseReceiptStatus = '未收货' | '部分收货' | '全部收货'
 export interface Product {
   id: string
   name: string
@@ -78,7 +82,8 @@ export interface PurchaseOrder {
   paymentStatus?: '未付款' | '部分付款' | '已付款'
   attachments: Attachment[]
   term: string
-  status: '待收货' | '部分收货' | '已完成'
+  orderStatus: PurchaseOrderStatus
+  receiptStatus: PurchaseReceiptStatus
   reason: string
   approver: string
   approvedAt: string
@@ -414,7 +419,7 @@ export function validateOrder(order: PurchaseOrder) {
 export function validateReceipt(receipt: PurchaseReceipt, state: PurchaseState) {
   const ids = receiptOrderIds(receipt)
   const orders = receiptOrders(receipt, state.orders)
-  if (!ids.length || new Set(ids).size !== ids.length || orders.length !== ids.length || orders.some(o => !['待收货', '部分收货'].includes(o.status)))
+  if (!ids.length || new Set(ids).size !== ids.length || orders.length !== ids.length || orders.some(o => o.orderStatus !== '执行中'))
     return '请选择可入库的采购订单'
   if (new Set(orders.map(o => o.supplierId)).size !== 1) return '同一入库单只能关联同一供应商的采购订单'
   if (orders.some(o => receipt.warehouse !== o.warehouse)) return '入库仓库必须与采购订单一致'

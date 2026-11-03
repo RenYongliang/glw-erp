@@ -35,6 +35,7 @@ interface PurchaseOrderResponse {
   /** 订单级单价口径：0 未税，1 含税。 */
   taxIncluded?: number | null
   orderStatus: string
+  receiptStatus?: string | null
   paymentStatus: string
   remark?: string | null
   version?: number
@@ -101,11 +102,11 @@ async function allRecords<T>(path: string, filters: Record<string, unknown> = {}
 }
 const date = (value?: string | null) => (value ? value.slice(0, 10) : '')
 
-function orderStatus(status: string): PurchaseOrder['status'] {
-  if (status === 'PENDING_RECEIPT') return '待收货'
-  if (status === 'PARTIALLY_RECEIVED') return '部分收货'
-  if (status === 'COMPLETED') return '已完成'
-  return '待收货'
+const orderStatuses: Record<string, PurchaseOrder['orderStatus']> = {
+  PENDING_APPROVAL: '待审核', CONFIRMED: '执行中', COMPLETED: '已完结', CANCELLED: '已取消',
+}
+const receiptStatuses: Record<string, PurchaseOrder['receiptStatus']> = {
+  PENDING_RECEIPT: '未收货', PARTIALLY_RECEIVED: '部分收货', RECEIVED: '全部收货',
 }
 
 function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
@@ -146,9 +147,9 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
     paymentStatus: ({ UNPAID: '未付款', PARTIALLY_PAID: '部分付款', PAID: '已付款' } as const)[order.paymentStatus as 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'],
     attachments: [],
     term: order.remark || '',
-    status: orderStatus(order.orderStatus),
-    reason: '',
-    approver: '',
+    orderStatus: orderStatuses[order.orderStatus] || '执行中',
+    receiptStatus: receiptStatuses[order.receiptStatus || ''] || '未收货',
+    reason: '',    approver: '',
     approvedAt: '',
   }
 }

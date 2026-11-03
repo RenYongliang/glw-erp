@@ -69,7 +69,8 @@ const order = ref<PurchaseOrder>(
         payments: [],
         attachments: [],
         term: '月结30天',
-        status: '待收货',
+        orderStatus: '执行中',
+        receiptStatus: '未收货',
         reason: '',
         approver: '',
         approvedAt: '',
@@ -186,7 +187,7 @@ const locked = computed(
 const availableOrders = computed(() =>
   store.state.orders.filter(
     (o) =>
-      ['待收货', '部分收货'].includes(o.status) &&
+      o.orderStatus === '执行中' &&
       o.lines.some((l) => remainingQuantity(store.state, o.id, l.id, receipt.value.id) > 0) &&
       [o.name, o.code].join().includes(pickerQuery.value),
   ),
@@ -465,13 +466,19 @@ function quickFill() {
             v-if="isOrder && order.code"
             size="small"
             :type="
-              order.status === '已完成'
+              order.orderStatus === '已完结'
                 ? 'success'
-                : order.status === '部分收货'
+                : order.orderStatus === '执行中'
                   ? 'warning'
                   : 'info'
             "
-            >{{ order.status }}</el-tag
+            >{{ order.orderStatus }}</el-tag
+          ><el-tag
+            v-if="isOrder && order.code"
+            size="small"
+            type="info"
+            style="margin-left: 6px"
+            >{{ order.receiptStatus }}</el-tag
           ></span
         ><el-button :icon="FullScreen" text aria-label="切换表单全屏" @click="full = !full" /></div
     ></template>

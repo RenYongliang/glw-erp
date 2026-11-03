@@ -53,6 +53,7 @@ class DatabaseEnumTest {
                         InboundStatus.class,
                         OutboundStatus.class,
                         PurchaseOrderStatus.class,
+                        PurchaseReceiptStatus.class,
                         SalesOrderStatus.class,
                         SalesDeliveryStatus.class,
                         PurchasePaymentStatus.class,

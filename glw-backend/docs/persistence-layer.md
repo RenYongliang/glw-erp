@@ -24,7 +24,7 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 
 ## 数据库枚举
 
-`model/enums` 定义 12 个枚举，应用于 8 个实体的 14 个字段：TaxIncluded（拜访报价、采购订单与销售订单的订单级单价口径，以及出入库的含税快照）、SampleDeliveryStatus（送样标志）、InboundType/InboundStatus、OutboundType/OutboundStatus、PurchaseOrderStatus/PurchasePaymentStatus、SalesOrderStatus/SalesDeliveryStatus/SalesPaymentStatus、SettlementType（销售结算类型）。
+`model/enums` 定义 13 个枚举，应用于 8 个实体的 15 个字段：TaxIncluded（拜访报价、采购订单与销售订单的订单级单价口径，以及出入库的含税快照）、SampleDeliveryStatus（送样标志）、InboundType/InboundStatus、OutboundType/OutboundStatus、PurchaseOrderStatus/PurchaseReceiptStatus/PurchasePaymentStatus、SalesOrderStatus/SalesDeliveryStatus/SalesPaymentStatus、SettlementType（销售结算类型）。
 
 每个枚举提供 code、description、fromCode。@EnumValue 使 MyBatis-Plus 读写数据库原有编码，@JsonValue / @JsonCreator 保持 JSON 使用原有字符串或数字，非法 JSON 编码会报参数错误；不使用 ordinal。XML 明确标注对应的 javaType，原 jdbcType 不变。数据库默认值仍由 MySQL 处理，不在实体中硬编码初始状态。
 
@@ -85,6 +85,10 @@ customer、customer_visit、inbound_order、inbound_order_item、inventory、out
 `SalesOrderStatus` 表示订单生命周期：PENDING_APPROVAL（预留，当前不启用）、CONFIRMED（执行中）、COMPLETED（已完结）、CANCELLED（已取消）。
 `sales_order.delivery_status` 单独表示发货进度：PENDING_SHIPMENT、PARTIALLY_SHIPPED、SHIPPED。
 新建订单直接进入 CONFIRMED；出库时更新 delivery_status；有效数量全部发货且应收全部核销后，订单自动进入 COMPLETED。部分取消只记录 `cancelled_quantity`，不作为订单状态，因此部分取消后剩余全部发货并收款时仍为 COMPLETED。
+
+`PurchaseOrderStatus` 表示采购订单生命周期：PENDING_APPROVAL（预留，当前不启用）、CONFIRMED（执行中）、COMPLETED（已完结）、CANCELLED（已取消）。
+`purchase_order.receipt_status` 单独表示收货进度：PENDING_RECEIPT、PARTIALLY_RECEIVED、RECEIVED。
+新建采购订单直接进入 CONFIRMED；入库时更新 receipt_status；全部收货且应付全部核销后，订单自动进入 COMPLETED，反核销后回退 CONFIRMED。
 初始化脚本据有效应收计算付款状态，中诺泽订单原订200000、已交24000、取消176000，实际应收7680已结清。
 本次只补充持久层与导入，线上金额汇总及取消流程尚未实现，后续需使用上述有效数量口径。
 
