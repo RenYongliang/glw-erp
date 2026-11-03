@@ -15,8 +15,8 @@ export function deliveryNoteHtml(note: DeliveryNote): string {
     const body = rows.map((row, index) => `<tr>${[page * 6 + index + 1, row.code, row.name, row.model, row.unit, row.quantity.toLocaleString('zh-CN'), row.remark].map(v => `<td>${escape(v)}</td>`).join('')}</tr>`)
     for (let i = rows.length; i < 3; i++) body.push(`<tr><td>${page * 6 + i + 1}</td><td>${i === rows.length ? '以下空白' : ''}</td><td></td><td></td><td></td><td></td><td></td></tr>`)
     return `<article class="delivery-paper" aria-label="送货单第 ${page + 1} 页">
-      <h1>深圳市光联微电子有限公司</h1><h2>送货单</h2>
-      <div class="delivery-note-number">编号：${escape(note.number)}</div>
+      <h1>深圳市光联微电子有限公司</h1><h2>发货单</h2>
+      <div class="delivery-note-number">出库单号：${escape(note.number)}</div>
       <table class="delivery-meta"><colgroup><col style="width:14%"><col style="width:52%"><col style="width:14%"><col style="width:20%"></colgroup><tbody>
       <tr><th>客户名称：</th><td>${escape(note.customer)}</td><th>日期：</th><td>${escape(note.date)}</td></tr>
       <tr><th>收货地址：</th><td class="delivery-address">${escape(note.address)}</td><th>采购单号：</th><td>${escape(note.purchaseNumber)}</td></tr>

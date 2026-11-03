@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import type { OpenItem } from '../../services/financeApi'
-defineProps<{ rows: OpenItem[]; selectable?: boolean; loading?: boolean; height?: string }>()
+defineProps<{
+  rows: OpenItem[]
+  selectable?: boolean
+  loading?: boolean
+  height?: string
+  /** 对账单详情等已展示往来单位的场景可以隐藏该列。 */
+  showPartner?: boolean
+  /** 对账单详情已用签收/入库日判断账期，可隐藏出库/入库日期。 */
+  showBizDate?: boolean
+}>()
 defineEmits<{ selection: [rows: OpenItem[]] }>()
 const money = (v: number | string | null | undefined) =>
   v == null
@@ -28,7 +37,13 @@ const statuses: Record<string, string> = {
       width="42"
       :selectable="(row: OpenItem) => row.reconcileStatus === 'OPEN' && row.basisReady !== 0"
     />
-    <el-table-column label="往来单位" min-width="145" prop="partnerName" show-overflow-tooltip />
+    <el-table-column
+      v-if="showPartner !== false"
+      label="往来单位"
+      min-width="145"
+      prop="partnerName"
+      show-overflow-tooltip
+    />
     <el-table-column label="出入库单号" width="155" prop="sourceNo" show-overflow-tooltip />
     <el-table-column label="型号" min-width="145" prop="partNo" show-overflow-tooltip />
     <el-table-column label="数量" width="100" align="right" prop="quantity" />
@@ -67,7 +82,12 @@ const statuses: Record<string, string> = {
       ></el-table-column
     >
     <slot />
-    <el-table-column label="业务日期" width="110" prop="bizDate" />
+    <el-table-column
+      v-if="showBizDate !== false"
+      label="出库/入库日期"
+      width="120"
+      prop="bizDate"
+    />
     <el-table-column label="订单号" width="150" prop="orderNo" show-overflow-tooltip />
     <el-table-column label="客户采购单号" width="155" prop="partnerOrderNo" show-overflow-tooltip />
     <el-table-column label="品牌" width="65" prop="brand" show-overflow-tooltip />
@@ -79,7 +99,11 @@ const statuses: Record<string, string> = {
     >
     <el-table-column label="税率" width="90" align="right"
       ><template #default="{ row }">{{
-        row.taxRate == null ? '待确认' : `${row.taxRate}%`
+        row.direction === 'AR' && row.taxIncluded === 0
+          ? '—'
+          : row.taxRate == null
+            ? '待确认'
+            : `${row.taxRate}%`
       }}</template></el-table-column
     >
     <el-table-column label="未税金额" width="115" align="right"

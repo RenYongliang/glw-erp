@@ -74,8 +74,8 @@ export function createDeliveryNote(
       if (!model || !Number.isSafeInteger(line.arrived))
         throw Error('请填写有效的本次发货数量')
       return {
-        // 客户物料编码优先，其次旧目录编码，最后回退内部产品id。
-        code: orderLine.customerPartNo || product?.code || catalogEntry?.code || orderLine.productId,
+        // 物料编码只取销售订单行的客户物料编码快照；没有客户编码时留空，不回退内部 id。
+        code: orderLine.customerPartNo || '',
         name: catalogEntry?.type || '集成电路',
         model,
         unit: 'pcs',
@@ -86,8 +86,8 @@ export function createDeliveryNote(
   if (!lines.length) throw Error('请先添加产品并填写本次发货数量')
   return {
     number: shipment.code
-      ? `GL${suffix}`
-      : `GL${date.replace(/-/g, '')}-${suffix}`,
+      ? shipment.code
+      : `草稿-${date.replace(/-/g, '')}-${suffix}`,
     date: date.replace(/-/g, '/'),
     customer: orderCustomerName(order),
     address: shipment.shipping?.address ?? order.address ?? '',
@@ -175,9 +175,9 @@ export async function renderDeliveryNote(
     const box = (x: number, y: number, width: number, height: number) =>
       ctx.strokeRect(x, y, width, height)
     text('深圳市光联微电子有限公司', 28, 20, 1064, 42, 29, true, 'center')
-    text('送货单', 28, 68, 1064, 42, 32, true, 'center')
+    text('发货单', 28, 68, 1064, 42, 32, true, 'center')
     line(493, 109, 627, 109)
-    text(`编号：${note.number}`, 600, 112, 492, 30, 17, true, 'right')
+    text(`出库单号：${note.number}`, 600, 112, 492, 30, 17, true, 'right')
     const labels = ['客户名称：', '收货地址：', '联系方式：']
     const values = [note.customer, note.address, note.phone]
     const rightLabels = ['日期：', '采购单号：', '联系人：']

@@ -928,7 +928,12 @@ onBeforeUnmount(() => {
           ><span>合计 {{ money(statementDetail.statement.grossAmount) }}</span
           ><span>已结 {{ money(statementDetail.statement.settledAmount) }}</span>
         </p>
-        <FinanceItemTable :rows="statementDetail.items" height="45vh" />
+        <FinanceItemTable
+          :rows="statementDetail.items"
+          height="45vh"
+          :show-partner="false"
+          :show-biz-date="false"
+        />
         <p v-if="statementDetail.statement.remark">{{ statementDetail.statement.remark }}</p>
         <h4 v-if="statementDetail.allocations.length">核销记录</h4>
         <el-table

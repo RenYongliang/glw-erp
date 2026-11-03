@@ -68,7 +68,7 @@ function print() {
     return
   }
   popup.document.write(
-    `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>送货单</title><style>${deliveryNoteStyles}</style></head><body>${previewHtml.value}</body></html>`,
+    `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>发货单</title><style>${deliveryNoteStyles}</style></head><body>${previewHtml.value}</body></html>`,
   )
   popup.document.close()
   popup.document.fonts.ready
@@ -123,7 +123,7 @@ function print() {
   >
     <div class="delivery-preview-toolbar">
       <span
-        >送货单 · A4 横向 · 共 {{ pageCount }} 页<template v-if="props.draft">
+        >发货单 · A4 横向 · 共 {{ pageCount }} 页<template v-if="props.draft">
           · 草稿单号，提交后生成正式单号</template
         ></span
       >

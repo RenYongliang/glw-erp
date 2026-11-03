@@ -26,6 +26,6 @@
     INSERT INTO fin_statement_item (statement_id,open_item_id,source_no,order_no,partner_order_no,brand,part_no,package_type,quantity,unit_price,tax_included,tax_rate,net_amount,tax_amount,gross_amount,biz_date,due_date) SELECT #{statementId},id,source_no,order_no,partner_order_no,brand,part_no,package_type,quantity,unit_price,tax_included,tax_rate,net_amount,tax_amount,gross_amount,biz_date,due_date FROM fin_open_item WHERE id=#{id}
   </insert>
   <select id="statementItems" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
-    SELECT i.open_item_id id,i.statement_id,i.source_no,i.order_no,i.partner_order_no,i.brand,i.part_no,i.package_type,i.quantity,i.unit_price,i.tax_included,i.tax_rate,i.net_amount,i.tax_amount,i.gross_amount,i.biz_date,i.due_date,o.direction,o.currency,o.partner_id,o.partner_name,o.period,o.reconcile_status,o.settled_amount FROM fin_statement_item i JOIN fin_open_item o ON o.id=i.open_item_id WHERE i.statement_id=#{id} ORDER BY i.id
+    SELECT i.open_item_id id,i.statement_id,i.source_no,i.order_no,i.partner_order_no,i.brand,i.part_no,i.package_type,i.quantity,i.unit_price,i.tax_included,i.tax_rate,i.net_amount,i.tax_amount,i.gross_amount,i.biz_date,i.due_date,o.direction,o.currency,o.partner_id,o.partner_name,o.period,o.settle_month,o.basis_date,o.reconcile_status,o.settled_amount FROM fin_statement_item i JOIN fin_open_item o ON o.id=i.open_item_id WHERE i.statement_id=#{id} ORDER BY i.id
   </select>
 </mapper>

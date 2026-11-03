@@ -26,15 +26,25 @@ test('multi-order delivery note includes all allocated products and customer pur
   assert.match(note.shippingSummary, /顺丰.*SF123456/)
   assert.match(deliveryNoteHtml(note), /&lt;易碎&gt;/)
 })
-test('single-order delivery note works for real database product ids and keeps shipping overrides', () => {
+test('single-order delivery note leaves material code blank without a customer part snapshot', () => {
   const source = order('1', 'CO-1')
   const single = shipment(); single.orderIds = ['1']; single.lines = single.lines.slice(0, 1)
   single.shipping.purchaseNumber = 'CO-1'
   const note = createDeliveryNote(source, single)
+  assert.equal(note.number, 'OUT20261028001')
   assert.equal(note.lines.length, 1)
-  assert.equal(note.lines[0].code, '99001')
+  assert.equal(note.lines[0].code, '')
   assert.equal(note.lines[0].model, 'ET5907')
   assert.equal(note.lines[0].remark, '')
+})
+
+test('delivery note prints the customer part snapshot when present', () => {
+  const source = order('1', 'CO-1')
+  source.lines[0].customerPartNo = 'CUST-99001'
+  const single = shipment(); single.orderIds = ['1']; single.lines = single.lines.slice(0, 1)
+  single.shipping.purchaseNumber = 'CO-1'
+  const note = createDeliveryNote(source, single)
+  assert.equal(note.lines[0].code, 'CUST-99001')
 })
 test('printing rejects omitted order allocations, mixed customers and invalid shipment quantities', () => {
   const orders = [order('1', 'CO-1'), order('2', 'CO-2')]
