@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
+import { Plus, Delete, FullScreen, Paperclip } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
 import { usePurchaseStore } from '../../stores/purchase'
 import { useAuthStore } from '../../stores/auth'
@@ -42,6 +42,7 @@ const store = usePurchaseStore(),
   auth = useAuthStore(),
   view = ref(!!props.readonly),
   full = ref(false),
+  attachmentOpen = ref(false),
   tab = ref('订单明细'),
   picker = ref(''),
   pickerQuery = ref(''),
@@ -78,6 +79,15 @@ const order = ref<PurchaseOrder>(
 )
 order.value.contact = purchaseContact(order.value)
 order.value.phone = purchasePhone(order.value)
+// TEMP: 多附件预览数据，仅用于演示，稍后移除。
+if (order.value.code === 'GL20260921001') {
+  order.value.attachments = [
+    '采购合同-GL20260921001.pdf',
+    '供应商盖章合同-GL20260921001.pdf',
+    '入库回签件-2026-09.pdf',
+    '对账单-2026-09.pdf',
+  ].map((name) => ({ name, url: 'data:text/plain;base64,ZGVtbw==' }))
+}
 order.value.taxIncluded ??= true
 for (const line of order.value.lines) {
   line.delivery ??= order.value.delivery
@@ -480,7 +490,16 @@ function quickFill() {
             style="margin-left: 6px"
             >{{ order.receiptStatus }}</el-tag
           ></span
-        ><el-button :icon="FullScreen" text aria-label="切换表单全屏" @click="full = !full" /></div
+        ><div class="purchase-dialog-controls"
+          ><el-badge
+            v-if="isOrder && order.code"
+            :value="order.attachments.length"
+            :hidden="!order.attachments.length"
+            class="purchase-attachment-badge"
+          >
+            <el-button :icon="Paperclip" text aria-label="合同附件" @click="attachmentOpen = true" />
+          </el-badge><el-button :icon="FullScreen" text aria-label="切换表单全屏" @click="full = !full" /></div
+        ></div
     ></template>
     <div class="purchase-form-body" @change="dirty = true" @input="dirty = true">
       <h3 class="purchase-section">采购订单信息</h3>
@@ -707,30 +726,11 @@ function quickFill() {
 </el-form>
       <PurchaseContractActions v-if="isOrder" :order="order" />
       <template v-if="isOrder">
-        <el-collapse v-if="order.code" class="purchase-order-business"><el-collapse-item title="更多信息与业务记录" name="business">
-        <div class="purchase-field-label">合同附件上传</div>
-        <input
-          v-if="!view"
-          type="file"
-          multiple
-          aria-label="合同附件上传"
-          @change="attach($event)"
-        /><small v-if="!view" class="purchase-tip">本地预览：每个文件不超过 2MB。</small>
-        <div v-for="(file, i) in order.attachments" :key="i" class="purchase-attachment">
-          <a :href="file.url" :download="file.name">{{ file.name }}</a
-          ><el-button
-            v-if="!view"
-            text
-            type="danger"
-            @click="
-              () => {
-                order.attachments.splice(i, 1)
-                dirty = true
-              }
-            "
-            >移除</el-button
-          >
-        </div>
+        <el-collapse v-if="order.code" class="purchase-order-business"><el-collapse-item name="business">
+        <template #title>
+          <span class="purchase-business-title">业务记录</span>
+          <span class="purchase-business-counts">入库 {{ linkedReceipts.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ linkedPayments.length }}</span>
+        </template>
         <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
             v-for="name in ['订单明细', '财务明细', '采购入库', '采购退货', '采购订单执行跟踪']"
@@ -975,6 +975,37 @@ function quickFill() {
       </div></template
     >
   </el-dialog>
+  <el-drawer
+    v-model="attachmentOpen"
+    title="合同附件"
+    size="420px"
+    append-to-body
+    class="purchase-attachment-drawer"
+  >
+    <input
+      v-if="!view"
+      type="file"
+      multiple
+      aria-label="合同附件上传"
+      @change="attach($event)"
+    /><small v-if="!view" class="purchase-tip">本地预览：每个文件不超过 2MB。</small>
+    <p v-if="!order.attachments.length" class="purchase-tip">暂无合同附件</p>
+    <div v-for="(file, i) in order.attachments" :key="i" class="purchase-attachment">
+      <a :href="file.url" :download="file.name">{{ file.name }}</a
+      ><el-button
+        v-if="!view"
+        text
+        type="danger"
+        @click="
+          () => {
+            order.attachments.splice(i, 1)
+            dirty = true
+          }
+        "
+        >移除</el-button
+      >
+    </div>
+  </el-drawer>
   <el-dialog
     :model-value="!!picker"
     :title="
@@ -1098,7 +1129,32 @@ function quickFill() {
 .purchase-order-editor .purchase-order-lines .el-date-editor { width: 100%; }
 .purchase-order-lines .el-select { width: 100%; }
 .purchase-order-lines .purchase-tax-empty { color: #a8abb2; }
-.purchase-order-business { margin-top: 16px; }
+.purchase-order-business { margin-top: 16px; border-top: 0; }
+.purchase-order-business .el-collapse-item__header {
+  position: relative;
+  height: auto;
+  padding: 0 0 12px;
+  border-bottom: 4px solid #d2e6ff;
+  color: #1384ff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.purchase-order-business .el-collapse-item__header:after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 112px;
+  height: 7px;
+  background: #1384ff;
+  border-radius: 0 8px 0 6px;
+}
+.purchase-order-business .el-collapse-item__arrow { color: #1384ff; }
+.purchase-business-counts { margin-left: 12px; color: #8a94a6; font-size: 12px; font-weight: 400; }
+.purchase-attachment-badge { margin-right: 6px; }
+.purchase-dialog-controls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.purchase-attachment-drawer .purchase-attachment { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .purchase-custom-supplier { display: flex; gap: 16px; align-items: center; margin: 12px 0; color: #8491a4; }
 </style>
 
