@@ -11,6 +11,7 @@ export interface FinanceQuery {
   keyword?: string
   status?: string
   unsettledOnly?: boolean
+  settledOnly?: boolean
   overdueOnly?: boolean
   /** 只看待客户签收的应收记录。 */
   pendingBasisOnly?: boolean

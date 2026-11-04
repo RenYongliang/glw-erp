@@ -69,9 +69,11 @@ const statusLabels: Record<string, string> = {
   OPEN: '待对账',
   IN_STATEMENT: '对账中',
   RECONCILED: '已确认',
-  DRAFT: '草稿',
-  SENT: '已发送',
+  DRAFT: '待发送',
+  SENT: '待确认',
   CONFIRMED: '已确认',
+  CONFIRMED_UNSETTLED: '待收款',
+  CONFIRMED_SETTLED: '已结清',
   VOID: '已作废',
   RECEIVED: '未核销',
   PARTIAL_ALLOCATED: '部分核销',
@@ -83,7 +85,7 @@ const statuses = computed(() =>
   props.kind === 'open-items'
     ? ['OPEN', 'IN_STATEMENT', 'RECONCILED']
     : props.kind === 'statements'
-      ? ['DRAFT', 'SENT', 'CONFIRMED', 'VOID']
+      ? ['DRAFT', 'SENT', 'CONFIRMED_UNSETTLED', 'CONFIRMED_SETTLED', 'VOID']
       : ['RECEIVED', 'PARTIAL_ALLOCATED', 'ALLOCATED', 'VOID'],
 )
 const money = (value: unknown) =>
@@ -193,13 +195,22 @@ function profileRowClass({ row }: { row: Profile }) {
   return row.partnerId === 0 ? 'profile-default-row' : ''
 }
 function query(): FinanceQuery {
+  const combinedStatus = status.value
+  const statementStatus =
+    combinedStatus === 'CONFIRMED_UNSETTLED' || combinedStatus === 'CONFIRMED_SETTLED'
+      ? 'CONFIRMED'
+      : combinedStatus
   return {
     direction: direction.value,
     partnerId: partnerId.value,
     period: period.value || undefined,
     keyword: keyword.value.trim(),
-    status: status.value || undefined,
-    unsettledOnly: unsettled.value,
+    status: statementStatus || undefined,
+    unsettledOnly:
+      props.kind === 'statements'
+        ? combinedStatus === 'CONFIRMED_UNSETTLED' || undefined
+        : unsettled.value,
+    settledOnly: combinedStatus === 'CONFIRMED_SETTLED' || undefined,
     overdueOnly: overdue.value,
     pendingBasisOnly: pendingBasis.value || undefined,
     pageNo: page.value,
@@ -228,6 +239,23 @@ function newProfile(): Profile {
 function periodText(start?: string | null, end?: string | null) {
   if (!start || !end) return ''
   return start.slice(0, 7) === end.slice(0, 7) ? end.slice(0, 7) : `${start.slice(0, 7)}~${end.slice(0, 7)}`
+}
+/** 已发送/已确认、到期未结清的对账单视为逾期。 */
+function statementOverdue(row: Statement) {
+  if (!['SENT', 'CONFIRMED'].includes(row.status) || !row.dueDate) return false
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return row.dueDate < today && Number(row.settledAmount ?? 0) < Number(row.grossAmount ?? 0)
+}
+/** 对账单展示状态：由单据状态和收款进度合并成一个处理状态。 */
+function statementDisplayStatus(row: Statement) {
+  if (row.status === 'VOID') return { label: '已作废', type: 'danger' as const }
+  if (row.status === 'DRAFT') return { label: '待发送', type: 'info' as const }
+  if (row.status === 'SENT') return { label: '待确认', type: 'warning' as const }
+  const gross = Number(row.grossAmount ?? 0),
+    settled = Number(row.settledAmount ?? 0)
+  if (gross <= 0 || settled >= gross) return { label: '已结清', type: 'success' as const }
+  return { label: '待收款', type: 'primary' as const }
 }
 const previewPeriod = computed(() => {
   const starts = previewRows.value.map((o) => o.periodStart).filter(Boolean) as string[]
@@ -719,6 +747,10 @@ onBeforeUnmount(() => {
       ><el-checkbox v-if="direction === 'AR'" v-model="pendingBasis">仅待签收</el-checkbox
       ><span>人民币 CNY</span>
     </div>
+    <div v-if="kind === 'statements'" class="finance-options">
+      <el-checkbox v-model="overdue">仅逾期未结</el-checkbox
+      ><span>人民币 CNY</span>
+    </div>
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <el-alert
       v-if="kind === 'open-items' && summary && Number(summary.settledAmount) === 0"
@@ -771,21 +803,27 @@ onBeforeUnmount(() => {
         ><template #default="{ row }">{{
           row.periodStart ? periodText(row.periodStart, row.periodEnd) : row.period
         }}</template></el-table-column
-      ><el-table-column label="到期日" width="110" prop="dueDate" /><el-table-column
+      ><el-table-column label="到期日" width="150"
+        ><template #default="{ row }"
+          ><span :class="{ 'finance-overdue-date': statementOverdue(row) }">{{
+            row.dueDate || '—'
+          }}</span
+          ><span v-if="statementOverdue(row)" class="finance-overdue-badge">逾期</span></template
+        ></el-table-column
+      ><el-table-column
         label="金额"
         width="140"
         align="right"
         ><template #default="{ row }">{{ money(row.grossAmount) }}</template></el-table-column
       ><el-table-column label="已结金额" width="140" align="right"
         ><template #default="{ row }">{{ money(row.settledAmount) }}</template></el-table-column
-      ><el-table-column label="状态" width="110"
+      ><el-table-column label="账单状态" width="110"
         ><template #default="{ row }"
           ><el-tag
-            :type="
-              row.status === 'CONFIRMED' ? 'success' : row.status === 'VOID' ? 'info' : 'warning'
-            "
+            size="small"
             effect="plain"
-            >{{ label(row.status) }}</el-tag
+            :type="statementDisplayStatus(row).type"
+            >{{ statementDisplayStatus(row).label }}</el-tag
           ></template
         ></el-table-column
       ><el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
@@ -922,7 +960,10 @@ onBeforeUnmount(() => {
         ><p class="finance-detail-line">
           <strong>{{ statementDetail.statement.partnerName }}</strong
           ><span>账单期间 {{ statementDetail.statement.period }}</span
-          ><el-tag>{{ label(statementDetail.statement.status) }}</el-tag
+          ><el-tag
+            effect="plain"
+            :type="statementDisplayStatus(statementDetail.statement).type"
+            >{{ statementDisplayStatus(statementDetail.statement).label }}</el-tag
           ><span v-if="statementDetail.statement.dueDate"
             >到期日 {{ statementDetail.statement.dueDate }}</span
           ><span>合计 {{ money(statementDetail.statement.grossAmount) }}</span
@@ -1402,6 +1443,24 @@ onBeforeUnmount(() => {
 .finance-page :deep(.profile-default-row) {
   font-weight: 600;
   --el-table-tr-bg-color: #fffbf0;
+}
+.finance-page .finance-overdue-date {
+  color: #f56c6c;
+  font-weight: 600;
+}
+.finance-page .finance-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 3px;
+  background: #fdecec;
+  color: #d93025;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
 }
 @media (max-width: 600px) {
   .finance-summary {

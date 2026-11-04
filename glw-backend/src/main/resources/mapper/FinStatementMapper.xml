@@ -29,6 +29,19 @@
     <if test="q.partnerId != null">AND s.partner_id=#{q.partnerId}</if>
     <if test="q.period != null and q.period != ''">AND (s.settle_month=#{q.period} OR s.period=#{q.period} OR DATE_FORMAT(s.period_start,'%Y-%m')=#{q.period})</if>
     <if test="q.status != null and q.status != ''">AND s.status=#{q.status}</if>
+    <if test="q.overdueOnly == true">
+      AND s.status IN ('SENT','CONFIRMED')
+      AND s.due_date &lt; CURRENT_DATE
+      AND (SELECT COALESCE(SUM(o.settled_amount),0) FROM fin_open_item o WHERE o.statement_id=s.id) &lt; s.gross_amount
+    </if>
+    <if test="q.unsettledOnly == true">
+      AND s.status IN ('SENT','CONFIRMED')
+      AND (SELECT COALESCE(SUM(o.settled_amount),0) FROM fin_open_item o WHERE o.statement_id=s.id) &lt; s.gross_amount
+    </if>
+    <if test="q.settledOnly == true">
+      AND s.status='CONFIRMED'
+      AND (SELECT COALESCE(SUM(o.settled_amount),0) FROM fin_open_item o WHERE o.statement_id=s.id) &gt;= s.gross_amount
+    </if>
     <if test="q.keyword != null and q.keyword != ''">AND (LOCATE(#{q.keyword},s.partner_name)>0 OR LOCATE(#{q.keyword},s.statement_no)>0)</if>
   </sql>
   <insert id="insertStatement" useGeneratedKeys="true" keyProperty="id">

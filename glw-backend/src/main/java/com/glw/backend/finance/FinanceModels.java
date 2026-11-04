@@ -17,6 +17,7 @@ public final class FinanceModels {
         @Size(max = 128) private String keyword = "";
         @Size(max = 30) private String status;
         private Boolean unsettledOnly;
+        private Boolean settledOnly;
         private Boolean overdueOnly;
         /** 只看待签收（应收未签收）的记录。 */
         private Boolean pendingBasisOnly;
