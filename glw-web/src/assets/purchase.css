@@ -492,6 +492,123 @@
 .purchase-attachment a {
   color: #00a98f;
 }
+.attachment-groups {
+  margin-top: 8px;
+}
+.attachment-tile-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  /* 给右上角外凸的小叉叉留出空间：折叠面板的 wrap 是 overflow:hidden，贴边会被裁掉。 */
+  padding: 8px 12px 0 0;
+}
+.attachment-tile {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+}
+.attachment-tile-type {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  padding: 4px 6px;
+  border-radius: 8px 8px 0 0;
+  background: #f4f7fb;
+  color: #7b8794;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.attachment-tile-doc {
+  border: 1px solid #e4e8ed;
+  background: #fff;
+}
+.attachment-tile-doc:hover {
+  border-color: #1384ff;
+  box-shadow: 0 2px 8px rgba(19, 132, 255, 0.12);
+}
+.attachment-tile-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 28px 6px 10px;
+  color: #4b5565;
+  text-decoration: none;
+}
+.attachment-tile-icon {
+  font-size: 26px;
+  color: #1384ff;
+}
+.attachment-tile-name {
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
+  color: #4b5565;
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.attachment-tile-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #dfe4ea;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(23, 40, 63, 0.12);
+  color: #8a94a6;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.attachment-tile-remove:hover {
+  border-color: #f56c6c;
+  color: #f56c6c;
+}
+.attachment-tile-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 14px;
+  border: 1px dashed #c8d3e2;
+  background: #fafbfd;
+  color: #8a94a6;
+  font-size: 12px;
+  cursor: pointer;
+}
+.attachment-tile-add:hover {
+  border-color: #1384ff;
+  background: #f0f7ff;
+  color: #1384ff;
+}
+.attachment-tile-add .el-icon {
+  font-size: 20px;
+}
+.attachment-tile-add input {
+  display: none;
+}
 .purchase-picker-search {
   margin-bottom: 16px;
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Plus, Delete, FullScreen } from "@element-plus/icons-vue";
+import { Plus, Delete, Document, FullScreen } from "@element-plus/icons-vue";
 import DeliveryNoteActions from "./DeliveryNoteActions.vue";
 import ShipmentShippingForm from "./ShipmentShippingForm.vue";
 import ShipmentBatchPicker from "./ShipmentBatchPicker.vue";
@@ -12,6 +12,16 @@ import { fetchCustomerOptions, type CustomerOption } from "../../services/custom
 import { fetchCustomerProductCodes } from "../../services/customerProductCodeApi";
 import { financeApi, type OpenItem } from "../../services/financeApi";
 import { formatUnitCost, formatCostRange, type SalesProductOption, type ProductCostBatch } from "../../services/productApiData";
+import {
+  SALES_ATTACHMENT_TYPES,
+  attachmentTypeLabel,
+  attachmentTypeOf,
+  fileExtension,
+  keepsUploadSlot,
+  renumberAttachments,
+  standardAttachmentName,
+  type AttachmentTypeDef,
+} from "../../domain/attachments";
 import {
   orderCustomerName,
   salesLineProduct,
@@ -44,7 +54,7 @@ const emit = defineEmits<{ close: []; saved: []; ship: [order: SalesOrder] }>();
 const store = useSalesStore(),
   view = ref(!!props.readonly),
   full = ref(false),
-  tab = ref("附件"),
+  tab = ref("订单附件"),
   picker = ref(""),
   pickerQuery = ref(""),
   productSelection = ref<string[]>([]),
@@ -142,13 +152,19 @@ const order = ref<SalesOrder>(
 );
 // TEMP: 多附件预览数据，仅用于演示，稍后移除。
 if (order.value.code === "SO20260715001") {
-  order.value.attachments = [
-    "销售合同-2026-09.pdf",
-    "客户盖章合同-2026-09.pdf",
-    "发货回签件-20260930.pdf",
-    "对账单-2026-09.pdf",
-    "对账单回签件-2026-09.pdf",
-  ].map((name) => ({ name, url: "data:text/plain;base64,ZGVtbw==" }));
+  const demo: Array<[string, string]> = [
+    ["销售合同-2026-09.pdf", "SALES_CONTRACT"],
+    ["客户盖章合同-2026-09.pdf", "COUNTERSIGNED_CONTRACT"],
+    ["发货回签件-20260930.pdf", "DELIVERY_RECEIPT"],
+    ["对账单-2026-09.pdf", "STATEMENT"],
+    ["对账单回签件-2026-09.pdf", "STATEMENT"],
+  ];
+  order.value.attachments = demo.map(([name, type]) => ({
+    name,
+    originalName: name,
+    type,
+    url: "data:text/plain;base64,ZGVtbw==",
+  }));
 }
 const shipment = ref<SalesShipment>(
   props.shipment
@@ -605,17 +621,71 @@ async function close(done?: () => void) {
   emit("close");
 }
 
-async function uploadContract(event: Event) {
-  await attach(event);
+const attachmentTypes = SALES_ATTACHMENT_TYPES;
+function filesOfAttachmentType(type: string) {
+  return order.value.attachments.filter((file) => attachmentTypeOf(file) === type);
+}
+/**
+ * 固定类型只有一格：没传时显示加号，传了就不再占位；
+ * 可能有多份的类型（回签、对账单、其他）始终保留一个待上传格。
+ */
+function canAddAttachment(slot: AttachmentTypeDef) {
+  if (view.value && !order.value.code) return false;
+  return (
+    keepsUploadSlot(slot) || filesOfAttachmentType(slot.key).length === 0
+  );
+}
+/** 按「单据号_类型_客户_日期_序号」统一重命名某一类型的全部附件。 */
+function renameAttachmentGroup(type: string) {
+  const fallbackDate = today().replaceAll("-", "");
+  renumberAttachments(order.value.attachments, type, (file, index, total) =>
+    standardAttachmentName({
+      orderCode: order.value.code,
+      typeLabel: attachmentTypeLabel(attachmentTypes, type),
+      partnerName: orderCustomerName(order.value) || "客户",
+      date: file.uploadedAt || fallbackDate,
+      index,
+      total,
+      extension: fileExtension(file.originalName || file.name),
+    }),
+  );
+}
+/** 删除附件：编辑态随订单保存，查看态立即写回本地存档。 */
+async function removeAttachment(file: Attachment) {
+  const index = order.value.attachments.indexOf(file);
+  if (index < 0) return;
+  try {
+    await ElMessageBox.confirm(`确认删除附件「${file.name}」？`, "删除附件", {
+      confirmButtonText: "删除",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
+  } catch {
+    return;
+  }
+  order.value.attachments.splice(index, 1);
+  renameAttachmentGroup(attachmentTypeOf(file));
+  dirty.value = true;
+  if (!view.value) return;
   try {
     store.saveAttachments(order.value.id, order.value.attachments);
-    ElMessage.success("合同附件已保存");
-    emit("saved");
+    ElMessage.success("附件已删除");
   } catch (e) {
     ElMessage.error((e as Error).message);
   }
 }
-async function attach(event: Event, images = false) {
+/** 查看态可补充附件，直接写入本地存档；编辑态随订单一起保存。 */
+async function uploadAttachment(event: Event, type: string) {
+  await attach(event, false, type);
+  if (!view.value) return;
+  try {
+    store.saveAttachments(order.value.id, order.value.attachments);
+    ElMessage.success(`${attachmentTypeLabel(attachmentTypes, type)}已保存`);
+  } catch (e) {
+    ElMessage.error((e as Error).message);
+  }
+}
+async function attach(event: Event, images = false, type = "OTHER") {
   const input = event.target as HTMLInputElement;
   for (const file of Array.from(input.files || [])) {
     if (file.size > 2 * 1024 * 1024) {
@@ -636,10 +706,18 @@ async function attach(event: Event, images = false) {
       return "";
     });
     if (url) {
-      const target: Attachment[] = images
-        ? shipment.value.photos
-        : order.value.attachments;
-      target.push({ name: file.name, url });
+      if (images) {
+        shipment.value.photos.push({ name: file.name, url });
+      } else {
+        order.value.attachments.push({
+          name: file.name,
+          originalName: file.name,
+          type,
+          uploadedAt: today().replaceAll("-", ""),
+          url,
+        });
+        renameAttachmentGroup(type);
+      }
       dirty.value = true;
     }
   }
@@ -1095,7 +1173,7 @@ function quickFill() {
           <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
             v-for="name in [
-              '附件',
+              '订单附件',
               '产品出库',
               '销售退货',
               '财务明细',
@@ -1107,43 +1185,55 @@ function quickFill() {
             {{ name }}
           </button>
           </nav>
-        <template v-if="tab === '附件'">
-          <div class="sales-attachment-tab">
-          <label v-if="view && order.code" class="purchase-import-file"
-            >补充合同附件<input
-              type="file"
-              multiple
-              aria-label="补充合同附件"
-              @change="uploadContract"
-          /></label>
-          <input
-            v-if="!view"
-            type="file"
-            multiple
-            aria-label="合同附件上传"
-            @change="attach($event)"
-          /><small v-if="!view" class="purchase-tip"
-            >本地预览：每个文件不超过 2MB。</small
-          >
-          <div
-            v-for="(file, i) in order.attachments"
-            :key="i"
-            class="purchase-attachment"
-          >
-            <a :href="file.url" :download="file.name">{{ file.name }}</a
-            ><el-button
-              v-if="!view"
-              text
-              type="danger"
-              @click="
-                () => {
-                  order.attachments.splice(i, 1);
-                  dirty = true;
-                }
-              "
-              >移除</el-button
-            >
-          </div>
+        <template v-if="tab === '订单附件'">
+          <div class="attachment-groups">
+            <p class="purchase-tip">
+              上传后统一命名为「订单号_类型_客户_日期_序号」。本地预览：每个文件不超过 2MB。
+            </p>
+            <div class="attachment-tile-grid">
+              <template v-for="slot in attachmentTypes" :key="slot.key">
+                <div
+                  v-for="(file, i) in filesOfAttachmentType(slot.key)"
+                  :key="slot.key + '-' + i"
+                  class="attachment-tile attachment-tile-doc"
+                  :title="file.name"
+                >
+                  <span class="attachment-tile-type">{{ slot.label }}</span>
+                  <button
+                    v-if="!view || order.code"
+                    type="button"
+                    class="attachment-tile-remove"
+                    aria-label="移除附件"
+                    @click.stop="removeAttachment(file)"
+                  >
+                    ×
+                  </button>
+                  <a
+                    class="attachment-tile-body"
+                    :href="file.url"
+                    :download="file.name"
+                    :aria-label="'下载 ' + file.name"
+                  >
+                    <el-icon class="attachment-tile-icon"><Document /></el-icon>
+                    <span class="attachment-tile-name">{{ file.name }}</span>
+                  </a>
+                </div>
+                <label
+                  v-if="canAddAttachment(slot)"
+                  class="attachment-tile attachment-tile-add"
+                  :title="'上传' + slot.label"
+                  :aria-label="slot.label + '上传'"
+                >
+                  <span class="attachment-tile-type">{{ slot.label }}</span>
+                  <el-icon><Plus /></el-icon>
+                  <input
+                    type="file"
+                    multiple
+                    @change="uploadAttachment($event, slot.key)"
+                  />
+                </label>
+              </template>
+            </div>
           </div>
         </template>
         <template v-else-if="tab === '产品出库'">

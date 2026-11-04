@@ -1,12 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, FullScreen, Paperclip } from '@element-plus/icons-vue'
+import { Plus, Delete, Document, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
 import { usePurchaseStore } from '../../stores/purchase'
 import { useAuthStore } from '../../stores/auth'
 import { fetchSuppliers } from '../../services/supplierApi'
 import { fetchSalesProducts } from '../../services/productApi'
+import {
+  PURCHASE_ATTACHMENT_TYPES,
+  attachmentTypeLabel,
+  attachmentTypeOf,
+  fileExtension,
+  keepsUploadSlot,
+  renumberAttachments,
+  standardAttachmentName,
+  type AttachmentTypeDef,
+} from '../../domain/attachments'
 import {
   purchaseSupplierName,
   purchaseContact,
@@ -42,8 +52,7 @@ const store = usePurchaseStore(),
   auth = useAuthStore(),
   view = ref(!!props.readonly),
   full = ref(false),
-  attachmentOpen = ref(false),
-  tab = ref('订单明细'),
+  tab = ref('订单附件'),
   picker = ref(''),
   pickerQuery = ref(''),
   productSelection = ref<string[]>([]),
@@ -81,12 +90,18 @@ order.value.contact = purchaseContact(order.value)
 order.value.phone = purchasePhone(order.value)
 // TEMP: 多附件预览数据，仅用于演示，稍后移除。
 if (order.value.code === 'GL20260921001') {
-  order.value.attachments = [
-    '采购合同-GL20260921001.pdf',
-    '供应商盖章合同-GL20260921001.pdf',
-    '入库回签件-2026-09.pdf',
-    '对账单-2026-09.pdf',
-  ].map((name) => ({ name, url: 'data:text/plain;base64,ZGVtbw==' }))
+  const demo: Array<[string, string]> = [
+    ['采购合同-GL20260921001.pdf', 'PURCHASE_CONTRACT'],
+    ['供应商盖章合同-GL20260921001.pdf', 'SUPPLIER_COUNTERSIGNED'],
+    ['入库回签件-2026-09.pdf', 'RECEIPT_SIGN'],
+    ['对账单-2026-09.pdf', 'OTHER'],
+  ]
+  order.value.attachments = demo.map(([name, type]) => ({
+    name,
+    originalName: name,
+    type,
+    url: 'data:text/plain;base64,ZGVtbw==',
+  }))
 }
 order.value.taxIncluded ??= true
 for (const line of order.value.lines) {
@@ -374,7 +389,69 @@ async function close(done?: () => void) {
   done?.()
   emit('close')
 }
-async function attach(event: Event, images = false) {
+const attachmentTypes = PURCHASE_ATTACHMENT_TYPES
+function filesOfAttachmentType(type: string) {
+  return order.value.attachments.filter((file) => attachmentTypeOf(file) === type)
+}
+/**
+ * 固定类型只有一格：没传时显示加号，传了就不再占位；
+ * 可能有多份的类型（回签、发票、其他）始终保留一个待上传格。
+ */
+function canAddAttachment(slot: AttachmentTypeDef) {
+  if (view.value && !order.value.code) return false
+  return keepsUploadSlot(slot) || filesOfAttachmentType(slot.key).length === 0
+}
+/** 按「单据号_类型_供应商_日期_序号」统一重命名某一类型的全部附件。 */
+function renameAttachmentGroup(type: string) {
+  const fallbackDate = today().replaceAll('-', '')
+  renumberAttachments(order.value.attachments, type, (file, index, total) =>
+    standardAttachmentName({
+      orderCode: order.value.code,
+      typeLabel: attachmentTypeLabel(attachmentTypes, type),
+      partnerName: purchaseSupplierName(order.value) || '供应商',
+      date: file.uploadedAt || fallbackDate,
+      index,
+      total,
+      extension: fileExtension(file.originalName || file.name),
+    }),
+  )
+}
+/** 删除附件：编辑态随订单保存，查看态立即写回本地存档。 */
+async function removeAttachment(file: Attachment) {
+  const index = order.value.attachments.indexOf(file)
+  if (index < 0) return
+  try {
+    await ElMessageBox.confirm(`确认删除附件「${file.name}」？`, '删除附件', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+  order.value.attachments.splice(index, 1)
+  renameAttachmentGroup(attachmentTypeOf(file))
+  dirty.value = true
+  if (!view.value) return
+  try {
+    store.saveAttachments(order.value.id, order.value.attachments)
+    ElMessage.success('附件已删除')
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+/** 查看态可补充附件，直接写入本地存档；编辑态随订单一起保存。 */
+async function uploadAttachment(event: Event, type: string) {
+  await attach(event, false, type)
+  if (!view.value) return
+  try {
+    store.saveAttachments(order.value.id, order.value.attachments)
+    ElMessage.success(`${attachmentTypeLabel(attachmentTypes, type)}已保存`)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+async function attach(event: Event, images = false, type = 'OTHER') {
   const input = event.target as HTMLInputElement
   for (const file of Array.from(input.files || [])) {
     if (file.size > 2 * 1024 * 1024) {
@@ -395,8 +472,18 @@ async function attach(event: Event, images = false) {
       return ''
     })
     if (url) {
-      const target: Attachment[] = images ? receipt.value.photos : order.value.attachments
-      target.push({ name: file.name, url })
+      if (images) {
+        receipt.value.photos.push({ name: file.name, url })
+      } else {
+        order.value.attachments.push({
+          name: file.name,
+          originalName: file.name,
+          type,
+          uploadedAt: today().replaceAll('-', ''),
+          url,
+        })
+        renameAttachmentGroup(type)
+      }
       dirty.value = true
     }
   }
@@ -491,14 +578,7 @@ function quickFill() {
             >{{ order.receiptStatus }}</el-tag
           ></span
         ><div class="purchase-dialog-controls"
-          ><el-badge
-            v-if="isOrder && order.code"
-            :value="order.attachments.length"
-            :hidden="!order.attachments.length"
-            class="purchase-attachment-badge"
-          >
-            <el-button :icon="Paperclip" text aria-label="合同附件" @click="attachmentOpen = true" />
-          </el-badge><el-button :icon="FullScreen" text aria-label="切换表单全屏" @click="full = !full" /></div
+          ><el-button :icon="FullScreen" text aria-label="切换表单全屏" @click="full = !full" /></div
         ></div
     ></template>
     <div class="purchase-form-body" @change="dirty = true" @input="dirty = true">
@@ -733,7 +813,7 @@ function quickFill() {
         </template>
         <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
-            v-for="name in ['订单明细', '财务明细', '采购入库', '采购退货', '采购订单执行跟踪']"
+            v-for="name in ['订单附件', '订单明细', '财务明细', '采购入库', '采购退货', '采购订单执行跟踪']"
             :key="name"
             :class="{ active: tab === name }"
             @click="tab = name"
@@ -741,7 +821,56 @@ function quickFill() {
             {{ name }}
           </button>
         </nav>
-        <template v-if="tab === '订单明细'">
+        <template v-if="tab === '订单附件'">
+          <p class="purchase-tip">
+            上传后统一命名为「单据号_类型_供应商_日期_序号」。本地预览：每个文件不超过 2MB。
+          </p>
+          <div class="attachment-tile-grid">
+            <template v-for="slot in attachmentTypes" :key="slot.key">
+              <div
+                v-for="(file, i) in filesOfAttachmentType(slot.key)"
+                :key="slot.key + '-' + i"
+                class="attachment-tile attachment-tile-doc"
+                :title="file.name"
+              >
+                <span class="attachment-tile-type">{{ slot.label }}</span>
+                <button
+                  v-if="!view || order.code"
+                  type="button"
+                  class="attachment-tile-remove"
+                  aria-label="移除附件"
+                  @click.stop="removeAttachment(file)"
+                >
+                  ×
+                </button>
+                <a
+                  class="attachment-tile-body"
+                  :href="file.url"
+                  :download="file.name"
+                  :aria-label="'下载 ' + file.name"
+                >
+                  <el-icon class="attachment-tile-icon"><Document /></el-icon>
+                  <span class="attachment-tile-name">{{ file.name }}</span>
+                </a>
+              </div>
+              <label
+                v-if="canAddAttachment(slot)"
+                class="attachment-tile attachment-tile-add"
+                :title="'上传' + slot.label"
+                :aria-label="slot.label + '上传'"
+              >
+                <span class="attachment-tile-type">{{ slot.label }}</span>
+                <el-icon><Plus /></el-icon>
+                <input
+                  type="file"
+                  multiple
+                  @change="uploadAttachment($event, slot.key)"
+                />
+              </label>
+            </template>
+          </div>
+        </template>
+        <template v-else-if="tab === '订单明细'">
           <h3 class="purchase-section">到货计划</h3>
           <el-form label-position="top" :disabled="view"
             ><el-form-item label="到货地址"
@@ -975,37 +1104,6 @@ function quickFill() {
       </div></template
     >
   </el-dialog>
-  <el-drawer
-    v-model="attachmentOpen"
-    title="合同附件"
-    size="420px"
-    append-to-body
-    class="purchase-attachment-drawer"
-  >
-    <input
-      v-if="!view"
-      type="file"
-      multiple
-      aria-label="合同附件上传"
-      @change="attach($event)"
-    /><small v-if="!view" class="purchase-tip">本地预览：每个文件不超过 2MB。</small>
-    <p v-if="!order.attachments.length" class="purchase-tip">暂无合同附件</p>
-    <div v-for="(file, i) in order.attachments" :key="i" class="purchase-attachment">
-      <a :href="file.url" :download="file.name">{{ file.name }}</a
-      ><el-button
-        v-if="!view"
-        text
-        type="danger"
-        @click="
-          () => {
-            order.attachments.splice(i, 1)
-            dirty = true
-          }
-        "
-        >移除</el-button
-      >
-    </div>
-  </el-drawer>
   <el-dialog
     :model-value="!!picker"
     :title="
@@ -1152,9 +1250,7 @@ function quickFill() {
 }
 .purchase-order-business .el-collapse-item__arrow { color: #1384ff; }
 .purchase-business-counts { margin-left: 12px; color: #8a94a6; font-size: 12px; font-weight: 400; }
-.purchase-attachment-badge { margin-right: 6px; }
 .purchase-dialog-controls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-.purchase-attachment-drawer .purchase-attachment { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .purchase-custom-supplier { display: flex; gap: 16px; align-items: center; margin: 12px 0; color: #8491a4; }
 </style>
 

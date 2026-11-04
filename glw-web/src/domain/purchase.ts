@@ -57,6 +57,12 @@ export interface PaymentPlan {
 export interface Attachment {
   name: string
   url: string
+  /** 附件类型 key，见 domain/attachments.ts；历史数据为空时归入“其他”。 */
+  type?: string
+  /** 上传时的原始文件名，用于保留扩展名和追溯。 */
+  originalName?: string
+  /** 上传日期（yyyyMMdd），用于重新编号时保持各文件原日期。 */
+  uploadedAt?: string
 }
 export interface PurchaseOrder {
   supplierName?: string

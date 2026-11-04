@@ -83,6 +83,13 @@ export const usePurchaseStore = defineStore('purchase', () => {
     // 以服务端数据为准刷新列表，确保拿到后端订单号和状态。
     await load()
   }
+  function saveAttachments(id: string, attachments: PurchaseOrder['attachments']) {
+    const next = snapshot(),
+      order = next.orders.find((o) => o.id === id)
+    if (!order) throw Error('订单不存在，请刷新')
+    order.attachments = JSON.parse(JSON.stringify(attachments))
+    commit(next, '补充订单附件', order.code)
+  }
   async function saveReceipt(input: PurchaseReceipt) {
     const receipt: PurchaseReceipt = JSON.parse(JSON.stringify(input)),
       error = validateReceipt(receipt, state.value)
@@ -176,6 +183,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     loading,
     load,
     saveOrder,
+    saveAttachments,
     saveReceipt,
     remove,
     pay,
