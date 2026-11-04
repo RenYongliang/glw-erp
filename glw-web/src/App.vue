@@ -158,13 +158,12 @@ const collapsed = ref(false)
 const workspace = ref<HTMLElement>()
 const menus = [
   '首页',
-  '应用说明',
   '经营看板',
   '基础数据',
   '客户管理',
+  '供应商管理',
   '销售管理',
   '采购管理',
-  '供应商管理',
   '库存管理',
   '财务管理',
 ]
@@ -275,13 +274,11 @@ async function fullscreen() {
                 :aria-expanded="menuExpanded(name)"
                 @click="navigate(name)"
               >
-                <el-icon :class="name === '首页' || name === '应用说明' ? 'nav-blue' : 'nav-folder'"
+                <el-icon :class="name === '首页' ? 'nav-blue' : 'nav-folder'"
                   ><component
-                    :is="name === '首页' ? House : name === '应用说明' ? Document : FolderOpened"
+                    :is="name === '首页' ? House : FolderOpened"
                 /></el-icon>
-                <span v-if="!collapsed"
-                  >{{ name }}<span v-if="name === '应用说明'" class="tip-bulb">💡</span></span
-                >
+                <span v-if="!collapsed">{{ name }}</span>
                 <el-icon
                   v-if="
                     ['经营看板', '客户管理', '采购管理', '供应商管理', '基础数据', '销售管理', '库存管理', '财务管理'].includes(name) &&
