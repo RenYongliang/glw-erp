@@ -568,6 +568,30 @@ CREATE TABLE `supplier_brand`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '供应商可供应品牌表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for sys_department
+-- 组织架构：parent_id 为 0 表示顶级部门；level 由服务层按上级维护。
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_department`;
+CREATE TABLE `sys_department`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '部门名称，同一上级下唯一',
+  `parent_id` bigint(0) NOT NULL DEFAULT 0 COMMENT '上级部门ID；0 表示顶级',
+  `level` int(0) NOT NULL DEFAULT 1 COMMENT '层级，顶级为 1',
+  `leader_id` bigint(0) NULL DEFAULT NULL COMMENT '部门负责人，指向 sys_user.id',
+  `sort_no` int(0) NOT NULL DEFAULT 0 COMMENT '同级排序',
+  `enabled` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否启用；停用后不出现在选择列表',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
+  `deleted` tinyint(0) NOT NULL DEFAULT 0 COMMENT '逻辑删除 0未删除 1已删除',
+  `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
+  `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `updated_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  `created_by` bigint(0) NULL DEFAULT NULL COMMENT '创建人',
+  `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_sys_department_parent`(`parent_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '部门表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for sys_user
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_user`;
@@ -578,6 +602,7 @@ CREATE TABLE `sys_user`  (
   `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '用户名称',
   `role` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'USER' COMMENT '用户角色',
   `department` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '所属部门',
+  `department_id` bigint(0) NULL DEFAULT NULL COMMENT '所属部门ID；迁移完成后以该字段为准',
   `enabled` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否启用 0禁用 1启用',
   `deleted` tinyint(0) NOT NULL DEFAULT 0 COMMENT '逻辑删除 0未删除 1已删除',
   `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',

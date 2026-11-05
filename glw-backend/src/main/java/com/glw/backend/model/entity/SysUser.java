@@ -16,6 +16,8 @@ public class SysUser {
     private String name;
     private String role;
     private String department;
+    /** 所属部门ID；以部门表为准，department 字段保留兼容旧数据。 */
+    private Long departmentId;
     private Boolean enabled;
     @TableLogic private Integer deleted;
 

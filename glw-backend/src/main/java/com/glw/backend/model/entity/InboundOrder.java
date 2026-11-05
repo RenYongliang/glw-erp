@@ -1,5 +1,6 @@
 package com.glw.backend.model.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -67,11 +68,11 @@ public class InboundOrder {
     private LocalDateTime updatedAt;
 
     /** 创建人。 */
-    @TableField("created_by")
+    @TableField(value = "created_by", fill = FieldFill.INSERT)
     private Long createdBy;
 
     /** 更新人。 */
-    @TableField("updated_by")
+    @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
     private Long updatedBy;
 
     @TableField(exist = false)

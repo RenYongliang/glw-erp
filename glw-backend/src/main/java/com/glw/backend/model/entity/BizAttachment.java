@@ -1,5 +1,6 @@
 package com.glw.backend.model.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -57,7 +58,7 @@ public class BizAttachment {
     private Boolean isRemoved;
 
     /** 上传人。 */
-    @TableField("created_by")
+    @TableField(value = "created_by", fill = FieldFill.INSERT)
     private Long createdBy;
 
     /** 上传时间。 */

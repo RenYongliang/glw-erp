@@ -7,6 +7,7 @@ public record Account(
         String passwordHash,
         String name,
         String role,
+        Long departmentId,
         String department,
         boolean enabled) {
     @Override

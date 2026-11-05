@@ -22,7 +22,8 @@ public class MockAccountRepository implements AccountRepository {
                                 encoder.encode("Admin123!"),
                                 "管理员",
                                 "ADMIN",
-                                "运营管理部",
+                                1L,
+                                "总经办",
                                 true),
                         new Account(
                                 2,
@@ -30,7 +31,8 @@ public class MockAccountRepository implements AccountRepository {
                                 encoder.encode("Demo123!"),
                                 "体验用户",
                                 "USER",
-                                "业务体验组",
+                                2L,
+                                "销售部",
                                 true));
     }
 

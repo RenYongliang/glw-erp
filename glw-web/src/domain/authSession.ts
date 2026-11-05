@@ -6,6 +6,8 @@ export interface AuthUser {
   username: string
   name: string
   role: string
+  /** 所属部门ID；旧会话可能没有该字段。 */
+  departmentId?: number
   department: string
 }
 export interface TokenResponse {

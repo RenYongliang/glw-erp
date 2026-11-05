@@ -32,6 +32,9 @@ BEGIN
   IF EXISTS (SELECT 1 FROM `sys_user` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User table must be empty: sys_user';
   END IF;
+  IF EXISTS (SELECT 1 FROM `sys_department` LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Department table must be empty: sys_department';
+  END IF;
   IF EXISTS (SELECT 1 FROM `customer` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: customer';
   END IF;
@@ -95,10 +98,17 @@ BEGIN
   IF EXISTS (SELECT 1 FROM `fin_profile` LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Business table must be empty: fin_profile';
   END IF;
+  -- sys_department: 当前组织架构，后续可在部门管理中调整
+  INSERT INTO `sys_department` (`id`, `name`, `parent_id`, `level`, `leader_id`, `sort_no`, `enabled`, `remark`, `deleted`, `version`, `created_at`, `updated_at`) VALUES
+    (1, '总经办', 0, 1, NULL, 10, 1, NULL, 0, 0, '2026-11-05 10:00:00', '2026-11-05 10:00:00'),
+    (2, '销售部', 0, 1, NULL, 20, 1, NULL, 0, 0, '2026-11-05 10:00:00', '2026-11-05 10:00:00'),
+    (3, '采购部', 0, 1, NULL, 30, 1, NULL, 0, 0, '2026-11-05 10:00:00', '2026-11-05 10:00:00'),
+    (4, '财务部', 0, 1, NULL, 40, 1, NULL, 0, 0, '2026-11-05 10:00:00', '2026-11-05 10:00:00'),
+    (5, 'IT部', 0, 1, NULL, 50, 1, NULL, 0, 0, '2026-11-05 10:00:00', '2026-11-05 10:00:00');
   -- sys_user: 2 rows from local MySQL (BCrypt hashes preserved)
-  INSERT INTO `sys_user` (`id`, `username`, `password_hash`, `name`, `role`, `department`, `enabled`, `deleted`, `version`, `created_at`, `updated_at`) VALUES
-    (1, 'admin', '$2a$10$LJ9S7JCkTQf0eRubB3Fx/uSe1aZvsleTDSZE9SeMyWFv/plG7d7Nq', '管理员', 'ADMIN', '运营管理部', 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07'),
-    (2, 'demo', '$2a$10$FsQjImExBVt8PJ5OYqmUs.G69uMw0w4gbygedpjtvOmISNb1ONmGC', '体验用户', 'USER', '业务体验组', 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07');
+  INSERT INTO `sys_user` (`id`, `username`, `password_hash`, `name`, `role`, `department`, `department_id`, `enabled`, `deleted`, `version`, `created_at`, `updated_at`) VALUES
+    (1, 'admin', '$2a$10$LJ9S7JCkTQf0eRubB3Fx/uSe1aZvsleTDSZE9SeMyWFv/plG7d7Nq', '管理员', 'ADMIN', '总经办', 1, 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07'),
+    (2, 'demo', '$2a$10$FsQjImExBVt8PJ5OYqmUs.G69uMw0w4gbygedpjtvOmISNb1ONmGC', '体验用户', 'USER', '销售部', 2, 1, 0, 0, '2026-10-17 12:43:07', '2026-10-17 12:43:07');
   -- supplier: 2 confirmed rows
   INSERT INTO `supplier` (`id`, `name`) VALUES
     (1, '深圳中盛昌'),
@@ -540,3 +550,4 @@ SELECT 'sample_apply' AS table_name, COUNT(*) AS actual_rows, 0 AS expected_rows
 SELECT 'supplier' AS table_name, COUNT(*) AS actual_rows, 2 AS expected_rows FROM `supplier`;
 SELECT 'fin_profile' AS table_name, COUNT(*) AS actual_rows, 3 AS expected_rows FROM `fin_profile`;
 SELECT 'sys_user' AS table_name, COUNT(*) AS actual_rows, 2 AS expected_rows FROM `sys_user`;
+SELECT 'sys_department' AS table_name, COUNT(*) AS actual_rows, 5 AS expected_rows FROM `sys_department`;

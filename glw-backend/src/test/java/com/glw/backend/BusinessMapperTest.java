@@ -65,7 +65,7 @@ class BusinessMapperTest {
         List<DynamicTest> tests = new ArrayList<>();
         while (matcher.find()) {
             String table = matcher.group(1), body = matcher.group(2);
-            if (table.equals("sys_user")) continue;
+            if (table.startsWith("sys_")) continue;
             tests.add(DynamicTest.dynamicTest(table, () -> verifyTable(table, body)));
         }
         assertThat(tests).hasSize(22);

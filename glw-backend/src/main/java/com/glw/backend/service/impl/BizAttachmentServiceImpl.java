@@ -2,7 +2,7 @@ package com.glw.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
-import com.glw.backend.auth.AuthPrincipal;
+import com.glw.backend.auth.UserContext;
 import com.glw.backend.common.BusinessException;
 import com.glw.backend.common.ErrorCode;
 import com.glw.backend.config.MinioProperties;
@@ -17,7 +17,6 @@ import com.glw.backend.service.BizAttachmentService;
 import com.glw.backend.storage.AttachmentStorage;
 
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -127,7 +126,7 @@ public class BizAttachmentServiceImpl extends ServiceImpl<BizAttachmentMapper, B
         row.setFileSize(file.getSize());
         row.setContentType(contentType);
         row.setIsRemoved(false);
-        row.setCreatedBy(currentUserId());
+        row.setCreatedBy(UserContext.userId());
         try {
             save(row);
         } catch (RuntimeException e) {
@@ -257,13 +256,6 @@ public class BizAttachmentServiceImpl extends ServiceImpl<BizAttachmentMapper, B
         } catch (BusinessException e) {
             return category;
         }
-    }
-
-    private Long currentUserId() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.getPrincipal() instanceof AuthPrincipal p
-                ? Long.valueOf(p.user().id())
-                : null;
     }
 
     /** 文件名不允许空白和路径分隔符，避免下载后被系统截断。 */
