@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -49,11 +51,17 @@ public class GlobalExceptionHandler {
         HttpMessageNotReadableException.class,
         ConstraintViolationException.class,
         MissingServletRequestParameterException.class,
+        MissingServletRequestPartException.class,
         MethodArgumentTypeMismatchException.class,
         HandlerMethodValidationException.class
     })
     public ResponseEntity<ApiResponse<Void>> badRequest(Exception ex) {
         return response(ErrorCode.BAD_REQUEST, "请求参数或 JSON 格式不正确");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> uploadTooLarge(MaxUploadSizeExceededException ex) {
+        return response(ErrorCode.BAD_REQUEST, "文件大小超出限制，单个文件不能超过 10MB");
     }
 
     @ExceptionHandler(AccessDeniedException.class)

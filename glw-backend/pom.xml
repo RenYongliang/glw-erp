@@ -19,8 +19,15 @@
     <jjwt.version>0.13.0</jjwt.version>
     <poi.version>5.4.1</poi.version>
     <pdfbox.version>3.0.4</pdfbox.version>
+    <minio.version>8.5.17</minio.version>
   </properties>
   <dependencies>
+    <!-- 附件统一存储到 MinIO / S3 兼容对象存储。 -->
+    <dependency>
+      <groupId>io.minio</groupId>
+      <artifactId>minio</artifactId>
+      <version>${minio.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.mapstruct</groupId>
       <artifactId>mapstruct</artifactId>

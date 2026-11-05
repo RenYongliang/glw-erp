@@ -9,13 +9,16 @@ import { fetchSuppliers } from '../../services/supplierApi'
 import { fetchSalesProducts } from '../../services/productApi'
 import { financeApi, type OpenItem } from '../../services/financeApi'
 import {
+  deleteOrderAttachment,
+  fetchOrderAttachments,
+  uploadOrderAttachment,
+  type AttachmentVO,
+} from '../../services/attachmentApi'
+import {
   PURCHASE_ATTACHMENT_TYPES,
   attachmentTypeLabel,
   attachmentTypeOf,
-  fileExtension,
   keepsUploadSlot,
-  renumberAttachments,
-  standardAttachmentName,
   type AttachmentTypeDef,
 } from '../../domain/attachments'
 import {
@@ -89,8 +92,8 @@ const order = ref<PurchaseOrder>(
 )
 order.value.contact = purchaseContact(order.value)
 order.value.phone = purchasePhone(order.value)
-/** 有附件时默认展开执行跟踪，避免附件入口藏在折叠区里。 */
-const businessOpen = ref<string[]>(order.value.attachments.length ? ['business'] : [])
+/** 附件异步加载，有附件时再展开执行跟踪，避免入口藏在折叠区里。 */
+const businessOpen = ref<string[]>([])
 order.value.taxIncluded ??= true
 for (const line of order.value.lines) {
   line.delivery ??= order.value.delivery
@@ -167,6 +170,7 @@ onMounted(() => {
   void loadSupplierList()
   void loadProductList()
   if (isOrder && order.value.code) void loadFinance()
+  if (isOrder && order.value.code) void loadAttachments()
 })
 const supplier = computed(() => supplierList.value.find((s) => s.id === linkedOrder.value?.supplierId))
 const taxIncludedOrder = computed(() => order.value.taxIncluded !== false)
@@ -421,38 +425,48 @@ async function close(done?: () => void) {
   emit('close')
 }
 const attachmentTypes = PURCHASE_ATTACHMENT_TYPES
+// 附件由后端统一存储到 MinIO，列表读取接口数据，不再随订单写本地存档。
+const attachments = ref<Attachment[]>([]),
+  attachmentsLoading = ref(false),
+  attachmentError = ref('')
+function toAttachment(item: AttachmentVO): Attachment {
+  return {
+    id: item.id,
+    name: item.fileName,
+    url: item.downloadUrl,
+    fileSize: item.fileSize,
+    type: item.category,
+    uploadedAt: item.createdAt ? item.createdAt.slice(0, 10).replaceAll('-', '') : undefined,
+  }
+}
+async function loadAttachments() {
+  if (!isOrder || !order.value.code || !/^\d+$/.test(order.value.id)) return
+  attachmentsLoading.value = true
+  attachmentError.value = ''
+  try {
+    const rows = await fetchOrderAttachments('PURCHASE_ORDER', Number(order.value.id))
+    attachments.value = rows.map(toAttachment)
+    if (rows.length && !businessOpen.value.includes('business')) businessOpen.value = ['business']
+  } catch (e) {
+    attachmentError.value = e instanceof Error ? e.message : '附件加载失败'
+  } finally {
+    attachmentsLoading.value = false
+  }
+}
 function filesOfAttachmentType(type: string) {
-  return order.value.attachments.filter((file) => attachmentTypeOf(file) === type)
+  return attachments.value.filter((file) => attachmentTypeOf(file) === type)
 }
 /**
  * 固定类型只有一格：没传时显示加号，传了就不再占位；
  * 可能有多份的类型（回签、发票、其他）始终保留一个待上传格。
  */
 function canAddAttachment(slot: AttachmentTypeDef) {
-  if (view.value && !order.value.code) return false
+  if (!order.value.code || !/^\d+$/.test(order.value.id)) return false
   return keepsUploadSlot(slot) || filesOfAttachmentType(slot.key).length === 0
 }
-/** 按「单据号_类型_供应商_日期_序号」统一重命名某一类型的全部附件。 */
-function renameAttachmentGroup(type: string) {
-  const fallbackDate = today().replaceAll('-', '')
-  renumberAttachments(order.value.attachments, type, (file, index, total) =>
-    standardAttachmentName({
-      orderCode: order.value.code,
-      typeLabel: attachmentTypeLabel(attachmentTypes, type),
-      partnerName: purchaseSupplierName(order.value) || '供应商',
-      date: file.uploadedAt || fallbackDate,
-      index,
-      total,
-      extension: fileExtension(file.originalName || file.name),
-    }),
-  )
-}
-/**
- * 删除附件：编辑态随订单保存，查看态（含已锁定订单）即时写回本地存档。
- */
+/** 删除附件：后端软删除并重新编号，列表随后刷新。 */
 async function removeAttachment(file: Attachment) {
-  const index = order.value.attachments.indexOf(file)
-  if (index < 0) return
+  if (!file.id) return
   try {
     await ElMessageBox.confirm(`确认删除附件「${file.name}」？`, '删除附件', {
       confirmButtonText: '删除',
@@ -462,36 +476,50 @@ async function removeAttachment(file: Attachment) {
   } catch {
     return
   }
-  order.value.attachments.splice(index, 1)
-  renameAttachmentGroup(attachmentTypeOf(file))
-  dirty.value = true
-  if (!view.value) return
   try {
-    store.saveAttachments(order.value.id, order.value.attachments)
+    await deleteOrderAttachment(file.id)
+    await loadAttachments()
     ElMessage.success('附件已删除')
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
 }
-/** 查看态可补充附件，直接写入本地存档；编辑态随订单一起保存。 */
+/** 上传到后端；统一命名和同类编号由服务端完成。 */
 async function uploadAttachment(event: Event, type: string) {
-  await attach(event, false, type)
-  if (!view.value) return
-  try {
-    store.saveAttachments(order.value.id, order.value.attachments)
-    ElMessage.success(`${attachmentTypeLabel(attachmentTypes, type)}已保存`)
-  } catch (e) {
-    ElMessage.error((e as Error).message)
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  input.value = ''
+  if (!files.length) return
+  if (!order.value.code || !/^\d+$/.test(order.value.id)) {
+    ElMessage.warning('请先保存订单后再上传附件')
+    return
   }
+  let uploaded = 0
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning(`${file.name} 超过 10MB，未上传`)
+      continue
+    }
+    try {
+      await uploadOrderAttachment('PURCHASE_ORDER', Number(order.value.id), type, file)
+      uploaded++
+    } catch (e) {
+      ElMessage.error(`${file.name}：${(e as Error).message}`)
+    }
+  }
+  if (!uploaded) return
+  await loadAttachments()
+  ElMessage.success(`${attachmentTypeLabel(attachmentTypes, type)}已上传`)
 }
-async function attach(event: Event, images = false, type = 'OTHER') {
+/** 入库单本地图片附件（拍照），仍保存在浏览器本地。 */
+async function attachImages(event: Event) {
   const input = event.target as HTMLInputElement
   for (const file of Array.from(input.files || [])) {
     if (file.size > 2 * 1024 * 1024) {
-      ElMessage.warning('本地预览附件每个不超过 2MB')
+      ElMessage.warning('图片每个不超过 2MB')
       continue
     }
-    if (images && !file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/')) {
       ElMessage.warning('请选择图片')
       continue
     }
@@ -505,18 +533,7 @@ async function attach(event: Event, images = false, type = 'OTHER') {
       return ''
     })
     if (url) {
-      if (images) {
-        receipt.value.photos.push({ name: file.name, url })
-      } else {
-        order.value.attachments.push({
-          name: file.name,
-          originalName: file.name,
-          type,
-          uploadedAt: today().replaceAll('-', ''),
-          url,
-        })
-        renameAttachmentGroup(type)
-      }
+      receipt.value.photos.push({ name: file.name, url })
       dirty.value = true
     }
   }
@@ -842,7 +859,7 @@ function quickFill() {
         <el-collapse v-if="order.code" v-model="businessOpen" class="purchase-order-business"><el-collapse-item name="business">
         <template #title>
           <span class="purchase-business-title">执行跟踪</span>
-          <span class="purchase-business-counts">附件 {{ order.attachments.length }} · 入库 {{ linkedReceipts.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ financeItems.length }}</span>
+          <span class="purchase-business-counts">附件 {{ attachments.length }} · 入库 {{ linkedReceipts.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ financeItems.length }}</span>
         </template>
         <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
@@ -855,14 +872,15 @@ function quickFill() {
           </button>
         </nav>
         <template v-if="tab === '订单附件'">
+          <el-alert v-if="attachmentError" :title="attachmentError" type="error" :closable="false" />
           <p class="purchase-tip">
-            上传后统一命名为「单据号_类型_供应商_日期_序号」。本地预览：每个文件不超过 2MB。
+            上传后由服务端统一命名为「单据号_类型_供应商_日期_序号」，单个文件不超过 10MB。
           </p>
-          <div class="attachment-tile-grid">
+          <div v-loading="attachmentsLoading" class="attachment-tile-grid">
             <template v-for="slot in attachmentTypes" :key="slot.key">
               <div
-                v-for="(file, i) in filesOfAttachmentType(slot.key)"
-                :key="slot.key + '-' + i"
+                v-for="file in filesOfAttachmentType(slot.key)"
+                :key="file.id ?? slot.key + '-' + file.name"
                 class="attachment-tile attachment-tile-doc"
                 :title="file.name"
               >
@@ -980,7 +998,7 @@ function quickFill() {
           accept="image/*"
           multiple
           aria-label="入库拍照"
-          @change="attach($event, true)"
+          @change="attachImages"
         />
         <div v-for="(file, i) in receipt.photos" :key="i" class="purchase-attachment">
           <a :href="file.url" :download="file.name">{{ file.name }}</a

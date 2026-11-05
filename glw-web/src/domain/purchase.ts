@@ -55,8 +55,12 @@ export interface PaymentPlan {
   note: string
 }
 export interface Attachment {
+  /** 后端附件记录ID；本地图片附件没有该字段。 */
+  id?: number
   name: string
   url: string
+  /** 附件大小（字节），来自后端；本地图片附件为空。 */
+  fileSize?: number
   /** 附件类型 key，见 domain/attachments.ts；历史数据为空时归入“其他”。 */
   type?: string
   /** 上传时的原始文件名，用于保留扩展名和追溯。 */

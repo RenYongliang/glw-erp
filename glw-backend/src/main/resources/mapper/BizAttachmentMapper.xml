@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.glw.backend.mapper.BizAttachmentMapper">
+    <resultMap id="BaseResultMap" type="com.glw.backend.model.entity.BizAttachment">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="biz_type" property="bizType" jdbcType="VARCHAR"/>
+        <result column="biz_id" property="bizId" jdbcType="BIGINT"/>
+        <result column="category" property="category" jdbcType="VARCHAR"/>
+        <result column="file_name" property="fileName" jdbcType="VARCHAR"/>
+        <result column="bucket" property="bucket" jdbcType="VARCHAR"/>
+        <result column="object_key" property="objectKey" jdbcType="VARCHAR"/>
+        <result column="file_size" property="fileSize" jdbcType="BIGINT"/>
+        <result column="content_type" property="contentType" jdbcType="VARCHAR"/>
+        <result column="is_removed" property="isRemoved" jdbcType="BOOLEAN"/>
+        <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`, `biz_type`, `biz_id`, `category`, `file_name`, `bucket`, `object_key`, `file_size`, `content_type`, `is_removed`, `created_by`, `created_at`
+    </sql>
+</mapper>

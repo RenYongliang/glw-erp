@@ -403,6 +403,28 @@ CREATE TABLE `purchase_order_item`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '采购订单商品表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for biz_attachment
+-- ----------------------------
+DROP TABLE IF EXISTS `biz_attachment`;
+CREATE TABLE `biz_attachment`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `biz_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '业务类型：SALES_ORDER/PURCHASE_ORDER',
+  `biz_id` bigint(0) NOT NULL COMMENT '业务主键ID，如 purchase_order.id',
+  `category` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '附件类型：SALES_CONTRACT/DELIVERY_RECEIPT 等',
+  `file_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '展示与下载文件名，统一命名',
+  `bucket` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'MinIO 桶名',
+  `object_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'MinIO 桶内对象路径',
+  `file_size` bigint(0) NOT NULL DEFAULT 0 COMMENT '文件字节数',
+  `content_type` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '文件 MIME 类型',
+  `is_removed` tinyint(1) NOT NULL DEFAULT 0 COMMENT '软删除标记；1 已删除',
+  `created_by` bigint(0) NULL DEFAULT NULL COMMENT '上传人',
+  `created_at` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '上传时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_biz_attachment_object`(`bucket`, `object_key`) USING BTREE,
+  INDEX `idx_biz_attachment_biz`(`biz_type`, `biz_id`, `is_removed`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '业务附件表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for sales_order
 -- ----------------------------
 DROP TABLE IF EXISTS `sales_order`;

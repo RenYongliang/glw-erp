@@ -79,13 +79,6 @@ export const useSalesStore = defineStore('sales', () => {
     await load()
     return order
   }
-  function saveAttachments(id: string, attachments: SalesOrder['attachments']) {
-    const next = snapshot(),
-      order = next.orders.find((o) => o.id === id)
-    if (!order) throw Error('订单不存在，请刷新')
-    order.attachments = JSON.parse(JSON.stringify(attachments))
-    commit(next, '补充合同附件', order.code)
-  }
   async function saveShipment(input: SalesShipment) {
     const next = snapshot(),
       shipment: SalesShipment = JSON.parse(JSON.stringify(input)),
@@ -224,7 +217,6 @@ export const useSalesStore = defineStore('sales', () => {
     loading,
     load,
     saveOrder,
-    saveAttachments,
     saveShipment,
     remove,
     pay,
