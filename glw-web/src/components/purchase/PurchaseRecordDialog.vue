@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Document, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
@@ -7,6 +7,7 @@ import { usePurchaseStore } from '../../stores/purchase'
 import { useAuthStore } from '../../stores/auth'
 import { fetchSuppliers } from '../../services/supplierApi'
 import { fetchSalesProducts } from '../../services/productApi'
+import { financeApi, type OpenItem } from '../../services/financeApi'
 import {
   PURCHASE_ATTACHMENT_TYPES,
   attachmentTypeLabel,
@@ -88,21 +89,8 @@ const order = ref<PurchaseOrder>(
 )
 order.value.contact = purchaseContact(order.value)
 order.value.phone = purchasePhone(order.value)
-// TEMP: 多附件预览数据，仅用于演示，稍后移除。
-if (order.value.code === 'GL20260921001') {
-  const demo: Array<[string, string]> = [
-    ['采购合同-GL20260921001.pdf', 'PURCHASE_CONTRACT'],
-    ['供应商盖章合同-GL20260921001.pdf', 'SUPPLIER_COUNTERSIGNED'],
-    ['入库回签件-2026-09.pdf', 'RECEIPT_SIGN'],
-    ['对账单-2026-09.pdf', 'OTHER'],
-  ]
-  order.value.attachments = demo.map(([name, type]) => ({
-    name,
-    originalName: name,
-    type,
-    url: 'data:text/plain;base64,ZGVtbw==',
-  }))
-}
+/** 有附件时默认展开执行跟踪，避免附件入口藏在折叠区里。 */
+const businessOpen = ref<string[]>(order.value.attachments.length ? ['business'] : [])
 order.value.taxIncluded ??= true
 for (const line of order.value.lines) {
   line.delivery ??= order.value.delivery
@@ -178,6 +166,7 @@ async function loadProductList() {
 onMounted(() => {
   void loadSupplierList()
   void loadProductList()
+  if (isOrder && order.value.code) void loadFinance()
 })
 const supplier = computed(() => supplierList.value.find((s) => s.id === linkedOrder.value?.supplierId))
 const taxIncludedOrder = computed(() => order.value.taxIncluded !== false)
@@ -209,6 +198,48 @@ const locked = computed(
     linkedPayments.value.length > 0 ||
     linkedReturns.value.length > 0,
 )
+// 财务明细改为后端应付数据，不再使用前端本地付款记录。
+const financeItems = ref<OpenItem[]>([]),
+  financeLoading = ref(false),
+  financeError = ref('')
+async function loadFinance() {
+  if (!isOrder || !order.value.code || !/^\d+$/.test(order.value.id)) return
+  financeLoading.value = true
+  financeError.value = ''
+  try {
+    const page = await financeApi.openItems({
+      direction: 'AP',
+      keyword: order.value.code,
+      pageNo: 1,
+      pageSize: 200,
+    })
+    financeItems.value = page.records.filter((item) => item.orderNo === order.value.code)
+  } catch (e) {
+    financeError.value = e instanceof Error ? e.message : '财务数据加载失败'
+  } finally {
+    financeLoading.value = false
+  }
+}
+watch(tab, (value) => {
+  if (value === '财务明细') void loadFinance()
+})
+function financeOverdue(row: OpenItem) {
+  if (!row.dueDate) return false
+  const now = new Date(),
+    today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return row.dueDate < today && Number(row.settledAmount ?? 0) < Number(row.grossAmount ?? 0)
+}
+const financeSummary = computed(() => {
+  const gross = financeItems.value.reduce((sum, item) => sum + Number(item.grossAmount ?? 0), 0)
+  const settled = financeItems.value.reduce((sum, item) => sum + Number(item.settledAmount ?? 0), 0)
+  const overdue = financeItems.value
+    .filter(financeOverdue)
+    .reduce((sum, item) => sum + Number(item.grossAmount ?? 0) - Number(item.settledAmount ?? 0), 0)
+  return { gross, settled, outstanding: Math.max(0, gross - settled), overdue }
+})
+function financeStatusLabel(status: string) {
+  return ({ OPEN: '待对账', IN_STATEMENT: '对账中', RECONCILED: '已确认' } as Record<string, string>)[status] || status
+}
 const availableOrders = computed(() =>
   store.state.orders.filter(
     (o) =>
@@ -416,7 +447,9 @@ function renameAttachmentGroup(type: string) {
     }),
   )
 }
-/** 删除附件：编辑态随订单保存，查看态立即写回本地存档。 */
+/**
+ * 删除附件：编辑态随订单保存，查看态（含已锁定订单）即时写回本地存档。
+ */
 async function removeAttachment(file: Attachment) {
   const index = order.value.attachments.indexOf(file)
   if (index < 0) return
@@ -806,14 +839,14 @@ function quickFill() {
 </el-form>
       <PurchaseContractActions v-if="isOrder" :order="order" />
       <template v-if="isOrder">
-        <el-collapse v-if="order.code" class="purchase-order-business"><el-collapse-item name="business">
+        <el-collapse v-if="order.code" v-model="businessOpen" class="purchase-order-business"><el-collapse-item name="business">
         <template #title>
-          <span class="purchase-business-title">业务记录</span>
-          <span class="purchase-business-counts">入库 {{ linkedReceipts.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ linkedPayments.length }}</span>
+          <span class="purchase-business-title">执行跟踪</span>
+          <span class="purchase-business-counts">附件 {{ order.attachments.length }} · 入库 {{ linkedReceipts.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ financeItems.length }}</span>
         </template>
         <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
-            v-for="name in ['订单附件', '订单明细', '财务明细', '采购入库', '采购退货', '采购订单执行跟踪']"
+            v-for="name in ['订单附件', '产品入库', '采购退货', '财务明细']"
             :key="name"
             :class="{ active: tab === name }"
             @click="tab = name"
@@ -835,7 +868,6 @@ function quickFill() {
               >
                 <span class="attachment-tile-type">{{ slot.label }}</span>
                 <button
-                  v-if="!view || order.code"
                   type="button"
                   class="attachment-tile-remove"
                   aria-label="移除附件"
@@ -863,154 +895,15 @@ function quickFill() {
                 <el-icon><Plus /></el-icon>
                 <input
                   type="file"
-                  multiple
+                  :multiple="keepsUploadSlot(slot)"
                   @change="uploadAttachment($event, slot.key)"
                 />
               </label>
             </template>
           </div>
         </template>
-        <template v-else-if="tab === '订单明细'">
-          <h3 class="purchase-section">到货计划</h3>
-          <el-form label-position="top" :disabled="view"
-            ><el-form-item label="到货地址"
-              ><el-input
-                v-model="order.address"
-                placeholder="省 / 市 / 区 / 详细地址" /></el-form-item
-          ></el-form>
-          <el-table :data="order.arrivals" border
-            ><el-table-column label="到货批次" width="125"
-              ><template #default="{ row }"
-                ><el-select v-model="row.batch" :disabled="view"
-                  ><el-option
-                    v-for="n in ['整批', '第一批', '第二批', '第三批']"
-                    :key="n"
-                    :value="n" /></el-select></template></el-table-column
-            ><el-table-column label="计划到货日期" width="200"
-              ><template #default="{ row }"
-                ><el-date-picker
-                  v-model="row.date"
-                  :disabled="view"
-                  value-format="YYYY-MM-DD" /></template></el-table-column
-            ><el-table-column label="计划到货内容备注" min-width="180"
-              ><template #default="{ row }"
-                ><el-input v-model="row.note" :disabled="view" /></template></el-table-column
-            ><el-table-column v-if="!view" width="65"
-              ><template #default="{ $index }"
-                ><el-button
-                  :icon="Delete"
-                  text
-                  aria-label="删除到货计划"
-                  @click="
-                    () => {
-                      order.arrivals.splice($index, 1)
-                      dirty = true
-                    }
-                  " /></template></el-table-column
-          ></el-table>
-          <el-button
-            v-if="!view"
-            text
-            type="primary"
-            :icon="Plus"
-            @click="
-              () => {
-                order.arrivals.push({ batch: '整批', date: order.delivery, note: '' })
-                dirty = true
-              }
-            "
-            >添加到货计划</el-button
-          >
-          <h3 class="purchase-section">财务条款</h3>
-          <el-form label-position="top" :disabled="view"
-            ><el-form-item label="结算期限"><el-input v-model="order.term" /></el-form-item
-          ></el-form>
-          <el-table :data="order.payments" border
-            ><el-table-column label="付款项" width="130"
-              ><template #default="{ row }"
-                ><el-select v-model="row.name" :disabled="view"
-                  ><el-option
-                    v-for="n in ['整批货款', '定金', '尾款']"
-                    :key="n"
-                    :value="n" /></el-select></template></el-table-column
-            ><el-table-column label="付款比例 %" width="140"
-              ><template #default="{ row }"
-                ><el-input-number
-                  v-model="row.ratio"
-                  :disabled="view"
-                  :min="0"
-                  :max="100"
-                  controls-position="right" /></template></el-table-column
-            ><el-table-column label="付款金额/元" width="140"
-              ><template #default="{ row }">{{
-                money((totals.total * row.ratio) / 100)
-              }}</template></el-table-column
-            ><el-table-column label="付款方式" width="145"
-              ><template #default="{ row }"
-                ><el-select v-model="row.method" :disabled="view"
-                  ><el-option
-                    v-for="n in ['银行转账', '现金', '承兑汇票']"
-                    :key="n"
-                    :value="n" /></el-select></template></el-table-column
-            ><el-table-column label="计划付款日期" width="190"
-              ><template #default="{ row }"
-                ><el-date-picker
-                  v-model="row.date"
-                  :disabled="view"
-                  value-format="YYYY-MM-DD" /></template></el-table-column
-            ><el-table-column label="备注" width="180"
-              ><template #default="{ row }"
-                ><el-input v-model="row.note" :disabled="view" /></template></el-table-column
-            ><el-table-column v-if="!view" fixed="right" width="65"
-              ><template #default="{ $index }"
-                ><el-button
-                  :icon="Delete"
-                  text
-                  aria-label="删除付款计划"
-                  @click="
-                    () => {
-                      order.payments.splice($index, 1)
-                      dirty = true
-                    }
-                  " /></template></el-table-column
-          ></el-table>
-          <el-button
-            v-if="!view"
-            text
-            type="primary"
-            :icon="Plus"
-            @click="
-              () => {
-                order.payments.push({
-                  name: '整批货款',
-                  ratio: 100,
-                  method: '银行转账',
-                  date: order.delivery,
-                  note: '',
-                })
-                dirty = true
-              }
-            "
-            >添加付款计划</el-button
-          >
-        </template>
-        <template v-else-if="tab === '财务明细'"
-          ><el-descriptions :column="2" border
-            ><el-descriptions-item label="发票抬头">{{ supplier?.name }}</el-descriptions-item
-            ><el-descriptions-item label="税种">增值税专用发票</el-descriptions-item
-            ><el-descriptions-item label="银行账户">{{ supplier?.account }}</el-descriptions-item
-            ><el-descriptions-item label="开户银行">{{
-              supplier?.bank
-            }}</el-descriptions-item></el-descriptions
-          ><el-table :data="linkedPayments" border
-            ><el-table-column prop="date" label="付款日期" /><el-table-column
-              prop="method"
-              label="付款方式" /><el-table-column
-              prop="amount"
-              label="付款金额/元" /><el-table-column prop="note" label="备注" /></el-table
-        ></template>
-        <template v-else-if="tab === '采购入库'"
-          ><el-table :data="linkedReceipts" border
+        <template v-else-if="tab === '产品入库'"
+          ><el-table :data="linkedReceipts" border empty-text="暂无入库记录"
             ><el-table-column prop="code" label="采购入库单编号" /><el-table-column
               prop="warehouse"
               label="仓库"
@@ -1030,7 +923,7 @@ function quickFill() {
             >采购入库</el-button
           ></template
         >
-        <el-table v-else-if="tab === '采购退货'" :data="linkedReturns" border
+        <el-table v-else-if="tab === '采购退货'" :data="linkedReturns" border empty-text="暂无退货记录"
           ><el-table-column prop="date" label="退货日期" /><el-table-column label="产品"
             ><template #default="{ row }">{{
               purchaseLineProductText(orderLine(row.lineId), 'model')
@@ -1039,28 +932,43 @@ function quickFill() {
             prop="reason"
             label="原因"
         /></el-table>
-        <el-table v-else :data="order.lines" border
-          ><el-table-column label="产品"
-            ><template #default="{ row }">{{ purchaseLineProductText(row, 'model') }}</template></el-table-column
-          ><el-table-column prop="quantity" label="采购数量" /><el-table-column label="待收货数量"
-            ><template #default="{ row }">{{
-              remainingQuantity(store.state, order.id, row.id)
-            }}</template></el-table-column
-          ><el-table-column label="已确认入库"
-            ><template #default="{ row }">{{
-              store.state.receipts
-                .filter((r) => receiptMatchesOrder(r, order.id) && r.confirmed)
-                .reduce(
-                  (s, r) =>
-                    s +
-                    r.lines
-                      .filter((l) => l.lineId === row.id)
-                      .reduce((n, l) => n + l.arrived - l.rejected, 0),
-                  0,
-                )
-            }}</template></el-table-column
-          ></el-table
-        >
+        <template v-else>
+          <el-alert v-if="financeError" :title="financeError" type="error" :closable="false" />
+          <div v-else v-loading="financeLoading">
+            <el-descriptions :column="4" border size="small" class="purchase-finance-summary">
+              <el-descriptions-item label="应付合计">{{ money(financeSummary.gross) }}</el-descriptions-item>
+              <el-descriptions-item label="已核销">{{ money(financeSummary.settled) }}</el-descriptions-item>
+              <el-descriptions-item label="未付金额">{{ money(financeSummary.outstanding) }}</el-descriptions-item>
+              <el-descriptions-item label="逾期金额">{{ money(financeSummary.overdue) }}</el-descriptions-item>
+            </el-descriptions>
+            <el-table :data="financeItems" border empty-text="暂无财务记录">
+              <el-table-column prop="sourceNo" label="入库单号" width="150" />
+              <el-table-column prop="bizDate" label="业务日期" width="105" />
+              <el-table-column prop="partNo" label="型号" min-width="120" />
+              <el-table-column prop="quantity" label="数量" width="85" align="right" />
+              <el-table-column label="价税合计" width="110" align="right">
+                <template #default="{ row }">{{ money(row.grossAmount) }}</template>
+              </el-table-column>
+              <el-table-column label="已结金额" width="110" align="right">
+                <template #default="{ row }">{{ money(row.settledAmount) }}</template>
+              </el-table-column>
+              <el-table-column label="未结金额" width="110" align="right">
+                <template #default="{ row }">{{ money(Number(row.grossAmount || 0) - Number(row.settledAmount || 0)) }}</template>
+              </el-table-column>
+              <el-table-column prop="settleMonth" label="账单月" width="90" />
+              <el-table-column label="到期日" width="105">
+                <template #default="{ row }">
+                  <span :class="{ 'purchase-finance-overdue': financeOverdue(row) }">{{ row.dueDate || '—' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="对账状态" width="100">
+                <template #default="{ row }">
+                  <el-tag size="small" effect="plain">{{ financeStatusLabel(row.reconcileStatus) }}</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </template>
         </el-collapse-item></el-collapse>
       </template>
       <template v-else>
@@ -1252,6 +1160,8 @@ function quickFill() {
 .purchase-business-counts { margin-left: 12px; color: #8a94a6; font-size: 12px; font-weight: 400; }
 .purchase-dialog-controls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .purchase-custom-supplier { display: flex; gap: 16px; align-items: center; margin: 12px 0; color: #8491a4; }
+.purchase-finance-summary { margin-bottom: 12px; }
+.purchase-finance-overdue { color: #f56c6c; font-weight: 600; }
 </style>
 
 <style>

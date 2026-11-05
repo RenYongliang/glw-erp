@@ -150,22 +150,8 @@ const order = ref<SalesOrder>(
         approvedAt: "",
       },
 );
-// TEMP: 多附件预览数据，仅用于演示，稍后移除。
-if (order.value.code === "SO20260715001") {
-  const demo: Array<[string, string]> = [
-    ["销售合同-2026-09.pdf", "SALES_CONTRACT"],
-    ["客户盖章合同-2026-09.pdf", "COUNTERSIGNED_CONTRACT"],
-    ["发货回签件-20260930.pdf", "DELIVERY_RECEIPT"],
-    ["对账单-2026-09.pdf", "STATEMENT"],
-    ["对账单回签件-2026-09.pdf", "STATEMENT"],
-  ];
-  order.value.attachments = demo.map(([name, type]) => ({
-    name,
-    originalName: name,
-    type,
-    url: "data:text/plain;base64,ZGVtbw==",
-  }));
-}
+/** 有附件时默认展开执行跟踪，避免附件入口藏在折叠区里。 */
+const businessOpen = ref<string[]>(order.value.attachments.length ? ["business"] : []);
 const shipment = ref<SalesShipment>(
   props.shipment
     ? clone(props.shipment)
@@ -650,7 +636,9 @@ function renameAttachmentGroup(type: string) {
     }),
   );
 }
-/** 删除附件：编辑态随订单保存，查看态立即写回本地存档。 */
+/**
+ * 删除附件：编辑态随订单保存，查看态（含已锁定订单）即时写回本地存档。
+ */
 async function removeAttachment(file: Attachment) {
   const index = order.value.attachments.indexOf(file);
   if (index < 0) return;
@@ -1164,11 +1152,11 @@ function quickFill() {
         >
       </el-form>
       <template v-if="isOrder">
-        <el-collapse v-if="order.code" class="sales-order-business">
+        <el-collapse v-if="order.code" v-model="businessOpen" class="sales-order-business">
           <el-collapse-item name="business">
             <template #title>
-              <span class="sales-business-title">业务记录</span>
-              <span class="sales-business-counts">出库 {{ linkedShipments.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ financeItems.length }}</span>
+              <span class="sales-business-title">执行跟踪</span>
+              <span class="sales-business-counts">附件 {{ order.attachments.length }} · 出库 {{ linkedShipments.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ financeItems.length }}</span>
             </template>
           <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
@@ -1200,7 +1188,6 @@ function quickFill() {
                 >
                   <span class="attachment-tile-type">{{ slot.label }}</span>
                   <button
-                    v-if="!view || order.code"
                     type="button"
                     class="attachment-tile-remove"
                     aria-label="移除附件"
@@ -1228,7 +1215,7 @@ function quickFill() {
                   <el-icon><Plus /></el-icon>
                   <input
                     type="file"
-                    multiple
+                    :multiple="keepsUploadSlot(slot)"
                     @change="uploadAttachment($event, slot.key)"
                   />
                 </label>

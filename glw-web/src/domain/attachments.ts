@@ -22,6 +22,7 @@ export const SALES_ATTACHMENT_TYPES: AttachmentTypeDef[] = [
   { key: 'CUSTOMER_PO', label: '客户采购订单', slots: 'fixed' },
   { key: 'DELIVERY_RECEIPT', label: '发货回签', slots: 'shipments' },
   { key: 'STATEMENT', label: '对账单', slots: 'statements' },
+  { key: 'STATEMENT_SIGNED', label: '对账单回签', slots: 'statements' },
   { key: 'OTHER', label: '其他', slots: 'unlimited' },
 ]
 
