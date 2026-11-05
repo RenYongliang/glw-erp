@@ -682,3 +682,10 @@
 }
 
 .purchase-table-footer, .crm-table-footer { flex-wrap: wrap; height: auto; min-height: 46px; gap: 8px; }
+
+/* 出库单：发货照片与客户回签单 */
+.shipment-photos, .shipment-receipt { margin: 4px 0 16px; }
+.shipment-photos-head, .shipment-receipt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.shipment-photos-head strong, .shipment-receipt-head strong { font-size: 14px; font-weight: 500; }
+.shipment-photos .purchase-import-file, .shipment-receipt .purchase-import-file { margin: 0; color: #1687ff; cursor: pointer; }
+.shipment-receipt .purchase-tip { margin: 4px 0; }

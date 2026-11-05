@@ -5,6 +5,7 @@ import { Plus, Delete, Document, FullScreen } from "@element-plus/icons-vue";
 import DeliveryNoteActions from "./DeliveryNoteActions.vue";
 import ShipmentShippingForm from "./ShipmentShippingForm.vue";
 import ShipmentBatchPicker from "./ShipmentBatchPicker.vue";
+import AttachmentTiles from "../common/AttachmentTiles.vue";
 import { validateBatchSelection, type ShipmentBatch } from "../../domain/shipmentBatches";
 import { useSalesStore } from "../../stores/sales";
 import { fetchSalesProducts, fetchProductCostBatches } from "../../services/productApi";
@@ -21,9 +22,6 @@ import { formatUnitCost, formatCostRange, type SalesProductOption, type ProductC
 import {
   SALES_ATTACHMENT_TYPES,
   attachmentTypeLabel,
-  attachmentTypeOf,
-  keepsUploadSlot,
-  type AttachmentTypeDef,
 } from "../../domain/attachments";
 import {
   orderCustomerName,
@@ -272,17 +270,6 @@ const locked = computed(
     linkedPayments.value.length > 0 ||
     linkedReturns.value.length > 0,
 );
-const availableOrders = computed(() =>
-  store.state.orders.filter(
-    (o) =>
-      o.orderStatus === '执行中' &&
-      o.lines.some(
-        (l) =>
-          remainingQuantity(store.state, o.id, l.id, shipment.value.id) > 0,
-      ) &&
-      [o.name, o.code].join().includes(pickerQuery.value),
-  ),
-);
 const availableProducts = computed(() =>
   productCatalog.value.filter(
     (p) =>
@@ -495,6 +482,7 @@ onMounted(() => {
   void loadCustomers();
   if (isOrder && order.value.code) void loadFinance();
   if (isOrder && order.value.code) void loadAttachments();
+  if (!isOrder) void loadReceiptAttachments();
   if (isOrder && /^\d+$/.test(order.value.customerId))
     void loadCustomerPartCodes(order.value.customerId);
   syncDispatchFont();
@@ -554,6 +542,12 @@ async function save() {
   try {
     if (isOrder) await store.saveOrder(order.value, productCatalog.value);
     else {
+      // 出库不再单独确认：保存即生成正式出库单，未填时间的补当前时间。
+      if (!props.shipment?.confirmed) {
+        shipment.value.confirmed = true;
+        shipment.value.tag = "出库";
+        shipment.value.shippedAt ||= new Date().toLocaleString("sv-SE").slice(0, 16);
+      }
       if (!props.shipment?.confirmed) {
         const stockByProduct = new Map<string, ProductCostBatch[]>();
         const quantities = new Map<string, number>();
@@ -612,6 +606,7 @@ async function close(done?: () => void) {
 }
 
 const attachmentTypes = SALES_ATTACHMENT_TYPES;
+const receiptTypes = SALES_ATTACHMENT_TYPES.filter((type) => type.key === "DELIVERY_RECEIPT");
 // 附件由后端统一存储到 MinIO，列表读取接口数据，不再随订单写本地存档。
 const attachments = ref<Attachment[]>([]),
   attachmentsLoading = ref(false),
@@ -640,16 +635,64 @@ async function loadAttachments() {
     attachmentsLoading.value = false;
   }
 }
-function filesOfAttachmentType(type: string) {
-  return attachments.value.filter((file) => attachmentTypeOf(file) === type);
+// 出库单的客户回签单挂在关联销售订单的“发货回签”类型下，订单附件页可统一查看。
+const receiptAttachments = ref<Attachment[]>([]),
+  receiptLoading = ref(false),
+  receiptError = ref("");
+async function loadReceiptAttachments() {
+  const target = linkedOrder.value;
+  if (isOrder || !target || !/^\d+$/.test(target.id)) return;
+  receiptLoading.value = true;
+  receiptError.value = "";
+  try {
+    const rows = await fetchOrderAttachments("SALES_ORDER", Number(target.id));
+    receiptAttachments.value = rows
+      .filter((item) => item.category === "DELIVERY_RECEIPT")
+      .map(toAttachment);
+  } catch (e) {
+    receiptError.value = e instanceof Error ? e.message : "回签单加载失败";
+  } finally {
+    receiptLoading.value = false;
+  }
 }
-/**
- * 固定类型只有一格：没传时显示加号，传了就不再占位；
- * 可能有多份的类型（回签、对账单、其他）始终保留一个待上传格。
- */
-function canAddAttachment(slot: AttachmentTypeDef) {
-  if (!order.value.code || !/^\d+$/.test(order.value.id)) return false;
-  return keepsUploadSlot(slot) || filesOfAttachmentType(slot.key).length === 0;
+async function uploadReceipt(files: File[]) {
+  const target = linkedOrder.value;
+  if (!files.length || !target || !/^\d+$/.test(target.id)) return;
+  let uploaded = 0;
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning(`${file.name} 超过 10MB，未上传`);
+      continue;
+    }
+    try {
+      await uploadOrderAttachment("SALES_ORDER", Number(target.id), "DELIVERY_RECEIPT", file);
+      uploaded++;
+    } catch (e) {
+      ElMessage.error(`${file.name}：${(e as Error).message}`);
+    }
+  }
+  if (!uploaded) return;
+  await loadReceiptAttachments();
+  ElMessage.success("回签单已上传");
+}
+async function removeReceipt(file: Attachment) {
+  if (!file.id) return;
+  try {
+    await ElMessageBox.confirm(`确认删除回签单「${file.name}」？`, "删除回签单", {
+      confirmButtonText: "删除",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
+  } catch {
+    return;
+  }
+  try {
+    await deleteOrderAttachment(file.id);
+    await loadReceiptAttachments();
+    ElMessage.success("回签单已删除");
+  } catch (e) {
+    ElMessage.error((e as Error).message);
+  }
 }
 /** 删除附件：后端软删除并重新编号，列表随后刷新。 */
 async function removeAttachment(file: Attachment) {
@@ -672,10 +715,7 @@ async function removeAttachment(file: Attachment) {
   }
 }
 /** 上传到后端；统一命名和同类编号由服务端完成。 */
-async function uploadAttachment(event: Event, type: string) {
-  const input = event.target as HTMLInputElement;
-  const files = Array.from(input.files || []);
-  input.value = "";
+async function uploadAttachment(files: File[], type: string) {
   if (!files.length) return;
   if (!order.value.code || !/^\d+$/.test(order.value.id)) {
     ElMessage.warning("请先保存订单后再上传附件");
@@ -852,28 +892,17 @@ function quickFill() {
         :class="{ 'sales-order-info': isOrder }"
         :disabled="view"
       >
-        <el-form-item :label="isOrder ? '客户名称' : '选择销售订单'" required
+        <el-form-item v-if="isOrder" label="客户名称" required
           ><el-button
             class="purchase-picker-button"
-            :disabled="!isOrder && !!shipment.code"
-            @click="openPicker(isOrder ? 'customer' : 'order')"
-            >{{
-              isOrder
-                ? orderCustomerName(order) || "选择或填写客户名称"
-                : linkedOrder?.name || "选择数据"
-            }}</el-button
+            @click="openPicker('customer')"
+            >{{ orderCustomerName(order) || "选择或填写客户名称" }}</el-button
           ></el-form-item
         >
-        <template v-if="!isOrder"
-          ><el-form-item label="销售订单名称"
-            ><div class="purchase-read">
-              {{ linkedOrder?.name || "暂无内容" }}
-            </div></el-form-item
-          ><el-form-item label="销售订单编号"
-            ><div class="purchase-read">
-              {{ linkedOrder?.code || "暂无内容" }}
-            </div></el-form-item
-          ></template
+        <el-form-item v-else label="销售订单编号"
+          ><div class="purchase-read">
+            {{ linkedOrder?.code || "—" }}
+          </div></el-form-item
         >
         <template v-for="[label, value] in baseFields" :key="label">
 
@@ -899,24 +928,6 @@ function quickFill() {
           /></el-form-item>
         </template>
         <el-form-item v-if="isOrder" label="客户采购单号"><el-input v-model="order.purchaseNumber" aria-label="客户采购单号" maxlength="80" placeholder="填写客户提供的采购单号" /></el-form-item>
-        <el-form-item v-if="!isOrder" label="销售负责人">
-          <div class="purchase-read">{{ linkedOrder?.owner || "暂无内容" }}</div>
-        </el-form-item>
-        <el-form-item v-if="!isOrder" label="销售归属部门"
-          ><el-select
-            v-if="isOrder"
-            v-model="order.department"
-            filterable
-            allow-create
-            ><el-option
-              v-for="n in ['销售部', '业务部', '生产部', '市场部']"
-              :key="n"
-              :value="n"
-          /></el-select>
-          <div v-else class="purchase-read">
-            {{ linkedOrder?.department || "暂无内容" }}
-          </div></el-form-item
-        >
         <el-form-item :label="isOrder ? '销售订单编号' : '产品出库单编号'"
           ><div class="purchase-read">
             {{ (isOrder ? order.code : shipment.code) || "自动生成无需填写" }}
@@ -940,25 +951,6 @@ function quickFill() {
           </el-radio-group>
         </div>
       </div>
-      <el-form v-if="!isOrder && !props.dispatch" label-position="top">
-        <el-form-item label="出库仓库"><div class="purchase-read">{{ shipment.warehouse || "选择订单后自动带入" }}</div></el-form-item>
-      </el-form>
-      <el-form
-        v-if="!isOrder && !props.dispatch"
-        label-position="top"
-        :disabled="view || !!props.shipment?.confirmed"
-      >
-        <el-form-item label="产品出库标签" required
-          ><el-radio-group v-model="shipment.tag" aria-label="产品出库标签"
-            ><el-radio-button
-              v-for="tag in ['出库', '库存冻结', '计划出库']"
-              :key="tag"
-              :value="tag"
-              >{{ tag }}</el-radio-button
-            ></el-radio-group
-          ></el-form-item
-        >
-      </el-form>
       <el-table v-if="isOrder" :data="order.lines" border class="purchase-lines sales-order-products" empty-text="点击“添加”选择销售产品">
         <el-table-column type="index" width="45" />
         <el-table-column label="型号" min-width="105" show-overflow-tooltip>
@@ -987,7 +979,7 @@ function quickFill() {
         :data="shipment.lines"
         border
         class="purchase-lines"
-        empty-text="请先选择销售订单"
+        empty-text="暂无产品明细"
       >
         <el-table-column type="index" width="45" /><el-table-column
           label="产品名称"
@@ -1035,14 +1027,6 @@ function quickFill() {
         <el-table-column label="发货批次" width="140"><template #default="{row}">
           <el-tooltip :content="batchDescription(row)" placement="top"><el-button link type="primary" :disabled="view || !!props.shipment?.confirmed" @click="batchLineId = row.lineId">{{ row.batches?.length ? `已选 ${row.batches.length} 个批次` : '选择批次' }}</el-button></el-tooltip>
         </template></el-table-column>
-        <el-table-column label="出库仓位" width="145"
-          ><template #default="{ row }"
-            ><el-input
-              v-model="row.location"
-              :disabled="view || !!props.shipment?.confirmed"
-              placeholder="如 HZ-A01"
-              aria-label="出库仓位" /></template
-        ></el-table-column>
         <el-table-column label="备注" min-width="200">
           <template #default="{ row }">
             <el-input v-model="row.remark" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" :disabled="view || !!props.shipment?.confirmed" maxlength="200" placeholder="填写本产品发货备注" aria-label="产品备注" />
@@ -1155,10 +1139,6 @@ function quickFill() {
           >
         </template>
         <template v-else
-          ><el-form-item label="出库产品总数"
-            ><div class="purchase-read">
-              {{ shippedTotals.quantity }}
-            </div></el-form-item
           ><el-form-item label="出库产品销售价总额(含税)/元"
             ><div class="purchase-read">
               {{ money(shippedTotals.total) }}
@@ -1194,49 +1174,14 @@ function quickFill() {
             <p class="purchase-tip">
               上传后由服务端统一命名为「订单号_类型_客户_日期_序号」，单个文件不超过 10MB。
             </p>
-            <div v-loading="attachmentsLoading" class="attachment-tile-grid">
-              <template v-for="slot in attachmentTypes" :key="slot.key">
-                <div
-                  v-for="file in filesOfAttachmentType(slot.key)"
-                  :key="file.id ?? slot.key + '-' + file.name"
-                  class="attachment-tile attachment-tile-doc"
-                  :title="file.name"
-                >
-                  <span class="attachment-tile-type">{{ slot.label }}</span>
-                  <button
-                    type="button"
-                    class="attachment-tile-remove"
-                    aria-label="移除附件"
-                    @click.stop="removeAttachment(file)"
-                  >
-                    ×
-                  </button>
-                  <a
-                    class="attachment-tile-body"
-                    :href="file.url"
-                    :download="file.name"
-                    :aria-label="'下载 ' + file.name"
-                  >
-                    <el-icon class="attachment-tile-icon"><Document /></el-icon>
-                    <span class="attachment-tile-name">{{ file.name }}</span>
-                  </a>
-                </div>
-                <label
-                  v-if="canAddAttachment(slot)"
-                  class="attachment-tile attachment-tile-add"
-                  :title="'上传' + slot.label"
-                  :aria-label="slot.label + '上传'"
-                >
-                  <span class="attachment-tile-type">{{ slot.label }}</span>
-                  <el-icon><Plus /></el-icon>
-                  <input
-                    type="file"
-                    :multiple="keepsUploadSlot(slot)"
-                    @change="uploadAttachment($event, slot.key)"
-                  />
-                </label>
-              </template>
-            </div>
+            <AttachmentTiles
+              :attachments="attachments"
+              :types="attachmentTypes"
+              :loading="attachmentsLoading"
+              :error="attachmentError"
+              @upload="uploadAttachment"
+              @remove="removeAttachment"
+            />
           </div>
         </template>
         <template v-else-if="tab === '产品出库'">
@@ -1319,57 +1264,36 @@ function quickFill() {
       <template v-else>
         <h3 class="purchase-section">发货信息</h3>
         <ShipmentShippingForm v-model="shippingInfo" :required="shipment.confirmed" :disabled="view || !!props.shipment?.confirmed" @change="dirty = true" />
-        <DeliveryNoteActions :order="linkedOrder" :orders="linkedOrders" :shipment="printableShipment" :draft="!shipment.code || !shipment.confirmed" />
-        <h3 class="purchase-section">出库确认</h3>
-        <el-form
-          label-position="top"
-          class="purchase-form-grid"
-          :disabled="view"
-        >
-          <el-form-item label="产品出库确认" required
-            ><el-checkbox
-              v-model="shipment.confirmed"
-              :disabled="props.dispatch || !!props.shipment?.confirmed || shipment.tag !== '出库'"
-              aria-label="产品出库确认"
-              >确认</el-checkbox
-            ></el-form-item
+        <div class="shipment-photos">
+          <div class="shipment-photos-head">
+            <strong>发货照片</strong>
+            <label
+              v-if="!view && !props.shipment?.confirmed"
+              class="purchase-import-file"
+              >上传照片<input
+                type="file"
+                accept="image/*"
+                multiple
+                aria-label="发货照片"
+                @change="attachImages"
+            /></label>
+          </div>
+          <p v-if="!shipment.photos.length" class="purchase-tip">暂无发货照片</p>
+          <div
+            v-for="(file, i) in shipment.photos"
+            :key="i"
+            class="purchase-attachment"
           >
-          <el-form-item label="出库时间" :required="shipment.confirmed"
-            ><el-date-picker
-              v-model="shipment.shippedAt"
-              type="datetime"
-              value-format="YYYY-MM-DD HH:mm"
-              :disabled="!!props.shipment?.confirmed"
-              aria-label="出库时间"
-          /></el-form-item>
-          <el-form-item label="出库员"
-            ><el-input
-              v-model="shipment.keeper"
-              :disabled="!!props.shipment?.confirmed"
-          /></el-form-item>
-        </el-form>
-        <h3 class="purchase-section">拍照</h3>
-        <input
-          v-if="!view && !props.shipment?.confirmed"
-          type="file"
-          accept="image/*"
-          multiple
-          aria-label="出库照片"
-          @change="attachImages"
-        />
-        <div
-          v-for="(file, i) in shipment.photos"
-          :key="i"
-          class="purchase-attachment"
-        >
-          <a :href="file.url" :download="file.name">{{ file.name }}</a
-          ><el-button
-            v-if="!view && !props.shipment?.confirmed"
-            text
-            @click="shipment.photos.splice(i, 1)"
-            >移除</el-button
-          >
+            <a :href="file.url" :download="file.name">{{ file.name }}</a>
+            <el-button
+              v-if="!view && !props.shipment?.confirmed"
+              text
+              @click="shipment.photos.splice(i, 1)"
+              >移除</el-button
+            >
+          </div>
         </div>
+        <DeliveryNoteActions :order="linkedOrder" :orders="linkedOrders" :shipment="printableShipment" :draft="!shipment.code || !shipment.confirmed" />
         <h3 class="purchase-section">收货确认</h3>
         <el-form
           label-position="top"
@@ -1391,9 +1315,25 @@ function quickFill() {
               v-model="shipment.customerReceivedAt"
               type="datetime"
               value-format="YYYY-MM-DD HH:mm"
+              :disabled="!shipment.confirmed"
               aria-label="收货确认时间"
           /></el-form-item>
         </el-form>
+        <div v-if="shipment.code || props.shipment" class="shipment-receipt">
+          <div class="shipment-receipt-head">
+            <strong>回签单</strong>
+          </div>
+          <AttachmentTiles
+            :attachments="receiptAttachments"
+            :types="receiptTypes"
+            :loading="receiptLoading"
+            :error="receiptError"
+            :uploadable="!view && !!linkedOrder"
+            :removable="!view"
+            @upload="uploadReceipt"
+            @remove="removeReceipt"
+          />
+        </div>
       </template>
     </div>
     <template #footer
@@ -1416,13 +1356,7 @@ function quickFill() {
   </el-dialog>
   <el-dialog
     :model-value="!!picker"
-    :title="
-      picker === 'customer'
-        ? '选择客户'
-        : picker === 'product'
-          ? '选择产品'
-          : '选择销售订单'
-    "
+    :title="picker === 'product' ? '选择产品' : '选择客户'"
     :width="picker === 'product' ? 'min(1000px,94vw)' : 'min(880px,94vw)'"
     append-to-body
     class="purchase-dialog"
@@ -1430,7 +1364,7 @@ function quickFill() {
   >
     <el-input
       v-model="pickerQuery"
-      :placeholder="picker === 'customer' ? '搜索客户名称、简称、联系人或手机' : picker === 'product' ? '搜索品牌、型号、封装或产品ID' : '搜索销售订单'"
+      :placeholder="picker === 'customer' ? '搜索客户名称、简称、联系人或手机' : '搜索品牌、型号、封装或产品ID'"
       clearable
       class="purchase-picker-search"
     />
@@ -1462,32 +1396,6 @@ function quickFill() {
       /><el-table-column width="80"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="chooseCustomer(row.id)"
-            >选择</el-button
-          ></template
-        ></el-table-column
-      ></el-table
-    >
-    <el-table
-      v-else-if="picker === 'order'"
-      :data="availableOrders"
-      border
-      max-height="420"
-      ><el-table-column
-        prop="name"
-        label="销售订单名称"
-        min-width="230"
-      /><el-table-column
-        prop="code"
-        label="订单编号"
-        min-width="140"
-        show-overflow-tooltip
-      /><el-table-column
-        prop="warehouse"
-        label="出库仓库"
-        width="100"
-      /><el-table-column width="80"
-        ><template #default="{ row }"
-          ><el-button link type="primary" @click="chooseOrder(row)"
             >选择</el-button
           ></template
         ></el-table-column

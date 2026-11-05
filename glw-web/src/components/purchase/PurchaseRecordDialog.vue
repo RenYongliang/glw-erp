@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Document, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
+import AttachmentTiles from '../common/AttachmentTiles.vue'
 import { usePurchaseStore } from '../../stores/purchase'
 import { useAuthStore } from '../../stores/auth'
 import { fetchSuppliers } from '../../services/supplierApi'
@@ -17,9 +18,6 @@ import {
 import {
   PURCHASE_ATTACHMENT_TYPES,
   attachmentTypeLabel,
-  attachmentTypeOf,
-  keepsUploadSlot,
-  type AttachmentTypeDef,
 } from '../../domain/attachments'
 import {
   purchaseSupplierName,
@@ -453,17 +451,6 @@ async function loadAttachments() {
     attachmentsLoading.value = false
   }
 }
-function filesOfAttachmentType(type: string) {
-  return attachments.value.filter((file) => attachmentTypeOf(file) === type)
-}
-/**
- * 固定类型只有一格：没传时显示加号，传了就不再占位；
- * 可能有多份的类型（回签、发票、其他）始终保留一个待上传格。
- */
-function canAddAttachment(slot: AttachmentTypeDef) {
-  if (!order.value.code || !/^\d+$/.test(order.value.id)) return false
-  return keepsUploadSlot(slot) || filesOfAttachmentType(slot.key).length === 0
-}
 /** 删除附件：后端软删除并重新编号，列表随后刷新。 */
 async function removeAttachment(file: Attachment) {
   if (!file.id) return
@@ -485,10 +472,7 @@ async function removeAttachment(file: Attachment) {
   }
 }
 /** 上传到后端；统一命名和同类编号由服务端完成。 */
-async function uploadAttachment(event: Event, type: string) {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files || [])
-  input.value = ''
+async function uploadAttachment(files: File[], type: string) {
   if (!files.length) return
   if (!order.value.code || !/^\d+$/.test(order.value.id)) {
     ElMessage.warning('请先保存订单后再上传附件')
@@ -876,49 +860,14 @@ function quickFill() {
           <p class="purchase-tip">
             上传后由服务端统一命名为「单据号_类型_供应商_日期_序号」，单个文件不超过 10MB。
           </p>
-          <div v-loading="attachmentsLoading" class="attachment-tile-grid">
-            <template v-for="slot in attachmentTypes" :key="slot.key">
-              <div
-                v-for="file in filesOfAttachmentType(slot.key)"
-                :key="file.id ?? slot.key + '-' + file.name"
-                class="attachment-tile attachment-tile-doc"
-                :title="file.name"
-              >
-                <span class="attachment-tile-type">{{ slot.label }}</span>
-                <button
-                  type="button"
-                  class="attachment-tile-remove"
-                  aria-label="移除附件"
-                  @click.stop="removeAttachment(file)"
-                >
-                  ×
-                </button>
-                <a
-                  class="attachment-tile-body"
-                  :href="file.url"
-                  :download="file.name"
-                  :aria-label="'下载 ' + file.name"
-                >
-                  <el-icon class="attachment-tile-icon"><Document /></el-icon>
-                  <span class="attachment-tile-name">{{ file.name }}</span>
-                </a>
-              </div>
-              <label
-                v-if="canAddAttachment(slot)"
-                class="attachment-tile attachment-tile-add"
-                :title="'上传' + slot.label"
-                :aria-label="slot.label + '上传'"
-              >
-                <span class="attachment-tile-type">{{ slot.label }}</span>
-                <el-icon><Plus /></el-icon>
-                <input
-                  type="file"
-                  :multiple="keepsUploadSlot(slot)"
-                  @change="uploadAttachment($event, slot.key)"
-                />
-              </label>
-            </template>
-          </div>
+          <AttachmentTiles
+            :attachments="attachments"
+            :types="attachmentTypes"
+            :loading="attachmentsLoading"
+            :error="attachmentError"
+            @upload="uploadAttachment"
+            @remove="removeAttachment"
+          />
         </template>
         <template v-else-if="tab === '产品入库'"
           ><el-table :data="linkedReceipts" border empty-text="暂无入库记录"
