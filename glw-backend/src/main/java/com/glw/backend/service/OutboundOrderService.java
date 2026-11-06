@@ -19,4 +19,10 @@ public interface OutboundOrderService extends IService<OutboundOrder> {
 
     /** 登记客户签收日期，并同步应收记录的账单月归属。 */
     List<OutboundOrderVO> signOutboundOrders(OutboundOrderSignDTO signDTO);
+
+    /** 撤销出库单：回补库存、作废未生效应收并回滚销售订单发货状态。 */
+    void reverseOutboundOrder(Long id);
+
+    /** 修改已出库单的收货与物流快照，不影响库存和应收。 */
+    void updateShipping(Long id, com.glw.backend.model.dto.OutboundShippingDTO shipping);
 }

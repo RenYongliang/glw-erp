@@ -239,6 +239,18 @@ export async function createPurchaseOrder(order: PurchaseOrder) {
   })
 }
 
+export async function reverseInboundOrder(id: string) {
+  await apiRequest<unknown>(`/inbound-order/${encodeURIComponent(id)}/reverse`, {
+    method: 'POST',
+  })
+}
+
+export async function cancelPurchaseOrder(id: string) {
+  await apiRequest<unknown>(`/purchase-order/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+  })
+}
+
 export async function updatePurchaseOrder(order: PurchaseOrder) {
   await apiRequest<unknown>(`/purchase-order/${order.id}`, {
     method: 'PUT',

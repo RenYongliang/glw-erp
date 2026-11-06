@@ -8,7 +8,7 @@ import {
   Plus,
   Upload,
   Download,
-  Delete,
+  TakeawayBox,
   Clock,
   Search,
   Filter,
@@ -18,6 +18,9 @@ import {
   Operation,
   FullScreen,
   Document,
+  Money,
+  RefreshLeft,
+  CircleCloseFilled,
 } from '@element-plus/icons-vue'
 import PurchaseRecordDialog from '../components/purchase/PurchaseRecordDialog.vue'
 import InboundReceiptDialog from '../components/purchase/InboundReceiptDialog.vue'
@@ -35,6 +38,7 @@ import {
   orderTotals,
   receiptTotals,
   receiptOrders,
+  receiptMatchesOrder,
   receiptProducts,
   receiptLineQuantity,
   returnableQuantity,
@@ -64,7 +68,6 @@ const tab = ref(tabs[0]!),
   filterValue = ref(''),
   grouped = ref(true),
   collapsed = ref<string[]>([]),
-  selected = ref<string[]>([]),
   sortKey = ref(''),
   sortDirection = ref('asc'),
   hidden = ref<string[]>([]),
@@ -85,7 +88,6 @@ function openFilters() {
 function applyOrderFilters() {
   orderFilters.value = JSON.parse(JSON.stringify(draftFilters.value))
   orderFilterOpen.value = false
-  selected.value = []
   collapsed.value = []
 }
 const groupMode = ref<'month' | 'supplier' | 'none'>('month')
@@ -93,7 +95,6 @@ function changeGrouping(mode: 'month' | 'supplier' | 'none') {
   groupMode.value = mode
   grouped.value = mode !== 'none'
   collapsed.value = []
-  selected.value = []
 }
 const editor = ref(false),
   editorKind = ref<PurchaseKind>(props.kind),
@@ -287,23 +288,11 @@ const allGroups = computed(() => {
 })
 const paginationSource = computed(() => allGroups.value.flatMap(group => group.rows));
 const { page, pageSize, pageRows } = useListPagination(paginationSource);
-watch([page, pageSize], () => { selected.value = []; collapsed.value = []; });
+watch([page, pageSize], () => { collapsed.value = []; });
 const groups = computed(() => {
   const visible = new Set(pageRows.value.map(row => row.id));
   return allGroups.value.map(group => ({ ...group, rows: group.rows.filter(row => visible.has(row.id)) })).filter(group => group.rows.length);
 });
-const allSelected = computed(
-  () => !!pageRows.value.length && pageRows.value.every((r) => selected.value.includes(r.id)),
-)
-watch(
-  [tab, keyword, filterOpen, filterKey, filterValue, filterOperator, orderFilters],
-  () => (selected.value = []),
-)
-function selectRows(rows: TableRow[], checked: boolean) {
-  selected.value = checked
-    ? [...new Set([...selected.value, ...rows.map((r) => r.id)])]
-    : selected.value.filter((id) => !rows.some((r) => r.id === id))
-}
 function toggleGroup(name: string) {
   collapsed.value = collapsed.value.includes(name)
     ? collapsed.value.filter((n) => n !== name)
@@ -323,6 +312,48 @@ function open(row?: TableRow, read = false) {
   editorVersion.value++
   editor.value = true
 }
+function canCancelOrder(order: PurchaseOrder) {
+  return (
+    order.orderStatus === '执行中' &&
+    !store.state.receipts.some((r) => receiptMatchesOrder(r, order.id)) &&
+    !store.state.payments.some((p) => p.orderId === order.id) &&
+    !store.state.returns.some((r) => r.orderId === order.id)
+  )
+}
+async function reverseReceipt(receipt: PurchaseReceipt) {
+  try {
+    await ElMessageBox.confirm(
+      `确认撤销入库单 ${receipt.code}？库存将扣回，相关应付一并删除；未确认的对账单会同步作废。`,
+      '撤销入库',
+      { confirmButtonText: '撤销', cancelButtonText: '返回', type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await store.reverseReceipt(receipt.id)
+    ElMessage.success('入库单已撤销')
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+async function cancelOrder(order: PurchaseOrder) {
+  try {
+    await ElMessageBox.confirm(
+      `确认取消订单 ${order.code}？取消后不会再生成入库单。`,
+      '取消订单',
+      { confirmButtonText: '确认取消', cancelButtonText: '返回', type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await store.cancelOrder(order.id)
+    ElMessage.success('订单已取消')
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
 function receive(order: PurchaseOrder) {
   scopeOrder.value = undefined
   editor.value = false
@@ -340,26 +371,9 @@ function openAllocation(row: TableRow, order: PurchaseOrder) {
 }
 function saved() {
   editor.value = false
-  selected.value = []
-}
-async function remove() {
-  if (!selected.value.length) return ElMessage.info('请先选择需要删除的数据')
-  try {
-    await ElMessageBox.confirm(`确定删除选中的 ${selected.value.length} 条数据吗？`, '删除数据', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
-    store.remove(props.kind, selected.value)
-    selected.value = []
-    ElMessage.success('已删除')
-  } catch (e) {
-    if (e instanceof Error) ElMessage.error(e.message)
-  }
 }
 async function refresh(showSuccess = false) {
   await store.load()
-  selected.value = []
   if (store.loadError) ElMessage.warning(store.loadError)
   else if (showSuccess) ElMessage.success('数据已刷新')
 }
@@ -426,7 +440,7 @@ async function exportData() {
   try {
     await downloadExport(isOrder ? 'purchase-orders' : 'inbound-orders', {
       keyword: keyword.value, tab: tab.value, purchase: orderFilters.value,
-      selectedIds: selected.value.map(Number), columns: shownColumns.value.map(c => c.key),
+      selectedIds: [], columns: shownColumns.value.map(c => c.key),
       sortKey: sortKey.value, sortDirection: sortDirection.value,
       filterOpen: filterOpen.value, filterKey: filterKey.value,
       filterOperator: filterOperator.value, filterValue: filterValue.value,
@@ -648,7 +662,6 @@ function confirmImport() {
           "
           >导入</el-button
         ><el-button text :icon="Download" :loading="exporting" :disabled="store.loading || !!store.loadError" @click="exportData">导出</el-button
-        ><el-button text :icon="Delete" @click="remove">删除</el-button
         >
       </div>
       <div class="purchase-toolbar-search">
@@ -698,7 +711,7 @@ function confirmImport() {
         />
       </div>
     </div>
-    <div v-if="isOrder && activeFilterCount" class="purchase-active-filters"><span>已应用 {{ activeFilterCount }} 项筛选条件</span><el-button text type="primary" @click="orderFilters = emptyPurchaseOrderFilters(); selected = []; collapsed = []">清空筛选</el-button></div>
+    <div v-if="isOrder && activeFilterCount" class="purchase-active-filters"><span>已应用 {{ activeFilterCount }} 项筛选条件</span><el-button text type="primary" @click="orderFilters = emptyPurchaseOrderFilters(); collapsed = []">清空筛选</el-button></div>
     <div v-if="!isOrder && filterOpen" class="purchase-filters">
       <el-select v-model="filterKey" aria-label="筛选字段"
         ><el-option v-for="c in columns" :key="c.key" :value="c.key" :label="c.label" /></el-select
@@ -730,14 +743,11 @@ function confirmImport() {
       <table class="purchase-table">
         <thead class="purchase-order-head">
           <tr>
-            <th class="purchase-selection" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">
-              <el-checkbox :model-value="allSelected" :indeterminate="selected.length > 0 && !allSelected" aria-label="选择全部采购数据" @change="selectRows(pageRows, !!$event)" />
-            </th>
             <template v-for="c in shownColumns" :key="c.key">
               <th v-if="!productKeys.includes(c.key)" :class="{ 'purchase-supplier-compact': c.key === 'supplier', 'purchase-code-compact': ['code', 'orderCode'].includes(c.key) }" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1" :style="{minWidth: c.key === 'supplier' ? 'auto' : ['code','orderCode'].includes(c.key) ? '140px' : c.key === 'phone' ? '150px' : '120px'}">{{ c.label }}</th>
               <th v-else-if="c.key === shownColumns.find(c => productKeys.includes(c.key))?.key" :colspan="shownColumns.filter(c => productKeys.includes(c.key)).length" class="purchase-product-heading">{{ isOrder ? "采购产品明细" : "入库产品明细" }}</th>
             </template>
-            <th v-if="isOrder" class="purchase-fixed-actions" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">操作</th>
+            <th class="purchase-fixed-actions" :class="{ 'purchase-order-actions': isOrder, 'purchase-receipt-actions': !isOrder }" :rowspan="shownColumns.some(c => productKeys.includes(c.key)) ? 2 : 1">操作</th>
           </tr>
           <tr v-if="shownColumns.some(c => productKeys.includes(c.key))">
             <th v-for="c in shownColumns.filter(c => productKeys.includes(c.key))" :key="c.key" :class="{ 'purchase-packaging-compact': c.key === 'models' }" :style="{minWidth: c.key === 'brands' ? '65px' : c.key === 'models' ? '160px' : c.key === 'productNames' ? '85px' : c.key === 'remarks' ? '190px' : '120px'}">{{ c.label }}</th>
@@ -746,18 +756,7 @@ function confirmImport() {
         <tbody>
           <template v-for="group in groups" :key="group.name">
             <tr v-if="grouped" class="purchase-group">
-              <td>
-                <el-checkbox
-                  :model-value="group.rows.every((r) => selected.includes(r.id))"
-                  :indeterminate="
-                    group.rows.some((r) => selected.includes(r.id)) &&
-                    !group.rows.every((r) => selected.includes(r.id))
-                  "
-                  :aria-label="'选择分组 ' + group.name"
-                  @change="selectRows(group.rows, !!$event)"
-                />
-              </td>
-              <td :colspan="shownColumns.length + (isOrder ? 1 : 0)">
+              <td :colspan="shownColumns.length + 1">
                 <button
                   :aria-expanded="!collapsed.includes(group.name)"
                   @click="toggleGroup(group.name)"
@@ -771,16 +770,8 @@ function confirmImport() {
               ><tr
                 v-for="row in group.rows"
                 :key="row.id"
-                :class="{ selected: selected.includes(row.id) }"
                 @dblclick="open(row, true)"
               >
-                <td class="purchase-selection">
-                  <el-checkbox
-                    :model-value="selected.includes(row.id)"
-                    :aria-label="'选择 ' + row.values.code"
-                    @change="selectRows([row], !!$event)"
-                  />
-                </td>
                 <td
                   v-for="c in shownColumns"
                   :key="c.key"
@@ -835,30 +826,42 @@ function confirmImport() {
                     >{{ row.values[c.key] }}</el-tag
                   ><span v-else>{{ display(row, c.key) || '—' }}</span>
                 </td>
-                <td v-if="isOrder" class="purchase-fixed-actions">
-                  <el-button
-                    class="purchase-pay"
-                    size="small"
-                    plain
-                    :disabled="row.order?.orderStatus !== '执行中'"
-                    @click="business(row.order!, '付款')"
-                    >付款</el-button
-                  ><el-button
-                    class="purchase-receive"
-                    size="small"
-                    plain
-                    :disabled="
-                      !row.order?.lines.some((l) => pendingDeliveryQuantity(row.order!, l, store.state.receipts) > 0)
-                    "
-                    @click="receive(row.order!)"
-                    >入库</el-button
-                  >
+                <td class="purchase-fixed-actions" :class="{ 'purchase-order-actions': isOrder, 'purchase-receipt-actions': !isOrder }">
+                  <template v-if="isOrder">
+                    <el-tooltip content="付款" placement="top">
+                      <span class="action-icon">
+                        <el-button class="action-icon-btn purchase-pay-icon" circle text :icon="Money"
+                          aria-label="付款" :disabled="row.order?.orderStatus !== '执行中'"
+                          @click="business(row.order!, '付款')" />
+                      </span>
+                    </el-tooltip>
+                    <el-tooltip content="入库" placement="top">
+                      <span class="action-icon">
+                        <el-button class="action-icon-btn purchase-receive-icon" circle text :icon="TakeawayBox" aria-label="入库"
+                          :disabled="row.order?.orderStatus !== '执行中' || !row.order?.lines.some((l) => pendingDeliveryQuantity(row.order!, l, store.state.receipts) > 0)"
+                          @click="receive(row.order!)" />
+                      </span>
+                    </el-tooltip>
+                    <el-tooltip content="取消订单" placement="top">
+                      <span class="action-icon">
+                        <el-button class="action-icon-btn purchase-cancel-icon" circle text :icon="CircleCloseFilled"
+                          aria-label="取消订单" :disabled="!canCancelOrder(row.order!)" @click="cancelOrder(row.order!)" />
+                      </span>
+                    </el-tooltip>
+                  </template>
+                  <el-tooltip v-else content="撤销入库" placement="top">
+                    <span class="action-icon">
+                      <el-button class="action-icon-btn purchase-reverse-icon" circle text :icon="RefreshLeft"
+                        aria-label="撤销入库" :disabled="!row.receipt?.confirmed"
+                        @click="row.receipt && reverseReceipt(row.receipt)" />
+                    </span>
+                  </el-tooltip>
                 </td>
               </tr></template
             >
           </template>
           <tr v-if="!filtered.length">
-            <td :colspan="shownColumns.length + (isOrder ? 2 : 1)">
+            <td :colspan="shownColumns.length + 1">
               <el-empty description="暂无符合条件的数据" />
             </td>
           </tr>
@@ -866,8 +869,7 @@ function confirmImport() {
       </table>
     </div>
     <footer class="purchase-table-footer">
-      <span v-if="selected.length">已选择 {{ selected.length }} 条</span
-      ><el-button v-if="grouped" text @click="collapsed = []">⌄ 展开全部</el-button
+<el-button v-if="grouped" text @click="collapsed = []">⌄ 展开全部</el-button
       ><el-button v-if="grouped" text @click="collapsed = groups.map((g) => g.name)"
         >⌃ 收起全部</el-button
       ><span class="purchase-footer-hint">单击名称查看详情</span>
@@ -1019,9 +1021,6 @@ function confirmImport() {
 }
 .purchase-table tbody > tr:nth-child(even of :not(.purchase-group)):hover > td {
   background: #f4fbfa;
-}
-.purchase-table tbody tr.selected td {
-  background: #eaf8f4;
 }
 </style>
 

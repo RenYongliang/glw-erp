@@ -7,6 +7,8 @@ import com.glw.backend.finance.FinanceModels.Query;
 import com.glw.backend.finance.FinanceModels.Page;
 import com.glw.backend.finance.FinanceModels.OpenItem;
 import com.glw.backend.finance.FinanceModels.Summary;
+import com.glw.backend.common.BusinessException;
+import com.glw.backend.common.ErrorCode;
 import com.glw.backend.mapper.FinProfileMapper;
 import com.glw.backend.mapper.FinOpenItemMapper;
 import com.glw.backend.model.entity.FinOpenItem;
@@ -113,6 +115,26 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
             }
         }
         BillingCalendar.applyItem(item, profile);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    @Override
+    public int discard(String direction, Long sourceId) {
+        lockService.lock();
+        String sourceType = "AP".equals(direction) ? "INBOUND" : "OUTBOUND";
+        List<FinOpenItem> items = lambdaQuery()
+                .eq(FinOpenItem::getSourceType, sourceType)
+                .eq(FinOpenItem::getSourceId, sourceId)
+                .list();
+        for (FinOpenItem item : items) {
+            boolean settled = item.getSettledAmount() != null && item.getSettledAmount().signum() > 0;
+            if (item.getStatementId() != null || settled || !"OPEN".equals(item.getReconcileStatus())) {
+                throw new BusinessException(ErrorCode.CONFLICT, "财务记录已进入对账单或已核销，不能撤销");
+            }
+        }
+        if (items.isEmpty()) return 0;
+        removeByIds(items.stream().map(FinOpenItem::getId).toList());
+        return items.size();
     }
 
     @Override

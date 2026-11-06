@@ -106,6 +106,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     public SalesOrderVO updateSalesOrder(Long id, SalesOrderCreateDTO createDTO) {
         SalesOrder order = getById(id);
         if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "销售订单不存在");
+        if (order.getOrderStatus() == SalesOrderStatus.CANCELLED)
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已取消的销售订单不能修改");
         if (createDTO.getVersion() != null && !createDTO.getVersion().equals(order.getVersion()))
             throw new BusinessException(ErrorCode.CONFLICT, "销售订单已发生变化，请刷新后重试");
         if (outboundOrderItemAllocMapper.selectCount(Wrappers.<OutboundOrderItemAlloc>lambdaQuery()
@@ -315,6 +317,37 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
                     }).toList()));
         }
         return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelOrder(Long orderId) {
+        SalesOrder order = getById(orderId);
+        if (order == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "销售订单不存在");
+        }
+        if (order.getOrderStatus() == SalesOrderStatus.CANCELLED) return;
+        if (order.getOrderStatus() == SalesOrderStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已完结的销售订单不能取消");
+        }
+        long outbound = outboundOrderItemAllocMapper.selectCount(
+                Wrappers.<OutboundOrderItemAlloc>lambdaQuery()
+                        .eq(OutboundOrderItemAlloc::getSalesOrderId, orderId));
+        if (outbound > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "订单已有出库记录，请先撤销出库");
+        }
+        List<SalesOrderItem> items = salesOrderItemService.lambdaQuery()
+                .eq(SalesOrderItem::getSalesOrderId, orderId)
+                .list();
+        for (SalesOrderItem item : items) {
+            item.setCancelledQuantity(item.getQuantity());
+            salesOrderItemService.updateById(item);
+        }
+        order.setOrderStatus(SalesOrderStatus.CANCELLED);
+        order.setDeliveryStatus(SalesDeliveryStatus.PENDING_SHIPMENT);
+        if (!updateById(order)) {
+            throw new BusinessException(ErrorCode.CONFLICT, "销售订单已发生变化，请刷新后重试");
+        }
     }
 
     @Override

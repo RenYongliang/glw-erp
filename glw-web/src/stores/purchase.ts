@@ -15,10 +15,12 @@ import {
   type PurchaseReturn,
 } from '../domain/purchase'
 import {
+  cancelPurchaseOrder,
   createInboundOrder,
   createPurchaseOrder,
   fetchInboundOrders,
   fetchPurchaseOrders,
+  reverseInboundOrder,
   updatePurchaseOrder,
 } from '../services/purchaseApi'
 
@@ -83,6 +85,18 @@ export const usePurchaseStore = defineStore('purchase', () => {
     // 以服务端数据为准刷新列表，确保拿到后端订单号和状态。
     await load()
   }
+  /** 撤销已入库单，后端会扣回库存并作废未生效应付。 */
+  async function reverseReceipt(id: string) {
+    await reverseInboundOrder(id)
+    await load()
+  }
+
+  /** 取消尚未入库的采购订单。 */
+  async function cancelOrder(id: string) {
+    await cancelPurchaseOrder(id)
+    await load()
+  }
+
   async function saveReceipt(input: PurchaseReceipt) {
     const receipt: PurchaseReceipt = JSON.parse(JSON.stringify(input)),
       error = validateReceipt(receipt, state.value)
@@ -90,29 +104,6 @@ export const usePurchaseStore = defineStore('purchase', () => {
     if (receipt.code) throw Error('已保存的入库单不能修改')
     await createInboundOrder(receipt)
     await load()
-  }
-  function remove(kind: 'orders' | 'receipts', ids: string[]) {
-    const next = snapshot()
-    if (
-      kind === 'orders' &&
-      ids.some(
-        (id) =>
-          next.receipts.some((r) => receiptMatchesOrder(r, id)) ||
-          next.payments.some((p) => p.orderId === id) ||
-          next.returns.some((r) => r.orderId === id),
-      )
-    )
-      throw Error('选中订单存在入库、付款或退货记录，请先处理关联数据')
-    if (
-      kind === 'receipts' &&
-      next.receipts.some(
-        (r) => ids.includes(r.id) && next.returns.some((t) => receiptMatchesOrder(r, t.orderId)),
-      )
-    )
-      throw Error('关联订单已有退货记录，不能删除入库单')
-    if (kind === 'orders') next.orders = next.orders.filter((r) => !ids.includes(r.id))
-    else next.receipts = next.receipts.filter((r) => !ids.includes(r.id))
-    commit(next, '删除' + (kind === 'orders' ? '采购订单' : '产品入库'), `${ids.length} 条`)
   }
   function pay(input: PurchasePayment) {
     const next = snapshot(),
@@ -176,8 +167,9 @@ export const usePurchaseStore = defineStore('purchase', () => {
     loading,
     load,
     saveOrder,
+    cancelOrder,
     saveReceipt,
-    remove,
+    reverseReceipt,
     pay,
     returnGoods,
     importOrders,

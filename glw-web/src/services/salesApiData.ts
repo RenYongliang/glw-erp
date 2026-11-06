@@ -69,6 +69,7 @@ export interface OutboundOrderResponse {
   outboundTime?: string | null
   /** 客户签收时间；为空表示尚未签收，应收记录暂不进入对账单。 */
   signTime?: string | null
+  statementStatus?: string | null
   shipping?: Partial<Record<keyof ShippingInfo, string | null>> | null
   salesOrders: OutboundSalesOrderResponse[]
   items: {
@@ -139,6 +140,7 @@ export function toSalesShipment(order: OutboundOrderResponse): SalesShipment {
     tag: '出库', confirmed: order.status === 'COMPLETED', shippedAt: date(order.outboundTime),
     keeper: '', department: '', photos: [],
     customerConfirmed: !!order.signTime, customerReceivedAt: date(order.signTime),
+    statementStatus: order.statementStatus || undefined,
     lines: allocations.map(alloc => ({
       lineId: String(alloc.salesOrderItemId), orderId: String(alloc.salesOrderId),
       arrived: alloc.outboundQuantity, location: '',

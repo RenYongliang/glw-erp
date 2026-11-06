@@ -25,6 +25,7 @@ import com.glw.backend.service.DocumentNumberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -169,6 +170,22 @@ public class FinanceStatementServiceImpl extends ServiceImpl<FinStatementMapper,
         }
         auditService.record("STATEMENT", id, action.toUpperCase(Locale.ROOT), "");
         return statement(id);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    @Override
+    public void voidForReversal(Long statementId) {
+        lockService.lock();
+        Statement statement = requireStatement(statementId);
+        if ("VOID".equals(statement.getStatus())) return;
+        if (!Set.of("DRAFT", "SENT").contains(statement.getStatus())) {
+            throw conflict("该单据已生成对账单并已确认，不能撤销");
+        }
+        changed(finStatementMapper.statementStatus(
+                statementId, statement.getStatus(), "VOID"));
+        for (OpenItem item : finStatementItemMapper.statementItems(statementId)) {
+            changed(finOpenItemMapper.setReconciliation(item.getId(), "IN_STATEMENT", "OPEN", null));
+        }
     }
 
     private Statement requireStatement(Long id) { Statement row = finStatementMapper.statement(id); if (row == null) throw missing(); return row; }

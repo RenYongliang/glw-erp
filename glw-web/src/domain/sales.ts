@@ -152,6 +152,8 @@ export interface SalesShipment {
   photos: Attachment[]
   customerConfirmed: boolean
   customerReceivedAt: string
+  /** 关联对账单状态：DRAFT/SENT/CONFIRMED/VOID；为空表示未出对账单。 */
+  statementStatus?: string
 }
 export interface SalesPayment {
   id: string
@@ -523,8 +525,8 @@ export function validateShipment(shipment: SalesShipment, state: SalesState) {
   }
   if (shipment.confirmed && shipment.tag !== '出库')
     return '库存冻结、计划出库不能直接确认出库，请先切换标签为出库'
-  if (shipment.confirmed && (!shipment.keeper.trim() || !dateValid(shipment.shippedAt)))
-    return '请填写出库员和出库时间'
+  if (shipment.confirmed && !dateValid(shipment.shippedAt))
+    return '请填写出库时间'
   if (shipment.confirmed && orders.some((o) => shipment.shippedAt.slice(0, 10) < o.signed))
     return '出库时间不能早于订单日期'
   if (

@@ -22,12 +22,12 @@ import { formatUnitCost, formatCostRange, type SalesProductOption, type ProductC
 import {
   SALES_ATTACHMENT_TYPES,
   attachmentTypeLabel,
+  type AttachmentTypeDef,
 } from "../../domain/attachments";
 import {
   orderCustomerName,
   salesLineProduct,
   defaultShippingInfo,
-  products,
   warehouses,
   today,
   money,
@@ -53,7 +53,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: []; saved: []; ship: [order: SalesOrder] }>();
 const store = useSalesStore(),
-  view = ref(!!props.readonly),
+  view = ref(!!props.readonly && props.kind === "orders"),
   full = ref(false),
   tab = ref("订单附件"),
   picker = ref(""),
@@ -195,7 +195,6 @@ const customer = computed(() =>
   customers.value.find((s) => s.id === linkedOrder.value?.customerId),
 );
 const shippingInfo = ref(clone(props.shipment?.shipping || defaultShippingInfo(linkedOrder.value)));
-const printableShipment = computed(() => ({ ...shipment.value, shipping: shippingInfo.value }));
 const dispatchFields = computed(() => [
   ["订单编号", linkedOrder.value?.code], ["客户名称", orderCustomerName(linkedOrder.value)],
 ]);
@@ -423,7 +422,7 @@ function addProducts() {
   dirty.value = true;
 }
 function productValue(id: string | undefined, key: string) {
-  const p = productCatalog.value.find((p) => p.id === id) ?? (!isOrder ? products.find(p => p.id === id) : undefined);
+  const p = productCatalog.value.find((p) => p.id === id);
   return p ? p[key as keyof typeof p] : "";
 }
 function lineProductValue(line: SalesOrder['lines'][number] | undefined, key: string) {
@@ -536,6 +535,15 @@ function openPicker(name: string) {
   if (name === 'customer') void loadCustomers();
 }
 const saving = ref(false);
+const savedShipment = ref<SalesShipment | null>(null),
+  successOpen = ref(false);
+/** 提交成功后先展示出库单号和打印入口，关闭后再通知父级刷新并关闭编辑弹窗。 */
+function finishSaved() {
+  successOpen.value = false;
+  savedShipment.value = null;
+  emit("saved");
+  emit("close");
+}
 async function save() {
   if (saving.value) return;
   saving.value = true;
@@ -571,8 +579,15 @@ async function save() {
           }
         }
       }
-      if (!props.shipment?.confirmed) shipment.value.shipping = clone({ ...shippingInfo.value, purchaseNumber: linkedOrder.value?.purchaseNumber || "" });
-      await store.saveShipment(shipment.value);
+      shipment.value.shipping = clone({ ...shippingInfo.value, purchaseNumber: linkedOrder.value?.purchaseNumber || "" });
+      const saved = await store.saveShipment(shipment.value);
+      dirty.value = false;
+      if (props.dispatch && saved.code) {
+        shipment.value = clone(saved);
+        savedShipment.value = saved;
+        successOpen.value = true;
+        return;
+      }
     }
     dirty.value = false;
     ElMessage.success(
@@ -739,9 +754,9 @@ async function uploadAttachment(files: File[], type: string) {
   ElMessage.success(`${attachmentTypeLabel(attachmentTypes, type)}已上传`);
 }
 /** 出库单本地图片附件（拍照），仍保存在浏览器本地。 */
-async function attachImages(event: Event) {
-  const input = event.target as HTMLInputElement;
-  for (const file of Array.from(input.files || [])) {
+const photoType: AttachmentTypeDef = { key: "OTHER", label: "发货照片", slots: "unlimited" };
+async function uploadPhotos(files: File[]) {
+  for (const file of files) {
     if (file.size > 2 * 1024 * 1024) {
       ElMessage.warning("图片每个不超过 2MB");
       continue;
@@ -764,7 +779,21 @@ async function attachImages(event: Event) {
       dirty.value = true;
     }
   }
-  input.value = "";
+}
+function removePhoto(file: Attachment) {
+  const index = shipment.value.photos.indexOf(file);
+  if (index >= 0) {
+    shipment.value.photos.splice(index, 1);
+    dirty.value = true;
+  }
+}
+/** 勾选客户收货确认时默认带出当前时间。 */
+function onCustomerConfirmChange(value: boolean | string | number) {
+  const confirmed = value === true || value === "true";
+  if (confirmed && !shipment.value.customerReceivedAt)
+    shipment.value.customerReceivedAt = new Date().toLocaleString("sv-SE").slice(0, 16);
+  if (!confirmed) shipment.value.customerReceivedAt = "";
+  dirty.value = true;
 }
 const quick = ref(false),
   quickText = ref("");
@@ -828,7 +857,7 @@ function quickFill() {
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog"
-    :class="{ 'sales-dispatch-dialog': props.dispatch, 'sales-order-dialog': isOrder }"
+    :class="{ 'sales-dispatch-dialog': props.dispatch, 'sales-order-dialog': isOrder, 'sales-shipment-dialog': !isOrder }"
     :close-on-click-modal="false"
     :before-close="close"
     destroy-on-close
@@ -959,7 +988,7 @@ function quickFill() {
         <el-table-column label="品牌" min-width="65" show-overflow-tooltip>
           <template #default="{row}">{{ lineProductValue(row, 'brand') }}</template>
         </el-table-column>
-        <el-table-column label="封装" width="160" show-overflow-tooltip>
+        <el-table-column label="封装" width="190" show-overflow-tooltip>
           <template #default="{row}">{{ lineProductValue(row, 'model') }}</template>
         </el-table-column>
         <el-table-column label="客户物料编码" width="150">
@@ -981,26 +1010,20 @@ function quickFill() {
         class="purchase-lines"
         empty-text="暂无产品明细"
       >
-        <el-table-column type="index" width="45" /><el-table-column
-          label="产品名称"
-          width="145"
+        <el-table-column type="index" width="45" />
+        <el-table-column label="型号" min-width="130" show-overflow-tooltip
           ><template #default="{ row }">{{
-            productFor(row.lineId)?.name
+            orderLine(row.lineId)?.model || "—"
           }}</template></el-table-column
         >
-        <el-table-column
-          v-for="f in [
-            { key: 'code', label: '产品编码' },
-            { key: 'brand', label: '品牌' },
-            { key: 'model', label: '规格型号' },
-            { key: 'unit', label: '单位' },
-          ]"
-          :key="f.key"
-          :label="f.label"
-          :min-width="f.key === 'brand' ? 65 : f.key === 'model' ? 85 : 100"
-          show-overflow-tooltip
+        <el-table-column label="品牌" width="90" show-overflow-tooltip
           ><template #default="{ row }">{{
-            lineProductValue(orderLine(row.lineId), f.key)
+            orderLine(row.lineId)?.brand || "—"
+          }}</template></el-table-column
+        >
+        <el-table-column label="封装" width="190" show-overflow-tooltip
+          ><template #default="{ row }">{{
+            orderLine(row.lineId)?.packaging || "—"
           }}</template></el-table-column
         >
         <el-table-column label="销售数量" width="105"
@@ -1072,7 +1095,7 @@ function quickFill() {
             productFor(row.lineId)?.brand
           }}</template></el-table-column
         >
-        <el-table-column label="封装" :width="160" show-overflow-tooltip
+        <el-table-column label="封装" :width="190" show-overflow-tooltip
           ><template #default="{ row }">{{
             productFor(row.lineId)?.model
           }}</template></el-table-column
@@ -1263,62 +1286,46 @@ function quickFill() {
       </template>
       <template v-else>
         <h3 class="purchase-section">发货信息</h3>
-        <ShipmentShippingForm v-model="shippingInfo" :required="shipment.confirmed" :disabled="view || !!props.shipment?.confirmed" @change="dirty = true" />
-        <div class="shipment-photos">
+        <ShipmentShippingForm v-model="shippingInfo" :required="shipment.confirmed" :disabled="view" @change="dirty = true" />
+        <div v-if="!props.dispatch" class="shipment-photos">
           <div class="shipment-photos-head">
             <strong>发货照片</strong>
-            <label
-              v-if="!view && !props.shipment?.confirmed"
-              class="purchase-import-file"
-              >上传照片<input
-                type="file"
-                accept="image/*"
-                multiple
-                aria-label="发货照片"
-                @change="attachImages"
-            /></label>
           </div>
-          <p v-if="!shipment.photos.length" class="purchase-tip">暂无发货照片</p>
-          <div
-            v-for="(file, i) in shipment.photos"
-            :key="i"
-            class="purchase-attachment"
-          >
-            <a :href="file.url" :download="file.name">{{ file.name }}</a>
-            <el-button
-              v-if="!view && !props.shipment?.confirmed"
-              text
-              @click="shipment.photos.splice(i, 1)"
-              >移除</el-button
-            >
-          </div>
+          <AttachmentTiles
+            v-if="shipment.photos.length || !view"
+            :attachments="shipment.photos"
+            :types="[photoType]"
+            :uploadable="!view"
+            :removable="!view"
+            @upload="uploadPhotos"
+            @remove="removePhoto"
+          />
+          <p v-else class="purchase-tip">暂无发货照片</p>
         </div>
-        <DeliveryNoteActions :order="linkedOrder" :orders="linkedOrders" :shipment="printableShipment" :draft="!shipment.code || !shipment.confirmed" />
+        <template v-if="!props.dispatch">
         <h3 class="purchase-section">收货确认</h3>
-        <el-form
-          label-position="top"
-          class="purchase-form-grid"
-          :disabled="view"
-        >
-          <el-form-item label="客户收货确认"
-            ><el-checkbox
+        <div class="shipment-confirm-row">
+          <div class="shipment-confirm-check">
+            <span>客户已确认收货</span>
+            <el-checkbox
               v-model="shipment.customerConfirmed"
               :disabled="!shipment.confirmed"
-              aria-label="客户收货确认"
-              >确认</el-checkbox
-            ></el-form-item
-          >
-          <el-form-item
-            label="收货确认时间"
-            :required="shipment.customerConfirmed"
-            ><el-date-picker
+              aria-label="客户已确认收货"
+              @change="onCustomerConfirmChange"
+            />
+          </div>
+          <div class="shipment-confirm-time">
+            <span>收货确认时间</span>
+            <el-date-picker
               v-model="shipment.customerReceivedAt"
               type="datetime"
               value-format="YYYY-MM-DD HH:mm"
-              :disabled="!shipment.confirmed"
+              :disabled="!shipment.customerConfirmed"
+              placeholder="勾选后自动填写当前时间"
               aria-label="收货确认时间"
-          /></el-form-item>
-        </el-form>
+            />
+          </div>
+        </div>
         <div v-if="shipment.code || props.shipment" class="shipment-receipt">
           <div class="shipment-receipt-head">
             <strong>回签单</strong>
@@ -1334,13 +1341,14 @@ function quickFill() {
             @remove="removeReceipt"
           />
         </div>
+        </template>
       </template>
     </div>
     <template #footer
       ><div class="purchase-form-footer">
         <template v-if="view"
           ><el-button
-            v-if="!isOrder || !locked"
+            v-if="!isOrder || (!locked && order.orderStatus !== '已取消')"
             type="primary"
             @click="view = false"
             >编辑</el-button
@@ -1348,10 +1356,34 @@ function quickFill() {
             >已有业务记录，订单基础数据已锁定</span
           ></template
         ><el-button v-else type="primary" :loading="saving" @click="save">{{
-          isOrder ? "保存" : "提交"
+          isOrder || !props.dispatch ? "保存" : "提交"
         }}</el-button
         ><el-button @click="close()">{{ view ? "关闭" : "取消" }}</el-button>
       </div></template
+    >
+  </el-dialog>
+  <el-dialog
+    v-model="successOpen"
+    title="出库成功"
+    width="min(560px,94vw)"
+    append-to-body
+    :close-on-click-modal="false"
+    class="purchase-dialog shipment-success-dialog"
+    @closed="finishSaved"
+  >
+    <div class="shipment-success">
+      <p>
+        出库单 <strong>{{ savedShipment?.code }}</strong> 已生成，可以打印或下载发货单。
+      </p>
+      <DeliveryNoteActions
+        v-if="savedShipment"
+        :order="linkedOrder"
+        :orders="linkedOrders"
+        :shipment="savedShipment"
+      />
+    </div>
+    <template #footer
+      ><el-button type="primary" @click="successOpen = false">完成</el-button></template
     >
   </el-dialog>
   <el-dialog
@@ -1418,7 +1450,7 @@ function quickFill() {
       ><el-table-column type="selection" width="45" reserve-selection />
       <el-table-column prop="brand" label="品牌" min-width="65" show-overflow-tooltip />
       <el-table-column prop="name" label="型号" min-width="105" show-overflow-tooltip />
-      <el-table-column prop="model" label="封装" width="160" show-overflow-tooltip />
+      <el-table-column prop="model" label="封装" width="190" show-overflow-tooltip />
       <el-table-column prop="stock" label="当前库存" min-width="105" align="right" />
       <el-table-column label="平均成本" min-width="120" align="right"><template #default="{row}">{{ formatUnitCost(row.estimatedCost) }}</template></el-table-column>
       <el-table-column label="成本范围" min-width="190" align="right"><template #default="{row}">

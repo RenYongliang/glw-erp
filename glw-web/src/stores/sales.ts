@@ -17,11 +17,14 @@ import {
   type Product,
 } from '../domain/sales'
 import {
+  cancelSalesOrder,
   createOutboundOrder,
   createSalesOrder,
   fetchSalesOrders,
   fetchOutboundOrders,
+  reverseOutboundOrder,
   signOutboundOrder,
+  updateOutboundShipping,
   updateSalesOrder,
 } from '../services/salesApi'
 
@@ -93,24 +96,43 @@ export const useSalesStore = defineStore('sales', () => {
       if (shipment.customerConfirmed && shipment.customerReceivedAt)
         await signOutboundOrder(String(created.id), shipment.customerReceivedAt)
       await load()
-      return shipment
+      return state.value.shipments.find(
+        (item) => item.id === String(created.id),
+      ) ?? shipment
     }
     if (persisted && existing.confirmed) {
       const previous = existing
+      // 已确认出库单只允许修改收货/物流信息和客户收货确认，其余字段仍以服务端为准。
+      const editableView = (value: SalesShipment) => ({
+        ...value,
+        customerConfirmed: false,
+        customerReceivedAt: '',
+        shipping: undefined,
+      })
+      if (JSON.stringify(editableView(previous)) !== JSON.stringify(editableView(shipment)))
+        throw Error('已确认出库单仅允许修改发货信息和客户收货确认')
+      let changed = false
       if (
-        JSON.stringify({ ...previous, customerConfirmed: false, customerReceivedAt: '' }) !==
-        JSON.stringify({ ...shipment, customerConfirmed: false, customerReceivedAt: '' })
-      )
-        throw Error('已确认出库单仅允许补充客户收货确认')
+        JSON.stringify(previous.shipping ?? null) !==
+        JSON.stringify(shipment.shipping ?? null)
+      ) {
+        if (!shipment.shipping) throw Error('请填写发货信息')
+        await updateOutboundShipping(previous.id, shipment.shipping)
+        changed = true
+      }
       if (
         shipment.customerConfirmed &&
         shipment.customerReceivedAt &&
         shipment.customerReceivedAt.slice(0, 10) !== previous.customerReceivedAt.slice(0, 10)
       ) {
         await signOutboundOrder(previous.id, shipment.customerReceivedAt)
-        await load()
-        return shipment
+        changed = true
       }
+      if (changed) {
+        await load()
+        return state.value.shipments.find((item) => item.id === previous.id) ?? shipment
+      }
+      return previous
     }
     if (
       index >= 0 &&
@@ -130,30 +152,16 @@ export const useSalesStore = defineStore('sales', () => {
     commit(next, index < 0 ? '新增产品出库' : '修改产品出库', shipment.code)
     return shipment
   }
-  function remove(kind: 'orders' | 'shipments', ids: string[]) {
-    const next = snapshot()
-    if (
-      kind === 'orders' &&
-      ids.some(
-        (id) =>
-          next.shipments.some((r) => shipmentMatchesOrder(r, id)) ||
-          next.payments.some((p) => p.orderId === id) ||
-          next.returns.some((r) => r.orderId === id),
-      )
-    )
-      throw Error('选中订单存在出库、收款或退货记录，请先处理关联数据')
-    if (
-      kind === 'shipments' &&
-      next.shipments.some(
-        (r) => ids.includes(r.id) && next.returns.some((t) => shipmentMatchesOrder(r, t.orderId)),
-      )
-    )
-      throw Error('关联订单已有退货记录，不能删除出库单')
-    if (kind === 'shipments' && next.shipments.some((s) => ids.includes(s.id) && s.confirmed))
-      throw Error('已确认出库单不能删除')
-    if (kind === 'orders') next.orders = next.orders.filter((r) => !ids.includes(r.id))
-    else next.shipments = next.shipments.filter((r) => !ids.includes(r.id))
-    commit(next, '删除' + (kind === 'orders' ? '销售订单' : '产品出库'), `${ids.length} 条`)
+  /** 取消尚未出库的销售订单。 */
+  async function cancelOrder(id: string) {
+    await cancelSalesOrder(id)
+    await load()
+  }
+
+  /** 撤销未签收的出库单，后端会回补库存并作废未生效应收。 */
+  async function reverseShipment(id: string) {
+    await reverseOutboundOrder(id)
+    await load()
   }
   function pay(input: SalesPayment) {
     const next = snapshot(),
@@ -217,8 +225,9 @@ export const useSalesStore = defineStore('sales', () => {
     loading,
     load,
     saveOrder,
+    cancelOrder,
     saveShipment,
-    remove,
+    reverseShipment,
     pay,
     returnGoods,
     importOrders,

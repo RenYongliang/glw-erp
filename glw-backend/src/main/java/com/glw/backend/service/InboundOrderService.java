@@ -15,4 +15,7 @@ public interface InboundOrderService extends IService<InboundOrder> {
     InboundOrderVO createInboundOrder(InboundOrderCreateDTO createDTO);
 
     InboundOrderVO detail(Long id, Long purchaseOrderId);
+
+    /** 撤销已入库单：回补（删除）库存批次、作废未生效应付并回滚采购订单收货状态。 */
+    void reverseInboundOrder(Long id);
 }

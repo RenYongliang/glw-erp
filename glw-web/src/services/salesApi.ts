@@ -61,6 +61,12 @@ export async function createSalesOrder(order: SalesOrder) {
   })
 }
 
+export async function cancelSalesOrder(id: string) {
+  await apiRequest<unknown>(`/sales-order/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+  })
+}
+
 export async function updateSalesOrder(order: SalesOrder) {
   await apiRequest<unknown>(`/sales-order/${order.id}`, {
     method: 'PUT',
@@ -108,5 +114,20 @@ export async function signOutboundOrder(id: string, signTime: string) {
   await apiRequest<unknown>('/outbound-order/sign', {
     method: 'POST',
     body: JSON.stringify({ orderIds: [Number(id)], signTime }),
+  })
+}
+
+/** 修改出库单的收货和物流信息，不影响库存和应收。 */
+export async function updateOutboundShipping(id: string, shipping: ShippingInfo) {
+  await apiRequest<unknown>(`/outbound-order/${encodeURIComponent(id)}/shipping`, {
+    method: 'PUT',
+    body: JSON.stringify(shipping),
+  })
+}
+
+/** 撤销未签收的出库单：回补库存并作废未生效应收。 */
+export async function reverseOutboundOrder(id: string) {
+  await apiRequest<unknown>(`/outbound-order/${encodeURIComponent(id)}/reverse`, {
+    method: 'POST',
   })
 }

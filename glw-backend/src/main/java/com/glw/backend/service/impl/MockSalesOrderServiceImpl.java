@@ -55,6 +55,11 @@ public class MockSalesOrderServiceImpl implements SalesOrderService {
     }
 
     @Override
+    public void cancelOrder(Long orderId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "演示模式不支持取消销售订单");
+    }
+
+    @Override
     public void refreshCompletionStatus(Long orderId) {
         // 演示模式没有真实出库与财务数据，无需重算。
     }

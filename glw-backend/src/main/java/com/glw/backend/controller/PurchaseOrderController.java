@@ -33,6 +33,13 @@ public class PurchaseOrderController {
         return ApiResponse.ok(purchaseOrderService.createPurchaseOrder(createDTO));
     }
 
+    /** 取消尚未入库的采购订单。 */
+    @PostMapping("/{id}/cancel")
+    public ApiResponse<Void> cancel(@PathVariable Long id) {
+        purchaseOrderService.cancelOrder(id);
+        return ApiResponse.ok(null);
+    }
+
     @PutMapping("/{id}")
     public ApiResponse<PurchaseOrderVO> update(
             @PathVariable Long id, @Valid @RequestBody PurchaseOrderCreateDTO createDTO) {

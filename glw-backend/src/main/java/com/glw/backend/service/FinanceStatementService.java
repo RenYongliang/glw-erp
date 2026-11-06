@@ -19,4 +19,7 @@ public interface FinanceStatementService extends IService<FinStatement> {
     Page<Statement> statements(Query q);
     StatementDetail statement(Long id);
     StatementDetail transition(Long id, String action);
+
+    /** 撤销出库前作废未确认的对账单；已确认的对账单拒绝作废。 */
+    void voidForReversal(Long statementId);
 }

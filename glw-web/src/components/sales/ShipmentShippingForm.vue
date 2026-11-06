@@ -69,7 +69,7 @@ const emit = defineEmits<{ change: [] }>()
   grid-column: 1 / -1;
 }
 .shipment-shipping-form :deep(.el-form-item) {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   min-width: 0;
 }
 @media (max-width: 600px) {

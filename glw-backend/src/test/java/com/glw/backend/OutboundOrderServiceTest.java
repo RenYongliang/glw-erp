@@ -35,9 +35,10 @@ class OutboundOrderServiceTest {
         final SalesOrderItemService salesItems = mock(SalesOrderItemService.class);
         final InventoryService inventory = mock(InventoryService.class);
         final OutboundOrderServiceImpl service = spy(new OutboundOrderServiceImpl(items, allocations, batches,
-                mock(OutboundOrderItemAllocMapper.class), orders, salesItems, inventory,
+                mock(OutboundOrderItemAllocMapper.class), orders, salesItems, inventory, mock(com.glw.backend.mapper.InventoryMapper.class),
                 Mappers.getMapper(OutboundOrderConverter.class), mock(CustomerMapper.class), mock(DocumentNumberService.class),
                 mock(com.glw.backend.service.FinanceOpenItemService.class),
+                mock(com.glw.backend.service.FinanceStatementService.class),
                 mock(com.glw.backend.service.SalesOrderService.class)));
         final List<OutboundOrderItem> savedItems = new ArrayList<>();
         final List<OutboundOrderItemAlloc> savedAllocations = new ArrayList<>();

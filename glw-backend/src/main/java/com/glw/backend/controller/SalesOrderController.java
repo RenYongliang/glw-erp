@@ -34,6 +34,13 @@ public class SalesOrderController {
         return ApiResponse.ok(salesOrderService.createSalesOrder(createDTO));
     }
 
+    /** 取消尚未出库的销售订单。 */
+    @PostMapping("/{id}/cancel")
+    public ApiResponse<Void> cancel(@PathVariable Long id) {
+        salesOrderService.cancelOrder(id);
+        return ApiResponse.ok(null);
+    }
+
     @PutMapping("/{id}")
     public ApiResponse<SalesOrderVO> update(
             @PathVariable Long id, @Valid @RequestBody SalesOrderCreateDTO createDTO) {

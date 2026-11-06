@@ -8,6 +8,7 @@ import com.glw.backend.common.BusinessException;
 import com.glw.backend.common.ErrorCode;
 import com.glw.backend.converter.OutboundOrderConverter;
 import com.glw.backend.mapper.CustomerMapper;
+import com.glw.backend.mapper.InventoryMapper;
 import com.glw.backend.mapper.OutboundOrderItemAllocMapper;
 import com.glw.backend.mapper.OutboundOrderMapper;
 import com.glw.backend.mapper.SalesOrderMapper;
@@ -16,7 +17,9 @@ import com.glw.backend.model.dto.OutboundOrderBatchCreateDTO;
 import com.glw.backend.model.dto.OutboundOrderCreateDTO;
 import com.glw.backend.model.dto.OutboundOrderPageDTO;
 import com.glw.backend.model.dto.OutboundOrderSignDTO;
+import com.glw.backend.model.dto.OutboundShippingDTO;
 import com.glw.backend.model.entity.Customer;
+import com.glw.backend.model.entity.FinOpenItem;
 import com.glw.backend.model.entity.Inventory;
 import com.glw.backend.model.entity.OutboundOrder;
 import com.glw.backend.model.entity.OutboundOrderItem;
@@ -33,6 +36,7 @@ import com.glw.backend.model.vo.OutboundOrderItemBatchVO;
 import com.glw.backend.model.vo.OutboundOrderVO;
 import com.glw.backend.model.vo.OutboundSalesOrderVO;
 import com.glw.backend.service.DocumentNumberService;
+import com.glw.backend.service.FinanceStatementService;
 import com.glw.backend.service.InventoryService;
 import com.glw.backend.service.OutboundOrderItemAllocService;
 import com.glw.backend.service.OutboundOrderItemBatchService;
@@ -78,10 +82,12 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
     private final SalesOrderMapper salesOrderMapper;
     private final SalesOrderItemService salesOrderItemService;
     private final InventoryService inventoryService;
+    private final InventoryMapper inventoryMapper;
     private final OutboundOrderConverter converter;
     private final CustomerMapper customerMapper;
     private final DocumentNumberService documentNumberService;
     private final com.glw.backend.service.FinanceOpenItemService financeService;
+    private final FinanceStatementService statementService;
     private final com.glw.backend.service.SalesOrderService salesOrderService;
 
     @Override
@@ -125,6 +131,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
             }
         });
         fillItems(result.getRecords());
+        fillStatementStatus(result.getRecords());
         return result;
     }
 
@@ -331,6 +338,139 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         return result;
     }
 
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reverseOutboundOrder(Long id) {
+        // 锁住出库单，和签收操作串行，避免一边撤销一边签收。
+        OutboundOrder outbound = getOne(
+                Wrappers.<OutboundOrder>lambdaQuery()
+                        .eq(OutboundOrder::getId, id)
+                        .last("FOR UPDATE"));
+        if (outbound == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "出库单不存在");
+        }
+        if (outbound.getStatus() != OutboundStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已出库的单据可以撤销");
+        }
+
+        List<OutboundOrderItemAlloc> allocations = outboundOrderItemAllocService.lambdaQuery()
+                .eq(OutboundOrderItemAlloc::getOutboundOrderId, id)
+                .list();
+        List<Long> salesOrderIds = allocations.stream()
+                .map(OutboundOrderItemAlloc::getSalesOrderId)
+                .distinct()
+                .sorted()
+                .toList();
+        // 与出库创建使用同一把销售订单锁，保证发货状态重算不会被并发出库打断。
+        if (!salesOrderIds.isEmpty()) {
+            List<SalesOrder> locked = salesOrderMapper.selectList(
+                    Wrappers.<SalesOrder>lambdaQuery()
+                            .in(SalesOrder::getId, salesOrderIds)
+                            .orderByAsc(SalesOrder::getId)
+                            .last("FOR UPDATE"));
+            if (locked.size() != salesOrderIds.size()) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "销售订单不存在");
+            }
+        }
+
+        // 条件删除：并发签收或重复撤销时只有一个能成功。
+        int deleted = baseMapper.delete(
+                Wrappers.<OutboundOrder>lambdaQuery()
+                        .eq(OutboundOrder::getId, id)
+                        .eq(OutboundOrder::getStatus, OutboundStatus.COMPLETED));
+        if (deleted == 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "出库单已签收或已被撤销");
+        }
+
+        // 已进对账单的，未确认则整体作废对账单，已确认则拒绝撤销。
+        List<FinOpenItem> openItems = financeService.lambdaQuery()
+                .eq(FinOpenItem::getSourceType, "OUTBOUND")
+                .eq(FinOpenItem::getSourceId, id)
+                .list();
+        for (FinOpenItem item : openItems) {
+            if (item.getSettledAmount() != null && item.getSettledAmount().signum() > 0) {
+                throw new BusinessException(ErrorCode.CONFLICT, "该出库单的应收已收款核销，不能撤销");
+            }
+        }
+        openItems.stream()
+                .map(FinOpenItem::getStatementId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(statementService::voidForReversal);
+        financeService.discard("AR", id);
+
+        List<OutboundOrderItemBatch> batches = outboundOrderItemBatchService.lambdaQuery()
+                .eq(OutboundOrderItemBatch::getOutboundOrderId, id)
+                .list();
+        Map<Long, Integer> restore = new TreeMap<>();
+        for (OutboundOrderItemBatch batch : batches) {
+            restore.merge(batch.getInventoryId(), batch.getQuantity(), Integer::sum);
+        }
+        for (var entry : restore.entrySet()) {
+            if (inventoryMapper.addQuantity(entry.getKey(), entry.getValue()) != 1) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "库存批次不存在，无法回补");
+            }
+        }
+
+        outboundOrderItemBatchService.remove(
+                Wrappers.<OutboundOrderItemBatch>lambdaQuery()
+                        .eq(OutboundOrderItemBatch::getOutboundOrderId, id));
+        outboundOrderItemAllocService.remove(
+                Wrappers.<OutboundOrderItemAlloc>lambdaQuery()
+                        .eq(OutboundOrderItemAlloc::getOutboundOrderId, id));
+        outboundOrderItemService.remove(
+                Wrappers.<OutboundOrderItem>lambdaQuery()
+                        .eq(OutboundOrderItem::getOutboundOrderId, id));
+
+        if (salesOrderIds.isEmpty()) return;
+        Map<Long, Long> shippedAfter = outboundOrderItemAllocMapper
+                .sumCompletedBySalesOrderIds(salesOrderIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        OutboundOrderItemAllocMapper.ShippedQuantity::salesOrderItemId,
+                        OutboundOrderItemAllocMapper.ShippedQuantity::quantity));
+        for (Long salesOrderId : salesOrderIds) {
+            SalesOrder salesOrder = salesOrderMapper.selectById(salesOrderId);
+            if (salesOrder == null) continue;
+            List<SalesOrderItem> items = salesOrderItemService.lambdaQuery()
+                    .eq(SalesOrderItem::getSalesOrderId, salesOrderId)
+                    .list();
+            long shipped = items.stream()
+                    .mapToLong(item -> shippedAfter.getOrDefault(item.getId(), 0L))
+                    .sum();
+            long committed = items.stream()
+                    .mapToLong(item -> item.getQuantity()
+                            - (item.getCancelledQuantity() == null ? 0 : item.getCancelledQuantity()))
+                    .sum();
+            salesOrder.setDeliveryStatus(shipped <= 0
+                    ? SalesDeliveryStatus.PENDING_SHIPMENT
+                    : shipped >= committed
+                            ? SalesDeliveryStatus.SHIPPED
+                            : SalesDeliveryStatus.PARTIALLY_SHIPPED);
+            if (salesOrderMapper.updateById(salesOrder) == 0) {
+                throw new BusinessException(ErrorCode.CONFLICT, "销售订单已发生变化，请刷新后重试");
+            }
+            salesOrderService.refreshCompletionStatus(salesOrderId);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateShipping(Long id, OutboundShippingDTO shipping) {
+        OutboundOrder order = getById(id);
+        if (order == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "出库单不存在");
+        }
+        if (order.getStatus() != OutboundStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已出库的单据可以修改发货信息");
+        }
+        converter.applyShipping(shipping, order);
+        if (!updateById(order)) {
+            throw new BusinessException(ErrorCode.CONFLICT, "出库单已发生变化，请刷新后重试");
+        }
+    }
+
     private LocalDateTime parseSignTime(String value) {
         if (!StringUtils.hasText(value))
             throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写客户签收日期");
@@ -402,6 +542,39 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         } catch (DateTimeParseException ex) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "出库时间格式不正确");
         }
+    }
+
+    private void fillStatementStatus(List<OutboundOrderVO> records) {
+        if (CollectionUtils.isEmpty(records)) return;
+        List<Long> orderIds = records.stream().map(OutboundOrderVO::getId).toList();
+        List<FinOpenItem> items = financeService.lambdaQuery()
+                .eq(FinOpenItem::getSourceType, "OUTBOUND")
+                .in(FinOpenItem::getSourceId, orderIds)
+                .isNotNull(FinOpenItem::getStatementId)
+                .list();
+        if (items.isEmpty()) return;
+        Map<Long, String> statuses = statementService.listByIds(
+                        items.stream().map(FinOpenItem::getStatementId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(
+                        statement -> statement.getId(), statement -> statement.getStatus()));
+        Map<Long, String> byOutbound = new HashMap<>();
+        for (FinOpenItem item : items) {
+            String status = statuses.get(item.getStatementId());
+            if (status == null) continue;
+            byOutbound.merge(item.getSourceId(), status,
+                    (left, right) -> rank(right) > rank(left) ? right : left);
+        }
+        records.forEach(order -> order.setStatementStatus(byOutbound.get(order.getId())));
+    }
+
+    private static int rank(String status) {
+        return switch (status) {
+            case "CONFIRMED" -> 3;
+            case "SENT" -> 2;
+            case "DRAFT" -> 1;
+            default -> 0;
+        };
     }
 
     private void fillItems(List<OutboundOrderVO> records) {

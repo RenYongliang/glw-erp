@@ -13,6 +13,7 @@ import com.glw.backend.mapper.ProductMapper;
 import com.glw.backend.model.dto.InboundOrderAllocationCreateDTO;
 import com.glw.backend.model.dto.InboundOrderCreateDTO;
 import com.glw.backend.model.dto.InboundOrderPageDTO;
+import com.glw.backend.model.entity.FinOpenItem;
 import com.glw.backend.model.entity.InboundOrder;
 import com.glw.backend.model.entity.InboundOrderItem;
 import com.glw.backend.model.entity.InboundOrderItemAlloc;
@@ -29,6 +30,7 @@ import com.glw.backend.model.vo.InboundOrderItemAllocVO;
 import com.glw.backend.model.vo.InboundOrderVO;
 import com.glw.backend.model.vo.InboundPurchaseOrderVO;
 import com.glw.backend.service.DocumentNumberService;
+import com.glw.backend.service.FinanceStatementService;
 import com.glw.backend.service.InboundOrderItemAllocService;
 import com.glw.backend.service.InboundOrderItemService;
 import com.glw.backend.service.InboundOrderService;
@@ -79,6 +81,7 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     private final ProductMapper productMapper;
     private final DocumentNumberService documentNumberService;
     private final com.glw.backend.service.FinanceOpenItemService financeService;
+    private final FinanceStatementService statementService;
 
     @Override
     public InboundOrderVO detail(Long id, Long purchaseOrderId) {
@@ -252,6 +255,129 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         InboundOrderVO result = inboundOrderConverter.toVO(inboundOrder);
         fillItems(List.of(result));
         return result;
+    }
+
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reverseInboundOrder(Long id) {
+        InboundOrder inbound = getOne(
+                Wrappers.<InboundOrder>lambdaQuery()
+                        .eq(InboundOrder::getId, id)
+                        .last("FOR UPDATE"));
+        if (inbound == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "入库单不存在");
+        }
+        if (inbound.getStatus() != InboundStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已入库的单据可以撤销");
+        }
+        List<InboundOrderItemAlloc> allocations = inboundOrderItemAllocService.lambdaQuery()
+                .eq(InboundOrderItemAlloc::getInboundOrderId, id)
+                .list();
+        List<Long> purchaseIds = allocations.stream()
+                .map(InboundOrderItemAlloc::getPurchaseOrderId)
+                .distinct()
+                .sorted()
+                .toList();
+        // 与入库创建使用同一把采购订单锁，保证收货状态重算不会被并发入库打断。
+        if (!purchaseIds.isEmpty()) {
+            List<PurchaseOrder> locked = purchaseOrderService.lambdaQuery()
+                    .in(PurchaseOrder::getId, purchaseIds)
+                    .orderByAsc(PurchaseOrder::getId)
+                    .last("FOR UPDATE")
+                    .list();
+            if (locked.size() != purchaseIds.size()) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "采购订单不存在");
+            }
+        }
+        List<InboundOrderItem> items = inboundOrderItemService.lambdaQuery()
+                .eq(InboundOrderItem::getInboundOrderId, id)
+                .list();
+        List<Long> itemIds = items.stream().map(InboundOrderItem::getId).toList();
+        List<Inventory> inventories = itemIds.isEmpty()
+                ? List.of()
+                : inventoryService.lambdaQuery()
+                        .in(Inventory::getInboundOrderItemId, itemIds)
+                        .list();
+        for (Inventory inventory : inventories) {
+            int initial = inventory.getInitialQuantity() == null
+                    ? inventory.getQuantity()
+                    : inventory.getInitialQuantity();
+            int reserved = inventory.getReservedQuantity() == null
+                    ? 0
+                    : inventory.getReservedQuantity();
+            if (!Objects.equals(inventory.getQuantity(), initial) || reserved > 0) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT,
+                        "入库批次 " + inventory.getBatchNo() + " 已有出库或预占，不能撤销");
+            }
+        }
+
+        // 已进对账单的，未确认则整体作废，已确认则拒绝撤销。
+        List<FinOpenItem> openItems = financeService.lambdaQuery()
+                .eq(FinOpenItem::getSourceType, "INBOUND")
+                .eq(FinOpenItem::getSourceId, id)
+                .list();
+        for (FinOpenItem item : openItems) {
+            if (item.getSettledAmount() != null && item.getSettledAmount().signum() > 0) {
+                throw new BusinessException(ErrorCode.CONFLICT, "该入库单的应付已付款核销，不能撤销");
+            }
+        }
+        openItems.stream()
+                .map(FinOpenItem::getStatementId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(statementService::voidForReversal);
+        financeService.discard("AP", id);
+
+        if (!itemIds.isEmpty()) {
+            inventoryService.remove(
+                    Wrappers.<Inventory>lambdaQuery()
+                            .in(Inventory::getInboundOrderItemId, itemIds));
+        }
+        int deleted = baseMapper.delete(
+                Wrappers.<InboundOrder>lambdaQuery()
+                        .eq(InboundOrder::getId, id)
+                        .eq(InboundOrder::getStatus, InboundStatus.COMPLETED));
+        if (deleted == 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "入库单已发生变化，请刷新后重试");
+        }
+        inboundOrderItemAllocService.remove(
+                Wrappers.<InboundOrderItemAlloc>lambdaQuery()
+                        .eq(InboundOrderItemAlloc::getInboundOrderId, id));
+        inboundOrderItemService.remove(
+                Wrappers.<InboundOrderItem>lambdaQuery()
+                        .eq(InboundOrderItem::getInboundOrderId, id));
+
+        if (purchaseIds.isEmpty()) return;
+        Map<Long, Long> receivedAfter = inboundOrderItemAllocMapper
+                .sumCompletedByPurchaseOrderIds(purchaseIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        InboundOrderItemAllocMapper.ReceivedQuantity::purchaseOrderItemId,
+                        InboundOrderItemAllocMapper.ReceivedQuantity::quantity));
+        Map<Long, PurchaseOrder> lockedOrders = purchaseOrderService.lambdaQuery()
+                .in(PurchaseOrder::getId, purchaseIds)
+                .list()
+                .stream()
+                .collect(Collectors.toMap(PurchaseOrder::getId, order -> order));
+        for (Long purchaseId : purchaseIds) {
+            PurchaseOrder purchaseOrder = lockedOrders.get(purchaseId);
+            if (purchaseOrder == null) continue;
+            List<PurchaseOrderItem> orderItems = purchaseOrderItemService.lambdaQuery()
+                    .eq(PurchaseOrderItem::getPurchaseOrderId, purchaseId)
+                    .list();
+            long received = orderItems.stream()
+                    .mapToLong(item -> receivedAfter.getOrDefault(item.getId(), 0L))
+                    .sum();
+            purchaseOrder.setReceiptStatus(received <= 0
+                    ? PurchaseReceiptStatus.PENDING_RECEIPT
+                    : resolveReceiptStatus(orderItems, received));
+            if (!purchaseOrderService.updateById(purchaseOrder)) {
+                throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
+            }
+            purchaseOrderService.refreshCompletionStatus(purchaseId);
+        }
     }
 
     /**

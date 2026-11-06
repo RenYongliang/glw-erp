@@ -47,7 +47,8 @@ class InboundOrderServiceTest {
         final DocumentNumberService numbers = mock(DocumentNumberService.class);
         final InboundOrderServiceImpl service = spy(new InboundOrderServiceImpl(items, allocations, totals,
                 orders, purchaseItems, inventory, Mappers.getMapper(InboundOrderConverter.class), mock(ProductMapper.class), numbers,
-                mock(com.glw.backend.service.FinanceOpenItemService.class)));
+                mock(com.glw.backend.service.FinanceOpenItemService.class),
+                mock(com.glw.backend.service.FinanceStatementService.class)));
         final List<InboundOrderItem> savedItems = new ArrayList<>();
         final List<InboundOrderItemAlloc> savedAllocations = new ArrayList<>();
         final List<Inventory> stock = new ArrayList<>();

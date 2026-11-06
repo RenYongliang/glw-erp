@@ -969,7 +969,7 @@ function quickFill() {
     <template #footer
       ><div class="purchase-form-footer">
         <template v-if="view"
-          ><el-button v-if="!isOrder || !locked" type="primary" @click="view = false"
+          ><el-button v-if="!isOrder || (!locked && order.orderStatus !== '已取消')" type="primary" @click="view = false"
             >编辑</el-button
           ><span v-if="isOrder && locked" class="purchase-tip"
             >已有业务记录，订单基础数据已锁定</span

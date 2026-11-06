@@ -6,7 +6,6 @@ import {
   Plus,
   Upload,
   Download,
-  Delete,
   Clock,
   Search,
   Filter,
@@ -16,6 +15,10 @@ import {
   Operation,
   FullScreen,
   Document,
+  Money,
+  Van,
+  RefreshLeft,
+  CircleCloseFilled,
 } from "@element-plus/icons-vue";
 import { emptySalesOrderFilters, salesFulfillmentStatus, salesOrderMonth, salesFilterCount, matchesSalesOrderFilters, type FulfillmentStatus } from "../domain/salesOrderFilters";
 import { orderStatusBadge } from "../domain/orderStatusBadge";
@@ -33,6 +36,7 @@ import {
   orderTotals,
   shipmentTotals,
   shipmentOrders,
+  shipmentMatchesOrder,
   returnableQuantity,
   remainingQuantity,
   pendingShipmentQuantity,
@@ -60,7 +64,6 @@ const tab = ref(tabs[0]!),
   filterValue = ref(""),
   grouped = ref(true),
   collapsed = ref<string[]>([]),
-  selected = ref<string[]>([]),
   sortKey = ref(""),
   sortDirection = ref("asc"),
   hidden = ref<string[]>([]),
@@ -384,25 +387,11 @@ const allGroups = computed(() => {
 });
 const paginationSource = computed(() => allGroups.value.flatMap(group => group.rows));
 const { page, pageSize, pageRows } = useListPagination(paginationSource);
-watch([page, pageSize], () => { selected.value = []; collapsed.value = []; });
+watch([page, pageSize], () => { collapsed.value = []; });
 const groups = computed(() => {
   const visible = new Set(pageRows.value.map(row => row.id));
   return allGroups.value.map(group => ({ ...group, rows: group.rows.filter(row => visible.has(row.id)) })).filter(group => group.rows.length);
 });
-const allSelected = computed(
-  () =>
-    !!pageRows.value.length &&
-    pageRows.value.every((r) => selected.value.includes(r.id)),
-);
-watch(
-  [tab, keyword, filterOpen, filterKey, filterValue, filterOperator, orderFilters, groupMode],
-  () => (selected.value = []),
-);
-function selectRows(rows: TableRow[], checked: boolean) {
-  selected.value = checked
-    ? [...new Set([...selected.value, ...rows.map((r) => r.id)])]
-    : selected.value.filter((id) => !rows.some((r) => r.id === id));
-}
 function toggleGroup(name: string) {
   collapsed.value = collapsed.value.includes(name)
     ? collapsed.value.filter((n) => n !== name)
@@ -432,6 +421,31 @@ function open(row?: TableRow, read = false) {
   editorVersion.value++;
   editor.value = true;
 }
+function canCancelOrder(order: SalesOrder) {
+  return (
+    order.orderStatus === "执行中" &&
+    !store.state.shipments.some((s) => shipmentMatchesOrder(s, order.id)) &&
+    !store.state.payments.some((p) => p.orderId === order.id) &&
+    !store.state.returns.some((r) => r.orderId === order.id)
+  );
+}
+async function cancelOrder(order: SalesOrder) {
+  try {
+    await ElMessageBox.confirm(
+      `确认取消订单 ${order.code}？取消后不会再生成出库单。`,
+      "取消订单",
+      { confirmButtonText: "确认取消", cancelButtonText: "返回", type: "warning" },
+    );
+  } catch {
+    return;
+  }
+  try {
+    await store.cancelOrder(order.id);
+    ElMessage.success("订单已取消");
+  } catch (e) {
+    ElMessage.error((e as Error).message);
+  }
+}
 function ship(order: SalesOrder) {
   editor.value = false;
   editorKind.value = "shipments";
@@ -442,33 +456,31 @@ function ship(order: SalesOrder) {
   editorVersion.value++;
   editor.value = true;
 }
+async function reverseShipment(shipment: SalesShipment) {
+  try {
+    await ElMessageBox.confirm(
+      shipment.statementStatus === "DRAFT" || shipment.statementStatus === "SENT"
+        ? `该出库单已生成未确认的对账单，撤销后对账单将作废。确认撤销出库单 ${shipment.code}？`
+        : `确认撤销出库单 ${shipment.code}？库存将回补，相关应收一并删除。`,
+      "撤销出库",
+      { confirmButtonText: "撤销", cancelButtonText: "取消", type: "warning" },
+    );
+  } catch {
+    return;
+  }
+  try {
+    await store.reverseShipment(shipment.id);
+    ElMessage.success("出库单已撤销");
+  } catch (e) {
+    ElMessage.error((e as Error).message);
+  }
+}
 function saved() {
   multiOutbound.value = false;
   editor.value = false;
-  selected.value = [];
-}
-async function remove() {
-  if (!selected.value.length) return ElMessage.info("请先选择需要删除的数据");
-  try {
-    await ElMessageBox.confirm(
-      `确定删除选中的 ${selected.value.length} 条数据吗？`,
-      "删除数据",
-      {
-        type: "warning",
-        confirmButtonText: "删除",
-        cancelButtonText: "取消",
-      },
-    );
-    store.remove(props.kind, selected.value);
-    selected.value = [];
-    ElMessage.success("已删除");
-  } catch (e) {
-    if (e instanceof Error) ElMessage.error(e.message);
-  }
 }
 async function refresh(showSuccess = true) {
   await store.load();
-  selected.value = [];
   if (store.loadError) ElMessage.warning(store.loadError);
   else if (showSuccess) ElMessage.success("数据已刷新");
 }
@@ -539,7 +551,7 @@ async function exportData() {
   try {
     await downloadExport(isOrder ? 'sales-orders' : 'outbound-orders', {
       keyword: keyword.value, tab: tab.value, sales: orderFilters.value,
-      selectedIds: selected.value.map(Number), columns: shownColumns.value.map(c => c.key),
+      selectedIds: [], columns: shownColumns.value.map(c => c.key),
       sortKey: sortKey.value, sortDirection: sortDirection.value,
       filterOpen: filterOpen.value, filterKey: filterKey.value,
       filterOperator: filterOperator.value, filterValue: filterValue.value,
@@ -758,7 +770,6 @@ function confirmImport() {
           "
           >导入</el-button
         ><el-button text :icon="Download" :loading="exporting" :disabled="store.loading || !!store.loadError" @click="exportData">导出</el-button
-        ><el-button text :icon="Delete" @click="remove">删除</el-button
         >
       </div>
       <div class="purchase-toolbar-search">
@@ -858,17 +869,6 @@ function confirmImport() {
         <thead>
           <tr>
             <th
-              class="purchase-selection"
-              :rowspan="productColumns.length ? 2 : 1"
-            >
-              <el-checkbox
-                :model-value="allSelected"
-                :indeterminate="selected.length > 0 && !allSelected"
-                aria-label="选择全部销售数据"
-                @change="selectRows(pageRows, !!$event)"
-              />
-            </th>
-            <th
               v-for="c in leadingColumns"
               :key="c.key"
               :rowspan="productColumns.length ? 2 : 1"
@@ -912,19 +912,6 @@ function confirmImport() {
         <tbody>
           <template v-for="group in groups" :key="group.name">
             <tr v-if="grouped" class="purchase-group">
-              <td>
-                <el-checkbox
-                  :model-value="
-                    group.rows.every((r) => selected.includes(r.id))
-                  "
-                  :indeterminate="
-                    group.rows.some((r) => selected.includes(r.id)) &&
-                    !group.rows.every((r) => selected.includes(r.id))
-                  "
-                  :aria-label="'选择分组 ' + group.name"
-                  @change="selectRows(group.rows, !!$event)"
-                />
-              </td>
               <td :colspan="shownColumns.length + 1">
                 <button
                   :aria-expanded="!collapsed.includes(group.name)"
@@ -939,16 +926,8 @@ function confirmImport() {
               ><tr
                 v-for="row in group.rows"
                 :key="row.id"
-                :class="{ selected: selected.includes(row.id) }"
                 @dblclick="open(row, true)"
               >
-                <td class="purchase-selection">
-                  <el-checkbox
-                    :model-value="selected.includes(row.id)"
-                    :aria-label="'选择 ' + row.values.code"
-                    @change="selectRows([row], !!$event)"
-                  />
-                </td>
                 <td
                   v-for="c in [
                     ...leadingColumns,
@@ -1017,36 +996,46 @@ function confirmImport() {
                   <span v-else-if="c.key === 'customer'">{{ row.values.customerShortName }}</span>
                   <span v-else>{{ display(row, c.key) ?? "—" }}</span>
                 </td>
-                <td class="purchase-fixed-actions" :class="{ 'sales-shipment-actions': !isOrder }">
+                <td class="purchase-fixed-actions" :class="{ 'sales-order-actions': isOrder, 'sales-shipment-actions': !isOrder }">
                   <template v-if="isOrder">
-                    <el-button
-                      class="purchase-pay"
-                      size="small"
-                      plain
-                      :disabled="row.order?.orderStatus !== '执行中'"
-                      @click="business(row.order!, '收款')"
-                      >收款</el-button
-                    ><el-button
-                      class="purchase-ship"
-                      size="small"
-                      plain
-                      :disabled="
-                        !row.order?.lines.some(
-                          (l) => pendingShipmentQuantity(row.order!, l, store.state.shipments) > 0,
-                        )
-                      "
-                      @click="ship(row.order!)"
-                      >发货</el-button
-                    >
+                    <el-tooltip content="收款" placement="top">
+                      <span class="action-icon">
+                        <el-button class="action-icon-btn purchase-collect-icon" circle text :icon="Money"
+                          aria-label="收款" :disabled="row.order?.orderStatus !== '执行中'"
+                          @click="business(row.order!, '收款')" />
+                      </span>
+                    </el-tooltip>
+                    <el-tooltip content="发货" placement="top">
+                      <span class="action-icon">
+                        <el-button class="action-icon-btn purchase-ship-icon" circle text :icon="Van" aria-label="发货"
+                          :disabled="row.order?.orderStatus !== '执行中' || !row.order?.lines.some((l) => pendingShipmentQuantity(row.order!, l, store.state.shipments) > 0)"
+                          @click="ship(row.order!)" />
+                      </span>
+                    </el-tooltip>
+                    <el-tooltip content="取消订单" placement="top">
+                      <span class="action-icon">
+                        <el-button class="action-icon-btn purchase-cancel-icon" circle text :icon="CircleCloseFilled"
+                          aria-label="取消订单" :disabled="!canCancelOrder(row.order!)" @click="cancelOrder(row.order!)" />
+                      </span>
+                    </el-tooltip>
                   </template>
-                  <DeliveryNoteActions
-                    v-else-if="row.shipment"
+                  <template v-else-if="row.shipment">
+                    <el-tooltip content="撤销出库" placement="top">
+                      <span class="action-icon">
+                        <el-button class="action-icon-btn purchase-reverse-icon" circle text :icon="RefreshLeft"
+                          aria-label="撤销出库"
+                          :disabled="!row.shipment.confirmed || row.shipment.statementStatus === 'CONFIRMED'"
+                          @click="reverseShipment(row.shipment)" />
+                      </span>
+                    </el-tooltip>
+                    <DeliveryNoteActions
                     compact
                     :order="shipmentOrders(row.shipment, store.state.orders)[0]"
                     :orders="shipmentOrders(row.shipment, store.state.orders)"
                     :shipment="row.shipment"
                     :draft="!row.shipment.confirmed || !row.shipment.code"
-                  />
+                    />
+                  </template>
                 </td>
               </tr></template
             >
@@ -1060,8 +1049,7 @@ function confirmImport() {
       </table>
     </div>
     <footer class="purchase-table-footer">
-      <span v-if="selected.length">已选择 {{ selected.length }} 条</span
-      ><el-button v-if="grouped" text @click="collapsed = []"
+      <el-button v-if="grouped" text @click="collapsed = []"
         >⌄ 展开全部</el-button
       ><el-button
         v-if="grouped"
@@ -1298,12 +1286,18 @@ function confirmImport() {
 .sales-packaging-cell .sales-product-values { width: 160px; }
 .sales-packaging-cell .sales-product-values > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sales-management-table .purchase-fixed-actions {
-  min-width: 116px;
-  width: 116px;
+  min-width: 90px;
+  width: 90px;
 }
 .sales-management-table .sales-shipment-actions {
+  min-width: 68px;
+  width: 68px;
   text-align: center;
   vertical-align: middle;
+}
+.purchase-reverse:not(.is-disabled) {
+  color: #f56c6c;
+  border-color: #f2b3b3;
 }
 .sales-shipment-actions .delivery-document-actions.compact {
   justify-content: center;
@@ -1328,9 +1322,6 @@ function confirmImport() {
 }
 .sales-management-table tbody > tr:nth-child(even of :not(.purchase-group)):hover > td {
   background: #f4fbfa;
-}
-.sales-management-table tbody tr.selected td {
-  background: #eaf8f4;
 }
 </style>
 

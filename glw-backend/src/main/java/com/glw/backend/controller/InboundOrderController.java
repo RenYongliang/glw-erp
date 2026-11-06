@@ -43,4 +43,11 @@ public class InboundOrderController {
     public ApiResponse<InboundOrderVO> create(@Valid @RequestBody InboundOrderCreateDTO createDTO) {
         return ApiResponse.ok(inboundOrderService.createInboundOrder(createDTO));
     }
+
+    /** 撤销已入库单，回补库存并作废未生效应付。 */
+    @PostMapping("/{id}/reverse")
+    public ApiResponse<Void> reverse(@PathVariable Long id) {
+        inboundOrderService.reverseInboundOrder(id);
+        return ApiResponse.ok(null);
+    }
 }

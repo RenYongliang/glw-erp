@@ -18,4 +18,7 @@ public interface SalesOrderService {
 
     /** 根据发货状态与应收核销结果重算订单生命周期状态。 */
     void refreshCompletionStatus(Long orderId);
+
+    /** 取消尚未出库的销售订单；有出库记录时拒绝。 */
+    void cancelOrder(Long orderId);
 }

@@ -14,6 +14,9 @@ public interface FinanceOpenItemService extends IService<FinOpenItem> {
     /** 签收等结算基准变化后，重算来源单据对应的应收/应付账单归属。 */
     int refreshBasis(String direction, Long sourceId);
     int rebuild();
+
+    /** 作废未进入对账单、未核销的来源应收/应付；仅用于未签收出库撤销等回滚场景。 */
+    int discard(String direction, Long sourceId);
     Page<OpenItem> openItems(Query q);
     Summary summary(Query q);
     List<OpenItem> preview(Query q);

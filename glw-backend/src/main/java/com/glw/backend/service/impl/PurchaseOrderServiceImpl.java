@@ -103,6 +103,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     public PurchaseOrderVO updatePurchaseOrder(Long id, PurchaseOrderCreateDTO createDTO) {
         PurchaseOrder order = getById(id);
         if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "采购订单不存在");
+        if (order.getOrderStatus() == PurchaseOrderStatus.CANCELLED)
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已取消的采购订单不能修改");
         if (createDTO.getVersion() != null && !createDTO.getVersion().equals(order.getVersion()))
             throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
         if (inboundOrderItemAllocMapper.selectCount(Wrappers.<InboundOrderItemAlloc>lambdaQuery()
@@ -298,6 +300,29 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                             return result;
                         })
                         .toList()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelOrder(Long orderId) {
+        PurchaseOrder order = getById(orderId);
+        if (order == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "采购订单不存在");
+        }
+        if (order.getOrderStatus() == PurchaseOrderStatus.CANCELLED) return;
+        if (order.getOrderStatus() == PurchaseOrderStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已完结的采购订单不能取消");
+        }
+        long inbound = inboundOrderItemAllocMapper.selectCount(
+                Wrappers.<InboundOrderItemAlloc>lambdaQuery()
+                        .eq(InboundOrderItemAlloc::getPurchaseOrderId, orderId));
+        if (inbound > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "订单已有入库记录，请先撤销入库");
+        }
+        order.setOrderStatus(PurchaseOrderStatus.CANCELLED);
+        if (!updateById(order)) {
+            throw new BusinessException(ErrorCode.CONFLICT, "采购订单已发生变化，请刷新后重试");
+        }
     }
 
     @Override

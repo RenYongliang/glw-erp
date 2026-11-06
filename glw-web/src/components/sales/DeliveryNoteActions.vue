@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { deliveryNoteHtml, deliveryNoteStyles } from '../../domain/deliveryNoteHtml'
-import { Printer, Download } from '@element-plus/icons-vue'
+import { Printer, Download, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   createDeliveryNote,
@@ -82,15 +82,19 @@ function print() {
 
 <template>
   <div class="delivery-document-actions" :class="{ compact: props.compact }">
-    <el-button
-      v-if="props.compact"
-      size="small"
-      plain
-      :icon="Printer"
-      :disabled="!order"
-      @click="showPrint"
-      >发货单</el-button
-    >
+    <el-tooltip v-if="props.compact" content="发货单" placement="top">
+      <span class="action-icon">
+        <el-button
+          class="action-icon-btn delivery-note-icon"
+          circle
+          text
+          :icon="Document"
+          :disabled="!order"
+          aria-label="发货单"
+          @click="showPrint"
+        />
+      </span>
+    </el-tooltip>
     <template v-else>
       <el-button
         text

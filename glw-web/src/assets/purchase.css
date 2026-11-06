@@ -685,7 +685,149 @@
 
 /* 出库单：发货照片与客户回签单 */
 .shipment-photos, .shipment-receipt { margin: 4px 0 16px; }
-.shipment-photos-head, .shipment-receipt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-.shipment-photos-head strong, .shipment-receipt-head strong { font-size: 14px; font-weight: 500; }
+.shipment-photos-head, .shipment-receipt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+.shipment-photos-head strong, .shipment-receipt-head strong { font-size: 13px; color: #17283f; font-weight: 600; }
 .shipment-photos .purchase-import-file, .shipment-receipt .purchase-import-file { margin: 0; color: #1687ff; cursor: pointer; }
 .shipment-receipt .purchase-tip { margin: 4px 0; }
+
+/* 产品出库操作列：撤销与发货单使用同一套按钮尺寸和描边风格 */
+.sales-management-table .sales-shipment-actions .el-button {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+.sales-management-table .sales-shipment-actions .delivery-document-actions.compact {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.sales-management-table .sales-shipment-actions .delivery-document-actions .el-button {
+  color: #1384ff;
+  border-color: #a8cbff;
+  font-size: 12px;
+  height: 26px;
+  padding: 0 9px;
+}
+.sales-management-table .sales-shipment-actions .delivery-document-actions .el-button:hover {
+  color: #0b6fd8;
+  border-color: #1384ff;
+  background: #f0f7ff;
+}
+.sales-management-table .sales-shipment-actions .purchase-reverse:not(.is-disabled) {
+  color: #f56c6c;
+  border-color: #f2b3b3;
+}
+.sales-management-table .sales-shipment-actions .purchase-reverse + .delivery-document-actions.compact {
+  margin-left: 10px;
+}
+
+.shipment-success p { margin: 0 0 8px; color: #4b5565; }
+.shipment-success .delivery-document-actions { margin: 4px 0 0; }
+
+/* 出库单收货确认：勾选与时间放在同一行 */
+.shipment-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 2px 0 4px;
+}
+.shipment-confirm-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #17283f;
+  font-size: 13px;
+}
+.shipment-confirm-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #17283f;
+  font-size: 13px;
+  font-weight: 600;
+}
+.shipment-confirm-check .el-checkbox { margin-right: 0; }
+.shipment-confirm-time .el-date-editor { width: 210px; }
+.shipment-confirm-time > span { white-space: nowrap; font-weight: 600; }
+
+/* 出库弹窗：栏目标题之间收紧一半 */
+.sales-shipment-dialog .purchase-section:not(:first-child) { margin-top: 14px; }
+.sales-shipment-dialog .purchase-section { margin-bottom: 8px; }
+
+/* 订单取消：订单行操作列容纳 收款/付款、发货/入库、取消三个按钮 */
+.sales-management-table .sales-order-actions { min-width: 180px; width: 180px; }
+.purchase-table .purchase-order-actions { min-width: 180px; width: 180px; }
+.purchase-fixed-actions .purchase-cancel:not(.is-disabled) {
+  color: #f56c6c;
+  border-color: #f2b3b3;
+}
+.purchase-table .purchase-receipt-actions { min-width: 110px; width: 110px; }
+
+/* 列表操作列：图标按钮，统一尺寸与配色 */
+.sales-management-table .purchase-fixed-actions { min-width: 90px; width: 90px; }
+.sales-management-table .sales-order-actions { min-width: 90px; width: 90px; }
+.sales-management-table .sales-shipment-actions { min-width: 68px; width: 68px; }
+.purchase-table .purchase-fixed-actions { min-width: 90px; width: 90px; }
+.purchase-table .purchase-order-actions { min-width: 90px; width: 90px; }
+.purchase-table .purchase-receipt-actions { min-width: 56px; width: 56px; }
+
+.purchase-fixed-actions .action-icon { display: inline-flex; align-items: center; vertical-align: middle; }
+.purchase-fixed-actions .action-icon + .action-icon { margin-left: 2px; }
+.purchase-fixed-actions .action-icon-btn.el-button,
+.sales-management-table .purchase-fixed-actions .action-icon-btn.el-button,
+.purchase-table .purchase-fixed-actions .action-icon-btn.el-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #98a2b3;
+  font-size: 15px;
+  box-shadow: none;
+  transition: filter 0.15s ease;
+}
+.purchase-fixed-actions .action-icon-btn.el-button:hover {
+  background: #eef2f6;
+  filter: brightness(0.9);
+}
+.purchase-fixed-actions .action-icon-btn.el-button.is-disabled.is-text,
+.purchase-fixed-actions .action-icon-btn.el-button.is-disabled {
+  background: transparent !important;
+  color: #c3c9d4;
+  opacity: 1;
+  box-shadow: none;
+  filter: none;
+}
+.purchase-fixed-actions .action-icon-btn.purchase-collect-icon:not(.is-disabled) { color: #12b76a; }
+.purchase-fixed-actions .action-icon-btn.purchase-pay-icon:not(.is-disabled) { color: #f79009; }
+.purchase-fixed-actions .action-icon-btn.purchase-ship-icon:not(.is-disabled) { color: #2f80ed; }
+.purchase-fixed-actions .action-icon-btn.purchase-receive-icon:not(.is-disabled) { color: #0ba5ec; }
+.purchase-fixed-actions .action-icon-btn.purchase-reverse-icon:not(.is-disabled) { color: #f04438; }
+.purchase-fixed-actions .action-icon-btn.purchase-cancel-icon:not(.is-disabled) { color: #b42318; }
+.purchase-fixed-actions .action-icon-btn.delivery-note-icon:not(.is-disabled) { color: #444ce7; font-size: 13px; }
+.sales-shipment-actions .delivery-document-actions.compact { margin-left: 2px; }
+
+.purchase-fixed-actions .action-icon-btn.delivery-note-icon .el-icon { font-size: 13px; }
+
+/* 发货/入库：主图标 + 方向小箭头 */
+.purchase-fixed-actions .composite-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.purchase-fixed-actions .composite-icon > .el-icon:first-child { font-size: 14px; }
+.purchase-fixed-actions .composite-arrow {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 700;
+}
+.purchase-fixed-actions .composite-arrow-out { right: -2px; top: -2px; }
+.purchase-fixed-actions .composite-arrow-in { left: -2px; bottom: -2px; }
+
+
+.purchase-fixed-actions .action-icon-btn.purchase-receive-icon:not(.is-disabled) { color: #0e9384; }
