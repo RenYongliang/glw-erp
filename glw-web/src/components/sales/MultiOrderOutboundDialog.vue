@@ -31,7 +31,9 @@ const store = useSalesStore(),
   auth = useAuthStore()
 const full = ref(false),
   saving = ref(false),
-  dirty = ref(false)
+  dirty = ref(false),
+  savedShipment = ref<SalesShipment | null>(null),
+  successOpen = ref(false)
 const productIds = ref<string[]>([]),
   orderIds = ref<string[]>([])
 const drafts = ref<Record<string, MultiOutboundProduct>>({})
@@ -248,36 +250,24 @@ function createShipment(): SalesShipment {
   }
 }
 const draftId = crypto.randomUUID()
-const printableShipment = computed<SalesShipment>(() => {
-  try {
-    return createShipment()
-  } catch {
-    return {
-      id: draftId,
-      code: '',
-      orderId: selectedOrders.value[0]?.order.id || '',
-      orderIds: [...orderIds.value],
-      warehouse: '',
-      lines: [],
-      tag: '出库',
-      confirmed: true,
-      shippedAt: shippedAt.value,
-      keeper: '',
-      department: '',
-      photos: [],
-      customerConfirmed: false,
-      customerReceivedAt: '',
-      shipping: shippingInfo.value,
-    }
-  }
-})
+/** 提交成功后先展示出库单号和打印入口，关闭后再通知父级刷新。 */
+function finishSaved() {
+  successOpen.value = false
+  savedShipment.value = null
+  emit('saved')
+}
 async function save() {
   if (saving.value || busy.value || hasErrors.value) return
   try {
     const shipment = createShipment()
     saving.value = true
-    await store.saveShipment(shipment)
+    const saved = await store.saveShipment(shipment)
     dirty.value = false
+    if (saved.code) {
+      savedShipment.value = saved
+      successOpen.value = true
+      return
+    }
     ElMessage.success('出库成功')
     emit('saved')
   } catch (error) {
@@ -599,12 +589,6 @@ async function close() {
       :disabled="saving"
       @change="dirty = true"
     />
-    <DeliveryNoteActions
-      :order="selectedOrders[0]?.order"
-      :orders="selectedOrders.map((e) => e.order)"
-      :shipment="printableShipment"
-      draft
-    />
     <template #footer
       ><span class="outbound-totals"
         >本次出库 <b>{{ quantity.toLocaleString('zh-CN') }}</b> · 已分配
@@ -626,6 +610,30 @@ async function close() {
         >确认出库</el-button
       >
     </template>
+  </el-dialog>
+  <el-dialog
+    v-model="successOpen"
+    title="出库成功"
+    width="min(560px,94vw)"
+    append-to-body
+    :close-on-click-modal="false"
+    class="purchase-dialog"
+    @closed="finishSaved"
+  >
+    <div class="shipment-success">
+      <p>
+        出库单 <strong>{{ savedShipment?.code }}</strong> 已生成，可以打印或下载发货单。
+      </p>
+      <DeliveryNoteActions
+        v-if="savedShipment"
+        :order="selectedOrders[0]?.order"
+        :orders="selectedOrders.map((e) => e.order)"
+        :shipment="savedShipment"
+      />
+    </div>
+    <template #footer
+      ><el-button type="primary" @click="successOpen = false">完成</el-button></template
+    >
   </el-dialog>
 </template>
 

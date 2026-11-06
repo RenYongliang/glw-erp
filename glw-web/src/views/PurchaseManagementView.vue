@@ -323,7 +323,7 @@ function canCancelOrder(order: PurchaseOrder) {
 async function reverseReceipt(receipt: PurchaseReceipt) {
   try {
     await ElMessageBox.confirm(
-      `确认撤销入库单 ${receipt.code}？库存将扣回，相关应付一并删除；未确认的对账单会同步作废。`,
+      `确认撤销入库单 ${receipt.code}？撤销后库存将会扣回，相关应付将一并删除，未确认的对账单会同步作废。`,
       '撤销入库',
       { confirmButtonText: '撤销', cancelButtonText: '返回', type: 'warning' },
     )

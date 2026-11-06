@@ -459,9 +459,7 @@ function ship(order: SalesOrder) {
 async function reverseShipment(shipment: SalesShipment) {
   try {
     await ElMessageBox.confirm(
-      shipment.statementStatus === "DRAFT" || shipment.statementStatus === "SENT"
-        ? `该出库单已生成未确认的对账单，撤销后对账单将作废。确认撤销出库单 ${shipment.code}？`
-        : `确认撤销出库单 ${shipment.code}？库存将回补，相关应收一并删除。`,
+      `确认撤销出库单 ${shipment.code}？撤销后库存将会回补，相关应收将一并删除，未确认的对账单会同步作废。`,
       "撤销出库",
       { confirmButtonText: "撤销", cancelButtonText: "取消", type: "warning" },
     );
