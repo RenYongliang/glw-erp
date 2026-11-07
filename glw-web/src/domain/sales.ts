@@ -179,6 +179,8 @@ export interface SalesState {
   logs: { id: string; time: string; action: string; name: string }[]
 }
 export const salesStorageKey = 'glw.sales.v1'
+/** 从订单详情跳转到出库/对账单列表时暂存弹窗状态，返回销售订单页后恢复。 */
+export const salesOrderRestoreKey = 'glw.sales-order-restore.v1'
 export const customers: Customer[] = [
   {
     id: 'c1',

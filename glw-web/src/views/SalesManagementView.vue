@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useListPagination } from "../composables/useListPagination";
 import { computed, ref, watch, onMounted } from "vue";
+import { useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Plus,
@@ -29,6 +30,7 @@ import { useSalesStore } from "../stores/sales";
 import {
   customers,
   orderCustomerName,
+  salesOrderRestoreKey,
   salesLineProduct,
   products,
   money,
@@ -50,14 +52,15 @@ import {
 import { encodeCsv, parseCsv } from "../domain/crm";
 import { downloadExport } from '../services/exportApi';
 import "../assets/purchase.css";
-const props = defineProps<{ kind: SalesKind }>(),
+const route = useRoute(),
+  props = defineProps<{ kind: SalesKind }>(),
   store = useSalesStore(),
   isOrder = props.kind === "orders";
 const tabs = isOrder
   ? ["全部订单", "待发货", "待收款", "已完结"]
   : ["全部出库", "已出库", "待出库"];
 const tab = ref(tabs[0]!),
-  keyword = ref(""),
+  keyword = ref(typeof route.query.keyword === "string" ? route.query.keyword : ""),
   filterOpen = ref(false),
   filterKey = ref(isOrder ? "code" : "name"),
   filterOperator = ref("包含"),
@@ -107,7 +110,8 @@ const editor = ref(false),
   editingShipment = ref<SalesShipment>(),
   relatedOrder = ref<SalesOrder>(),
   readonly = ref(false),
-  editorVersion = ref(0);
+  editorVersion = ref(0),
+  restoreTab = ref("");
 type TableRow = {
   id: string;
   group: string;
@@ -388,6 +392,14 @@ const allGroups = computed(() => {
 const paginationSource = computed(() => allGroups.value.flatMap(group => group.rows));
 const { page, pageSize, pageRows } = useListPagination(paginationSource);
 watch([page, pageSize], () => { collapsed.value = []; });
+// 从订单详情点出库单号跳转过来时，用查询参数预填筛选。
+watch(
+  () => route.query.keyword,
+  (value) => {
+    keyword.value = typeof value === "string" ? value : "";
+    page.value = 1;
+  },
+);
 const groups = computed(() => {
   const visible = new Set(pageRows.value.map(row => row.id));
   return allGroups.value.map(group => ({ ...group, rows: group.rows.filter(row => visible.has(row.id)) })).filter(group => group.rows.length);
@@ -408,11 +420,12 @@ function statusTagType(key: string, value: string) {
     return value === '全部发货' ? 'success' : value === '部分发货' ? 'warning' : 'info'
   return value === '已出库' ? 'success' : 'warning'
 }
-function open(row?: TableRow, read = false) {
+function open(row?: TableRow, read = false, initialTab = "") {
   if (!isOrder && !row) {
     multiOutbound.value = true;
     return;
   }
+  restoreTab.value = initialTab;
   editorKind.value = props.kind;
   editingOrder.value = isOrder ? row?.order : undefined;
   editingShipment.value = isOrder ? undefined : row?.shipment;
@@ -420,6 +433,29 @@ function open(row?: TableRow, read = false) {
   readonly.value = read;
   editorVersion.value++;
   editor.value = true;
+}
+// 从出库/对账单列表返回时，在首帧渲染前直接用暂存的订单快照打开弹窗，
+// 避免先出现列表、等接口加载完再弹出。
+if (isOrder) {
+  const saved = sessionStorage.getItem(salesOrderRestoreKey);
+  if (saved) {
+    sessionStorage.removeItem(salesOrderRestoreKey);
+    try {
+      const state = JSON.parse(saved) as {
+        order?: SalesOrder;
+        tab?: string;
+        at?: number;
+      };
+      if (state.order && (!state.at || Date.now() - state.at <= 10 * 60 * 1000))
+        open(
+          { id: state.order.id, group: "", values: {}, order: state.order },
+          true,
+          state.tab || "订单附件",
+        );
+    } catch {
+      // 恢复数据损坏时按正常进入处理。
+    }
+  }
 }
 function canCancelOrder(order: SalesOrder) {
   return (
@@ -1088,6 +1124,7 @@ function confirmImport() {
     :related-order="relatedOrder"
     :dispatch="!!relatedOrder"
     :readonly="readonly"
+    :initial-tab="restoreTab"
     @close="editor = false"
     @saved="saved"
     @ship="ship"

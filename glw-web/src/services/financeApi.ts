@@ -55,6 +55,8 @@ export interface OpenItem {
   dueDate: string
   reconcileStatus: string
   statementId?: number
+  /** 已进账单时返回对账单号，未进账单为空。 */
+  statementNo?: string | null
 }
 export interface Statement {
   id: number

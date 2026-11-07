@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Download, DocumentChecked } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
@@ -23,10 +24,11 @@ import '../assets/purchase.css'
 
 const props = defineProps<{ kind: 'open-items' | 'statements' | 'payments' | 'profiles' }>()
 const auth = useAuthStore()
+const route = useRoute()
 const direction = ref<Direction>('AR'),
   partnerId = ref<number>(),
   period = ref(''),
-  keyword = ref(''),
+  keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : ''),
   status = ref('')
 const unsettled = ref(false),
   overdue = ref(false),
@@ -628,6 +630,14 @@ watch(keyword, () => {
   clearTimeout(timer)
   timer = setTimeout(firstPage, 300)
 })
+// 从订单财务明细点对账单号跳转过来时，用查询参数预填搜索。
+watch(
+  () => route.query.keyword,
+  (value) => {
+    keyword.value = typeof value === 'string' ? value : ''
+    page.value = 1
+  },
+)
 onMounted(load)
 onBeforeUnmount(() => {
   generation++

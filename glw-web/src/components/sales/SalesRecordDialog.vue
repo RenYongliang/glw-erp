@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Delete, Document, FullScreen } from "@element-plus/icons-vue";
 import DeliveryNoteActions from "./DeliveryNoteActions.vue";
@@ -26,6 +27,7 @@ import {
 } from "../../domain/attachments";
 import {
   orderCustomerName,
+  salesOrderRestoreKey,
   salesLineProduct,
   defaultShippingInfo,
   warehouses,
@@ -50,12 +52,15 @@ const props = defineProps<{
   relatedOrder?: SalesOrder;
   readonly?: boolean;
   dispatch?: boolean;
+  /** 从其他列表返回时恢复上次停留的执行跟踪页签。 */
+  initialTab?: string;
 }>();
 const emit = defineEmits<{ close: []; saved: []; ship: [order: SalesOrder] }>();
 const store = useSalesStore(),
+  router = useRouter(),
   view = ref(!!props.readonly && props.kind === "orders"),
   full = ref(false),
-  tab = ref("订单附件"),
+  tab = ref(props.initialTab || "订单附件"),
   picker = ref(""),
   pickerQuery = ref(""),
   productSelection = ref<string[]>([]),
@@ -152,7 +157,10 @@ const order = ref<SalesOrder>(
       },
 );
 /** 附件异步加载，有附件时再展开执行跟踪，避免入口藏在折叠区里。 */
-const businessOpen = ref<string[]>([]);
+// 从其他列表返回时直接展开执行跟踪，停留在上次查看的页签。
+const businessOpen = ref<string[]>(props.initialTab ? ["business"] : []);
+// 返回销售订单时跳过弹窗的出现动画，进入页面即呈现打开状态。
+const instantOpen = ref(!!props.initialTab);
 const shipment = ref<SalesShipment>(
   props.shipment
     ? clone(props.shipment)
@@ -258,6 +266,30 @@ const financeSummary = computed(() => {
 });
 function financeStatusLabel(status: string) {
   return ({ OPEN: "待对账", IN_STATEMENT: "对账中", RECONCILED: "已确认" } as Record<string, string>)[status] || status;
+}
+/** 离开订单详情前记住当前订单和页签，返回销售订单页时恢复弹窗。 */
+function rememberOrderDetail() {
+  sessionStorage.setItem(
+    salesOrderRestoreKey,
+    JSON.stringify({
+      order: { ...order.value, attachments: [] },
+      orderId: order.value.id,
+      tab: tab.value,
+      at: Date.now(),
+    }),
+  );
+}
+/** 跳转到产品出库列表，并把当前出库单号带过去作为筛选条件。 */
+function openShipmentList(code?: string) {
+  if (!code) return;
+  rememberOrderDetail();
+  void router.push({ name: "sales-shipments", query: { keyword: code } });
+}
+/** 跳转到对账单列表，并把当前对账单号带过去作为筛选条件。 */
+function openStatementList(statementNo?: string | null) {
+  if (!statementNo) return;
+  rememberOrderDetail();
+  void router.push({ name: "finance-statements", query: { keyword: statementNo } });
 }
 
 function batchCount(shipment: SalesShipment) {
@@ -487,6 +519,7 @@ onMounted(() => {
   syncDispatchFont();
   void document.fonts.ready.then(syncDispatchFont);
   window.addEventListener('resize', syncDispatchFont);
+  if (instantOpen.value) setTimeout(() => { instantOpen.value = false; }, 200);
 });
 onBeforeUnmount(() => window.removeEventListener('resize', syncDispatchFont));
 function contentWidth(label: string, values: unknown[], minimum = 0, controlPadding = 0) {
@@ -861,6 +894,7 @@ function quickFill() {
     :close-on-click-modal="false"
     :before-close="close"
     destroy-on-close
+    :transition="instantOpen ? 'none' : undefined"
   >
     <template #header
       ><div class="purchase-dialog-heading">
@@ -1209,11 +1243,14 @@ function quickFill() {
         </template>
         <template v-else-if="tab === '产品出库'">
           <el-table :data="linkedShipments" border empty-text="暂无出库记录">
-            <el-table-column prop="code" label="出库单号" width="150" />
+            <el-table-column label="出库单号" min-width="170">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openShipmentList(row.code)">{{ row.code }}</el-button>
+              </template>
+            </el-table-column>
             <el-table-column label="出库日期" width="110">
               <template #default="{ row }">{{ row.shippedAt || '—' }}</template>
             </el-table-column>
-            <el-table-column prop="warehouse" label="仓库" width="100" />
             <el-table-column label="出库数量" width="95" align="right">
               <template #default="{ row }">{{ shipmentTotals(row, order).quantity }}</template>
             </el-table-column>
@@ -1255,6 +1292,18 @@ function quickFill() {
             </el-descriptions>
             <el-table :data="financeItems" border empty-text="暂无财务记录">
               <el-table-column prop="sourceNo" label="出库单号" width="150" />
+              <el-table-column label="对账单号" width="150">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="row.statementNo"
+                    link
+                    type="primary"
+                    @click="openStatementList(row.statementNo)"
+                    >{{ row.statementNo }}</el-button
+                  >
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="bizDate" label="业务日期" width="105" />
               <el-table-column prop="partNo" label="型号" min-width="120" />
               <el-table-column prop="quantity" label="数量" width="85" align="right" />

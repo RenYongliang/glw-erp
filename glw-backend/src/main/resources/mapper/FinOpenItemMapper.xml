@@ -87,7 +87,10 @@
       #{period},#{periodStart},#{periodEnd},#{settleMonth},#{dueDate},#{reconcileStatus})
   </insert>
   <select id="openItems" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
-    SELECT * FROM fin_open_item WHERE <include refid="openFilter"/> ORDER BY COALESCE(basis_date,biz_date) DESC,id DESC
+    SELECT o.*, s.statement_no FROM (
+      SELECT * FROM fin_open_item WHERE <include refid="openFilter"/>
+    ) o LEFT JOIN fin_statement s ON s.id=o.statement_id
+    ORDER BY COALESCE(o.basis_date,o.biz_date) DESC,o.id DESC
     <if test="paged">LIMIT #{q.pageSize} OFFSET #{q.offset}</if>
   </select>
   <select id="countOpen" resultType="long">SELECT COUNT(*) FROM fin_open_item WHERE <include refid="openFilter"/></select>
@@ -101,7 +104,8 @@
     FROM fin_open_item WHERE <include refid="openFilter"/>
   </select>
   <select id="openItem" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
-    SELECT * FROM fin_open_item WHERE id=#{id}
+    SELECT o.*, s.statement_no FROM fin_open_item o
+    LEFT JOIN fin_statement s ON s.id=o.statement_id WHERE o.id=#{id}
   </select>
   <select id="openItemsBySource" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
     SELECT * FROM fin_open_item WHERE source_type=#{type} AND source_id=#{sourceId} ORDER BY id
