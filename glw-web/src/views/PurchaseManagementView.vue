@@ -324,9 +324,14 @@ function canCancelOrder(order: PurchaseOrder) {
   )
 }
 async function reverseReceipt(receipt: PurchaseReceipt) {
+  const prepaid = receiptOrders(receipt, store.state.orders)
+    .reduce((sum, order) => sum + Number(order.prepaymentAmount ?? 0), 0)
+  const prepaymentNotice = prepaid > 0
+    ? `该订单还有未核销预付款 ¥${money(prepaid)}，撤销入库后会保留在订单上，可后续冲抵应付或到财务退款；如为误登记，请先在财务收付款中作废。`
+    : ''
   try {
     await ElMessageBox.confirm(
-      `确认撤销入库单 ${receipt.code}？撤销后库存将会扣回，相关应付将一并删除，未确认的对账单会同步作废。`,
+      `确认撤销入库单 ${receipt.code}？撤销后库存将会扣回，相关应付将一并删除，未确认的对账单会同步作废。${prepaymentNotice}`,
       '撤销入库',
       { confirmButtonText: '撤销', cancelButtonText: '返回', type: 'warning' },
     )
@@ -387,28 +392,38 @@ const operation = ref(''),
   activeOrder = ref<PurchaseOrder>(),
   payment = ref<PurchasePayment>(),
   returned = ref<PurchaseReturn>()
-// 剩余应付以财务开项的未结金额为准，不再使用订单总额或本地付款记录。
+// 未结应付来自财务开项；订单可付金额按订单总额扣除已登记付款（含未核销预付款）计算。
 const financeOutstanding = ref<number | null>(null),
+  financeSettled = ref(0),
   financeOutstandingLoading = ref(false),
   paymentRequestKey = ref('')
 const unpaid = computed(() => financeOutstanding.value ?? 0)
+const orderAmount = computed(() => (activeOrder.value ? orderTotals(activeOrder.value).total : 0))
+const paidAmount = computed(
+  () => Number(activeOrder.value?.prepaymentAmount ?? 0) + financeSettled.value,
+)
+const payable = computed(() =>
+  Math.max(0, Math.round((orderAmount.value - paidAmount.value) * 100) / 100),
+)
 async function loadOutstanding(order: PurchaseOrder) {
   financeOutstanding.value = null
+  financeSettled.value = 0
   financeOutstandingLoading.value = true
   try {
     const page = await financeApi.openItems({
       direction: 'AP',
-      keyword: order.code,
+      orderId: Number(order.id),
       pageNo: 1,
       pageSize: 200,
     })
-    financeOutstanding.value = page.records
-      .filter((item) => item.orderNo === order.code)
-      .reduce(
-        (sum, item) =>
-          sum + Number(item.grossAmount ?? 0) - Number(item.settledAmount ?? 0),
-        0,
-      )
+    financeOutstanding.value = page.records.reduce(
+      (sum, item) => sum + Number(item.grossAmount ?? 0) - Number(item.settledAmount ?? 0),
+      0,
+    )
+    financeSettled.value = page.records.reduce(
+      (sum, item) => sum + Number(item.settledAmount ?? 0),
+      0,
+    )
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '未结金额加载失败')
   } finally {
@@ -433,7 +448,7 @@ function business(order: PurchaseOrder, kind: string) {
       if (payment.value)
         payment.value.amount = Math.max(
           0,
-          Math.round((financeOutstanding.value ?? 0) * 100) / 100,
+          Math.round(Math.min(financeOutstanding.value ?? 0, payable.value) * 100) / 100,
         )
     })
   } else
@@ -450,6 +465,8 @@ function business(order: PurchaseOrder, kind: string) {
 function settlementMessage(action: string, result: SettleOrderResult) {
   const allocated = Number(result.allocatedAmount ?? 0),
     unallocated = Number(result.unallocatedAmount ?? 0)
+  if (allocated <= 0 && unallocated > 0)
+    return `${action}已登记为预付款 ${money(unallocated)} 元，待入库产生应付后冲抵`
   if (unallocated > 0)
     return `${action}已登记：已核销 ${money(allocated)} 元，未分配 ${money(unallocated)} 元（待对账确认后核销）`
   return `${action}已登记并核销 ${money(allocated)} 元`
@@ -459,7 +476,7 @@ async function submitBusiness() {
     if (operation.value === '付款') {
       const row = payment.value!
       if (!row.amount || row.amount <= 0) throw Error('请填写付款金额')
-      if (row.amount > unpaid.value + 0.005) throw Error('付款金额不能超过订单未结金额')
+      if (row.amount > payable.value + 0.005) throw Error('付款金额不能超过订单可付金额')
       const result = await financeApi.settleOrder({
         requestKey: paymentRequestKey.value,
         direction: 'AP',
@@ -980,9 +997,15 @@ function confirmImport() {
   >
     <p>{{ activeOrder?.name }}</p>
     <el-form v-if="operation === '付款' && payment" label-position="top"
-      ><p>
-        剩余应付金额：<strong>¥ {{ money(unpaid) }}</strong>
-        <span v-if="financeOutstandingLoading">（加载中…）</span>
+      ><div class="purchase-payment-summary">
+        <div><span>订单金额</span><strong>¥ {{ money(orderAmount) }}</strong></div>
+        <div><span>已登记付款</span><strong>¥ {{ money(paidAmount) }}</strong></div>
+        <div><span>未结应付</span><strong>¥ {{ money(unpaid) }}</strong></div>
+        <div><span>可付金额</span><strong>¥ {{ money(payable) }}</strong></div>
+      </div>
+      <p v-if="financeOutstandingLoading" class="purchase-tip">应付金额加载中…</p>
+      <p v-if="!financeOutstandingLoading && unpaid <= 0 && payable > 0" class="prepayment-hint">
+        当前订单还没有入库应付，本次付款将登记为预付款，待入库产生应付后冲抵。
       </p>
       <p v-if="Number(activeOrder?.prepaymentAmount ?? 0) > 0" class="prepayment-hint">
         本订单已有未分配预付款 ¥ {{ money(Number(activeOrder?.prepaymentAmount ?? 0)) }}，可先在财务收付款中核销，避免重复付款。
@@ -991,7 +1014,7 @@ function confirmImport() {
         ><el-input-number
           v-model="payment.amount"
           :min="0"
-          :max="Math.max(0, unpaid)"
+          :max="Math.max(0, payable)"
           :precision="2" /></el-form-item
       ><el-form-item label="付款日期" required
         ><el-date-picker v-model="payment.date" value-format="YYYY-MM-DD" /></el-form-item

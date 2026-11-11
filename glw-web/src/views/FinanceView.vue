@@ -1080,7 +1080,7 @@ onBeforeUnmount(() => {
           <strong>{{ paymentDetail.payment.partnerName }}</strong
           ><el-tag>{{ label(paymentDetail.payment.status) }}</el-tag
           ><el-tag v-if="paymentDetail.payment.paymentType === 'PREPAYMENT'" type="warning"
-            >预付款</el-tag
+            >{{ paymentDetail.payment.direction === 'AR' ? '预收款' : '预付款' }}</el-tag
           ><span v-if="paymentDetail.payment.orderNo"
             >关联订单 {{ paymentDetail.payment.orderNo }}</span
           ><span>金额 {{ money(paymentDetail.payment.amount) }}</span

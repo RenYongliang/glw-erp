@@ -920,7 +920,7 @@ function quickFill() {
             type="warning"
             effect="plain"
             style="margin-left: 6px"
-            >预付款 ¥{{ money(Number(order.prepaymentAmount ?? 0)) }}</el-tag
+            >预收款 ¥{{ money(Number(order.prepaymentAmount ?? 0)) }}</el-tag
           ></span
         ><el-button
           :icon="FullScreen"

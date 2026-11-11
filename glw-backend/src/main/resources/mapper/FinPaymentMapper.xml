@@ -56,4 +56,8 @@
   <update id="updateOrderAndType">
     UPDATE fin_payment SET order_id=#{orderId}, payment_type=#{paymentType} WHERE id=#{id}
   </update>
+  <select id="orderPaymentTotal" resultType="java.math.BigDecimal">
+    SELECT COALESCE(SUM(amount), 0) FROM fin_payment
+    WHERE direction=#{direction} AND order_id=#{orderId} AND status&lt;&gt;'VOID'
+  </select>
 </mapper>

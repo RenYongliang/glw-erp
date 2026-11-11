@@ -23,4 +23,8 @@
     <sql id="Base_Column_List">
         `id`, `purchase_order_no`, `order_time`, `supplier_id`, `supplier_name`, `delivery_time`, `tax_included`, `order_status`, `receipt_status`, `payment_status`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
+    <select id="orderTotal" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(COALESCE(amount, unit_price * quantity)), 0)
+        FROM purchase_order_item WHERE purchase_order_id=#{orderId}
+    </select>
 </mapper>
