@@ -261,7 +261,12 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         var financialStatuses = financeMapper.orderStatuses("AP", orderIds).stream().collect(Collectors.toMap(
                 com.glw.backend.finance.FinanceOrderStatus.OrderStatus::orderId,
                 com.glw.backend.finance.FinanceOrderStatus.OrderStatus::paymentStatus));
+        Map<Long, BigDecimal> prepayments = financeMapper.orderPrepayments("AP", orderIds).stream()
+                .collect(Collectors.toMap(
+                        com.glw.backend.finance.FinanceOrderStatus.Prepayment::orderId,
+                        com.glw.backend.finance.FinanceOrderStatus.Prepayment::amount));
         records.forEach(order -> {
+            order.setPrepaymentAmount(prepayments.getOrDefault(order.getId(), BigDecimal.ZERO));
             if (financialStatuses.containsKey(order.getId())) order.setPaymentStatus(
                     com.glw.backend.model.enums.PurchasePaymentStatus.fromCode(financialStatuses.get(order.getId())));
             // 兜底：已全部收货且已付款的历史数据即使漏了重算，也显示为已完结。

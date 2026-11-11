@@ -42,6 +42,7 @@
   <sql id="openFilter">
     direction=#{q.direction}
     <if test="q.partnerId != null">AND partner_id=#{q.partnerId}</if>
+    <if test="q.orderId != null">AND order_id=#{q.orderId}</if>
     <if test="q.period != null and q.period != ''">AND settle_month=#{q.period}</if>
     <if test="q.status != null and q.status != ''">AND reconcile_status=#{q.status}</if>
     <if test="q.pendingBasisOnly == true">AND basis_ready=0</if>
@@ -100,6 +101,7 @@
       COALESCE(SUM(CASE WHEN due_date &lt; CURRENT_DATE THEN gross_amount-settled_amount ELSE 0 END),0) overdue_amount,
       (SELECT COALESCE(SUM(amount-allocated_amount),0) FROM fin_payment WHERE direction=#{q.direction} AND status!='VOID'
        <if test="q.partnerId != null">AND partner_id=#{q.partnerId}</if>
+    <if test="q.orderId != null">AND order_id=#{q.orderId}</if>
        <if test="q.period != null and q.period != ''">AND DATE_FORMAT(payment_date,'%Y-%m')=#{q.period}</if>) unallocated_amount
     FROM fin_open_item WHERE <include refid="openFilter"/>
   </select>

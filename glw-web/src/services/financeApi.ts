@@ -7,6 +7,8 @@ export type Money = number | string
 export interface FinanceQuery {
   direction: Direction
   partnerId?: number
+  /** 按业务订单过滤开项；预付款核销时使用。 */
+  orderId?: number
   period?: string
   keyword?: string
   status?: string
@@ -81,6 +83,12 @@ export interface Payment {
   id: number
   paymentNo: string
   direction: Direction
+  /** 关联业务订单ID；预付款为订单付款时写入。 */
+  orderId?: number
+  /** 关联订单号，由后端关联返回。 */
+  orderNo?: string
+  /** NORMAL 普通收付款；PREPAYMENT 预付款。 */
+  paymentType?: string
   partnerId: number
   partnerName: string
   paymentDate: string

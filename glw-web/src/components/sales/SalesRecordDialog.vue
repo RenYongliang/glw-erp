@@ -914,6 +914,13 @@ function quickFill() {
             type="info"
             style="margin-left: 6px"
             >{{ order.deliveryStatus }}</el-tag
+          ><el-tag
+            v-if="isOrder && order.code && Number(order.prepaymentAmount ?? 0) > 0"
+            size="small"
+            type="warning"
+            effect="plain"
+            style="margin-left: 6px"
+            >预付款 ¥{{ money(Number(order.prepaymentAmount ?? 0)) }}</el-tag
           ></span
         ><el-button
           :icon="FullScreen"

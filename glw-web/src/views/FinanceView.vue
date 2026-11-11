@@ -476,16 +476,19 @@ async function loadEligible() {
   const current = ++eligibleGeneration
   eligibleLoading.value = true
   try {
+    const prepayment = p.paymentType === 'PREPAYMENT' && p.orderId
     const result = await api.openItems({
       direction: p.direction,
       partnerId: p.partnerId,
-      status: 'RECONCILED',
+      ...(prepayment ? { orderId: p.orderId } : { status: 'RECONCILED' }),
       unsettledOnly: true,
       pageNo: eligiblePage.value,
       pageSize: 10,
     })
     if (current === eligibleGeneration) {
-      eligible.value = result.records
+      eligible.value = prepayment
+        ? result.records.filter((row) => ['OPEN', 'RECONCILED'].includes(row.reconcileStatus))
+        : result.records
       eligibleTotal.value = Number(result.total)
     }
   } catch (e) {
@@ -1076,6 +1079,10 @@ onBeforeUnmount(() => {
         ><p class="finance-detail-line">
           <strong>{{ paymentDetail.payment.partnerName }}</strong
           ><el-tag>{{ label(paymentDetail.payment.status) }}</el-tag
+          ><el-tag v-if="paymentDetail.payment.paymentType === 'PREPAYMENT'" type="warning"
+            >预付款</el-tag
+          ><span v-if="paymentDetail.payment.orderNo"
+            >关联订单 {{ paymentDetail.payment.orderNo }}</span
           ><span>金额 {{ money(paymentDetail.payment.amount) }}</span
           ><span
             >未分配

@@ -6,6 +6,8 @@
     <result column="payment_no" property="paymentNo" jdbcType="VARCHAR"/>
     <result column="request_key" property="requestKey" jdbcType="VARCHAR"/>
     <result column="direction" property="direction" jdbcType="VARCHAR"/>
+    <result column="order_id" property="orderId" jdbcType="BIGINT"/>
+    <result column="payment_type" property="paymentType" jdbcType="VARCHAR"/>
     <result column="partner_id" property="partnerId" jdbcType="BIGINT"/>
     <result column="partner_name" property="partnerName" jdbcType="VARCHAR"/>
     <result column="currency" property="currency" jdbcType="VARCHAR"/>
@@ -17,32 +19,41 @@
     <result column="status" property="status" jdbcType="VARCHAR"/>
     <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
   </resultMap>
-  <sql id="Base_Column_List">id, payment_no, request_key, direction, partner_id, partner_name, currency, payment_date, amount, allocated_amount, bank_reference, remark, status, created_at</sql>
+  <sql id="Base_Column_List">id, payment_no, request_key, direction, order_id, payment_type, partner_id, partner_name, currency, payment_date, amount, allocated_amount, bank_reference, remark, status, created_at</sql>
   <sql id="paymentFilter">
-    direction=#{q.direction}
-    <if test="q.partnerId != null">AND partner_id=#{q.partnerId}</if>
-    <if test="q.period != null and q.period != ''">AND DATE_FORMAT(payment_date,'%Y-%m')=#{q.period}</if>
-    <if test="q.status != null and q.status != ''">AND status=#{q.status}</if>
-    <if test="q.keyword != null and q.keyword != ''">AND (LOCATE(#{q.keyword},partner_name)>0 OR LOCATE(#{q.keyword},payment_no)>0 OR LOCATE(#{q.keyword},bank_reference)>0)</if>
+    p.direction=#{q.direction}
+    <if test="q.partnerId != null">AND p.partner_id=#{q.partnerId}</if>
+    <if test="q.period != null and q.period != ''">AND DATE_FORMAT(p.payment_date,'%Y-%m')=#{q.period}</if>
+    <if test="q.status != null and q.status != ''">AND p.status=#{q.status}</if>
+    <if test="q.keyword != null and q.keyword != ''">AND (LOCATE(#{q.keyword},p.partner_name)>0 OR LOCATE(#{q.keyword},p.payment_no)>0 OR LOCATE(#{q.keyword},p.bank_reference)>0)</if>
   </sql>
   <insert id="insertPayment" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO fin_payment (payment_no,request_key,direction,partner_id,partner_name,payment_date,amount,bank_reference,remark)
-    VALUES (#{paymentNo},#{requestKey},#{direction},#{partnerId},#{partnerName},#{paymentDate},#{amount},#{bankReference},#{remark})
+    INSERT INTO fin_payment (payment_no,request_key,direction,order_id,payment_type,partner_id,partner_name,payment_date,amount,bank_reference,remark)
+    VALUES (#{paymentNo},#{requestKey},#{direction},#{orderId},#{paymentType},#{partnerId},#{partnerName},#{paymentDate},#{amount},#{bankReference},#{remark})
   </insert>
+  <sql id="paymentSelect">
+    SELECT p.*, COALESCE(so.order_no, po.purchase_order_no) AS order_no
+    FROM fin_payment p
+    LEFT JOIN sales_order so ON p.direction='AR' AND p.order_id=so.id
+    LEFT JOIN purchase_order po ON p.direction='AP' AND p.order_id=po.id
+  </sql>
   <select id="payment" resultType="com.glw.backend.finance.FinanceModels$Payment">
-    SELECT * FROM fin_payment WHERE id=#{id}
+    <include refid="paymentSelect"/> WHERE p.id=#{id}
   </select>
   <select id="paymentByKey" resultType="com.glw.backend.finance.FinanceModels$Payment">
-    SELECT * FROM fin_payment WHERE request_key=#{key}
+    <include refid="paymentSelect"/> WHERE p.request_key=#{key}
   </select>
   <select id="payments" resultType="com.glw.backend.finance.FinanceModels$Payment">
-    SELECT * FROM fin_payment WHERE <include refid="paymentFilter"/> ORDER BY payment_date DESC,id DESC LIMIT #{q.pageSize} OFFSET #{q.offset}
+    <include refid="paymentSelect"/> WHERE <include refid="paymentFilter"/> ORDER BY p.payment_date DESC,p.id DESC LIMIT #{q.pageSize} OFFSET #{q.offset}
   </select>
-  <select id="countPayments" resultType="long">SELECT COUNT(*) FROM fin_payment WHERE <include refid="paymentFilter"/></select>
+  <select id="countPayments" resultType="long">SELECT COUNT(*) FROM fin_payment p WHERE <include refid="paymentFilter"/></select>
   <update id="allocate">
     UPDATE fin_payment SET allocated_amount=allocated_amount+#{amount},status=CASE WHEN allocated_amount=amount THEN 'ALLOCATED' WHEN allocated_amount=0 THEN 'RECEIVED' ELSE 'PARTIAL_ALLOCATED' END WHERE id=#{id} AND status!='VOID' AND allocated_amount+#{amount} BETWEEN 0 AND amount
   </update>
   <update id="voidPayment">
     UPDATE fin_payment SET status='VOID' WHERE id=#{id} AND allocated_amount=0 AND status!='VOID'
+  </update>
+  <update id="updateOrderAndType">
+    UPDATE fin_payment SET order_id=#{orderId}, payment_type=#{paymentType} WHERE id=#{id}
   </update>
 </mapper>

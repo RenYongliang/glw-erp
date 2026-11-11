@@ -134,6 +134,7 @@ const orderColumns = [
   ["pendingShipment", "待发数量"],
   ["amounts", "金额"],
   ["total", "订单金额"],
+  ["prepayment", "预付款"],
   ["term", "账期"],
   ["delivery", "交付日期"],
   ["owner", "销售负责人"],
@@ -151,6 +152,7 @@ const orderWidths: Record<string, number> = {
   pendingShipment: 85,
   amounts: 90,
   total: 100,
+  prepayment: 100,
   term: 90,
   delivery: 95,
   owner: 95,
@@ -245,7 +247,7 @@ const leadingColumns = computed(() =>
 const trailingColumns = computed(() =>
   shownColumns.value.filter((c) =>
     isOrder
-      ? ["total", "term", "delivery", "owner"].includes(c.key)
+      ? ["total", "prepayment", "term", "delivery", "owner"].includes(c.key)
       : ["total", "quantity", "status"].includes(c.key) &&
         !(isOrder && c.key === "status"),
   ),
@@ -280,6 +282,7 @@ const records = computed<TableRow[]>(() =>
             discount: o.discount,
             rate: t.rate.toFixed(2) + "%",
             total: t.total,
+            prepayment: o.prepaymentAmount ? o.prepaymentAmount : "—",
             uppercase: chineseMoney(t.total),
             net: t.net,
             attachments: o.attachments.map((a) => a.name).join("、"),
@@ -565,6 +568,7 @@ function business(order: SalesOrder, kind: string) {
       amount: 0,
       date: today(),
       method: "银行转账",
+      bankReference: "",
       note: "",
     };
     void loadOutstanding(order).then(() => {
@@ -606,7 +610,7 @@ async function submitBusiness() {
         orderId: Number(row.orderId),
         paymentDate: row.date,
         amount: row.amount,
-        bankReference: "",
+        bankReference: row.bankReference || "",
         remark: [row.method, row.note].filter(Boolean).join("；"),
       });
       operation.value = "";
@@ -1213,6 +1217,9 @@ function confirmImport() {
         剩余应收金额：<strong>¥ {{ money(unpaid) }}</strong>
         <span v-if="financeOutstandingLoading">（加载中…）</span>
       </p>
+      <p v-if="Number(activeOrder?.prepaymentAmount ?? 0) > 0" class="prepayment-hint">
+        本订单已有未分配预付款 ¥ {{ money(Number(activeOrder?.prepaymentAmount ?? 0)) }}，可先在财务收付款中核销，避免重复收款。
+      </p>
       <el-form-item label="收款金额/元" required
         ><el-input-number
           v-model="payment.amount"
@@ -1229,6 +1236,12 @@ function confirmImport() {
             v-for="n in ['银行转账', '现金', '承兑汇票']"
             :key="n"
             :value="n" /></el-select></el-form-item
+      ><el-form-item label="银行流水号"
+        ><el-input
+          v-model="payment.bankReference"
+          maxlength="128"
+          placeholder="银行回单号/流水号"
+      /></el-form-item
       ><el-form-item label="备注"
         ><el-input v-model="payment.note" type="textarea" /></el-form-item
     ></el-form>

@@ -74,6 +74,8 @@ export interface SalesOrder {
   taxIncluded?: boolean
   customerShortName?: string
   paymentStatus?: '未收款' | '部分收款' | '已收款'
+  /** 已登记但尚未核销的预付款余额。 */
+  prepaymentAmount?: number
   remark?: string
   customerName?: string
   purchaseNumber?: string
@@ -161,6 +163,8 @@ export interface SalesPayment {
   amount: number
   date: string
   method: string
+  /** 银行回单号/流水号。 */
+  bankReference?: string
   note: string
 }
 export interface SalesReturn {

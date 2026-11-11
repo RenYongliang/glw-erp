@@ -120,6 +120,7 @@ const orderColumns = [
   ['prices', '单价'], ['quantities', '采购数量'], ['pendingDelivery', '待交数量'],
   ['amounts', '金额'], ['deliveries', '交付日期'],
   ['total', '订单金额'],
+  ['prepayment', '预付款'],
   ['owner', '采购负责人'],
 ]
 const productKeys = isOrder
@@ -177,6 +178,7 @@ const records = computed<TableRow[]>(() =>
             discount: o.discount,
             rate: t.rate.toFixed(2) + '%',
             total: t.total,
+            prepayment: o.prepaymentAmount ? o.prepaymentAmount : '—',
             uppercase: chineseMoney(t.total),
             net: t.net,
             attachments: o.attachments.map((a) => a.name).join('、'),
@@ -424,6 +426,7 @@ function business(order: PurchaseOrder, kind: string) {
       amount: 0,
       date: today(),
       method: '银行转账',
+      bankReference: '',
       note: '',
     }
     void loadOutstanding(order).then(() => {
@@ -463,7 +466,7 @@ async function submitBusiness() {
         orderId: Number(row.orderId),
         paymentDate: row.date,
         amount: row.amount,
-        bankReference: '',
+        bankReference: row.bankReference || '',
         remark: [row.method, row.note].filter(Boolean).join('；'),
       })
       operation.value = ''
@@ -981,6 +984,9 @@ function confirmImport() {
         剩余应付金额：<strong>¥ {{ money(unpaid) }}</strong>
         <span v-if="financeOutstandingLoading">（加载中…）</span>
       </p>
+      <p v-if="Number(activeOrder?.prepaymentAmount ?? 0) > 0" class="prepayment-hint">
+        本订单已有未分配预付款 ¥ {{ money(Number(activeOrder?.prepaymentAmount ?? 0)) }}，可先在财务收付款中核销，避免重复付款。
+      </p>
       <el-form-item label="付款金额/元" required
         ><el-input-number
           v-model="payment.amount"
@@ -995,6 +1001,12 @@ function confirmImport() {
             v-for="n in ['银行转账', '现金', '承兑汇票']"
             :key="n"
             :value="n" /></el-select></el-form-item
+      ><el-form-item label="银行流水号"
+        ><el-input
+          v-model="payment.bankReference"
+          maxlength="128"
+          placeholder="银行回单号/流水号"
+      /></el-form-item
       ><el-form-item label="备注"><el-input v-model="payment.note" type="textarea" /></el-form-item
     ></el-form>
     <el-form v-else-if="returned && activeOrder" label-position="top"

@@ -15,4 +15,5 @@ public interface FinPaymentMapper extends BaseMapper<FinPayment> {
     long countPayments(@Param("q") Query query);
     int allocate(@Param("id") Long id, @Param("amount") java.math.BigDecimal amount);
     int voidPayment(Long id);
+    int updateOrderAndType(@Param("id") Long id, @Param("orderId") Long orderId, @Param("paymentType") String paymentType);
 }

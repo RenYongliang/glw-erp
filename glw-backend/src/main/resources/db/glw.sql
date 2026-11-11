@@ -726,6 +726,8 @@ CREATE TABLE fin_statement (
  id bigint PRIMARY KEY AUTO_INCREMENT,
  statement_no varchar(64) NOT NULL,
  direction varchar(2) NOT NULL,
+ order_id bigint NULL,
+ payment_type varchar(16) NOT NULL DEFAULT 'NORMAL',
  partner_id bigint NOT NULL,
  partner_name varchar(255) NOT NULL,
  period varchar(20) NOT NULL COMMENT '账单期间标签：单月 2026-09，跨月 2026-08~2026-09',
@@ -810,6 +812,8 @@ CREATE TABLE fin_payment (
  payment_no varchar(64) NOT NULL,
  request_key varchar(64) NOT NULL,
  direction varchar(2) NOT NULL,
+ order_id bigint NULL,
+ payment_type varchar(16) NOT NULL DEFAULT 'NORMAL',
  partner_id bigint NOT NULL,
  partner_name varchar(255) NOT NULL,
  currency varchar(8) NOT NULL DEFAULT 'CNY',
@@ -823,6 +827,7 @@ CREATE TABLE fin_payment (
  UNIQUE KEY uk_no (payment_no),
  UNIQUE KEY uk_request (request_key),
  KEY idx_list (direction, partner_id, payment_date),
+ KEY idx_order (order_id),
  CHECK (amount > 0 AND allocated_amount >= 0 AND allocated_amount <= amount)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

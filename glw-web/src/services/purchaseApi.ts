@@ -37,6 +37,8 @@ interface PurchaseOrderResponse {
   orderStatus: string
   receiptStatus?: string | null
   paymentStatus: string
+  /** 已登记但尚未核销的预付款余额。 */
+  prepaymentAmount?: number | null
   remark?: string | null
   version?: number
   items: PurchaseOrderItemResponse[]
@@ -145,6 +147,7 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
     arrivals: [],
     payments: [],
     paymentStatus: ({ UNPAID: '未付款', PARTIALLY_PAID: '部分付款', PAID: '已付款' } as const)[order.paymentStatus as 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'],
+    prepaymentAmount: Number(order.prepaymentAmount ?? 0),
     attachments: [],
     term: order.remark || '',
     orderStatus: orderStatuses[order.orderStatus] || '执行中',

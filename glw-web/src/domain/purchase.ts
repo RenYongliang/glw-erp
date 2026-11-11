@@ -90,6 +90,8 @@ export interface PurchaseOrder {
   arrivals: ArrivalPlan[]
   payments: PaymentPlan[]
   paymentStatus?: '未付款' | '部分付款' | '已付款'
+  /** 已登记但尚未核销的预付款余额。 */
+  prepaymentAmount?: number
   attachments: Attachment[]
   term: string
   orderStatus: PurchaseOrderStatus
@@ -144,6 +146,8 @@ export interface PurchasePayment {
   amount: number
   date: string
   method: string
+  /** 银行回单号/流水号。 */
+  bankReference?: string
   note: string
 }
 export interface PurchaseReturn {

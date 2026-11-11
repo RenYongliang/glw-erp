@@ -623,6 +623,13 @@ function quickFill() {
             type="info"
             style="margin-left: 6px"
             >{{ order.receiptStatus }}</el-tag
+          ><el-tag
+            v-if="isOrder && order.code && Number(order.prepaymentAmount ?? 0) > 0"
+            size="small"
+            type="warning"
+            effect="plain"
+            style="margin-left: 6px"
+            >预付款 ¥{{ money(Number(order.prepaymentAmount ?? 0)) }}</el-tag
           ></span
         ><div class="purchase-dialog-controls"
           ><el-button :icon="FullScreen" text aria-label="切换表单全屏" @click="full = !full" /></div

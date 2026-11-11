@@ -6,6 +6,7 @@ import com.glw.backend.model.enums.SalesPaymentStatus;
 import com.glw.backend.model.enums.SettlementType;
 import com.glw.backend.model.enums.TaxIncluded;
 import lombok.Data;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +39,9 @@ public class SalesOrderVO {
     private SalesDeliveryStatus deliveryStatus;
 
     private SalesPaymentStatus paymentStatus;
+
+    /** 已登记但尚未核销的预付款余额。 */
+    private BigDecimal prepaymentAmount;
 
     private String remark;
 

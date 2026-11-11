@@ -22,6 +22,16 @@
       <otherwise>1=0</otherwise>
     </choose>
   </select>
+  <select id="orderPrepayments" resultType="com.glw.backend.finance.FinanceOrderStatus$Prepayment">
+    SELECT order_id AS orderId, SUM(amount - allocated_amount) AS amount
+    FROM fin_payment
+    WHERE direction=#{direction}
+      AND payment_type='PREPAYMENT'
+      AND status&lt;&gt;'VOID'
+      AND amount&gt;allocated_amount
+      AND order_id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    GROUP BY order_id
+  </select>
   <select id="orderIdsByStatus" resultType="long">
     <choose>
       <when test="direction == 'AR'">SELECT id FROM sales_order WHERE (<include refid="arStatus"/>)=#{status}</when>

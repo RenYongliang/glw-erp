@@ -37,9 +37,9 @@ public class ListExportService {
     private static final Map<String, LinkedHashMap<String, String>> COLUMNS = Map.of(
             "customers", columns("name", "客户名称", "shortName", "客户简称", "category", "客户分类", "contact", "联系人", "phone", "手机", "address", "客户地址", "settlement", "结算方式"),
             "followups", columns("customer", "客户", "stage", "跟进阶段", "visitTime", "拜访时间", "project", "项目应用", "originalPartNo", "原用物料型号", "brands", "品牌", "productNames", "推荐型号", "models", "封装", "quantity", "项目用量", "price", "产品报价", "tax", "是否含税", "progress", "进度", "detail", "详细内容"),
-            "sales-orders", columns("code", "订单编号", "purchaseNumber", "客户采购单号", "customer", "客户名称", "signed", "订单日期", "brands", "品牌", "productNames", "型号", "models", "封装", "prices", "单价", "ordered", "销售数量", "pendingShipment", "待发数量", "amounts", "金额", "total", "订单金额", "term", "账期", "delivery", "交付日期", "owner", "销售负责人"),
+            "sales-orders", columns("code", "订单编号", "purchaseNumber", "客户采购单号", "customer", "客户名称", "signed", "订单日期", "brands", "品牌", "productNames", "型号", "models", "封装", "prices", "单价", "ordered", "销售数量", "pendingShipment", "待发数量", "amounts", "金额", "total", "订单金额", "prepayment", "预付款", "term", "账期", "delivery", "交付日期", "owner", "销售负责人"),
             "outbound-orders", columns("code", "出库单号", "purchaseNumber", "客户采购单号", "customer", "客户名称", "shippedAt", "出库日期", "brands", "品牌", "productNames", "型号", "models", "封装", "ordered", "销售数量", "pending", "出库数量", "status", "出库状态"),
-            "purchase-orders", columns("code", "采购单号", "supplier", "供应商", "signed", "采购日期", "brands", "品牌", "productNames", "型号", "models", "封装", "prices", "单价(含税)", "quantities", "采购数量", "pendingDelivery", "待交数量", "amounts", "金额", "deliveries", "交付日期", "total", "订单金额", "owner", "采购负责人"),
+            "purchase-orders", columns("code", "采购单号", "supplier", "供应商", "signed", "采购日期", "brands", "品牌", "productNames", "型号", "models", "封装", "prices", "单价(含税)", "quantities", "采购数量", "pendingDelivery", "待交数量", "amounts", "金额", "deliveries", "交付日期", "total", "订单金额", "prepayment", "预付款", "owner", "采购负责人"),
             "inbound-orders", columns("code", "入库单号", "orderCode", "采购单号", "supplier", "供应商", "receivedAt", "入库日期", "brands", "品牌", "productNames", "型号", "models", "封装", "quantities", "采购数量", "received", "入库数量", "status", "入库状态"),
             "inventory", columns("productId", "产品ID", "brands", "品牌", "productNames", "型号", "models", "封装", "dateCode", "Date Code", "lotCode", "Lot Code", "batchNo", "批次号", "quantity", "可出库库存", "cost", "单位成本", "amount", "库存金额", "inboundDate", "入库日期"));
 
@@ -111,6 +111,7 @@ public class ListExportService {
                 "signed", date(o.getOrderTime()), "delivery", date(o.getDeliveryTime()), "owner", "", "term", settlement(o.getSettleType() == null ? "" : o.getSettleType().getCode()),
                 "status", o.getOrderStatus() == null ? "待发货" : o.getOrderStatus().getDescription(),
                 "paymentStatus", o.getPaymentStatus() == null || "UNPAID".equals(o.getPaymentStatus().getCode()) ? "未收款" : o.getPaymentStatus().getDescription(),
+                "prepayment", o.getPrepaymentAmount() == null || o.getPrepaymentAmount().signum() == 0 ? "—" : o.getPrepaymentAmount().setScale(2, RoundingMode.HALF_UP),
                 "name", s(o.getCustomerName()) + "销售订单", "priceLevel", "标准售价");
         summarize(v, lines, "\n"); v.put("total", total(lines, "prices", "ordered"));
         documentSearch(v, lines, false, "ordered");
@@ -126,7 +127,9 @@ public class ListExportService {
         boolean partial = lines.stream().anyMatch(l -> decimal(l.get("pendingDelivery")).compareTo(decimal(l.get("quantities"))) < 0);
         var v = values("code", o.getPurchaseOrderNo(), "supplier", o.getSupplierName(), "signed", date(o.getOrderTime()), "owner", "",
                 "status", complete ? "已完成" : partial ? "部分收货" : "待收货", "receiptStatus", complete ? "已收货" : partial ? "部分收货" : "待收货",
-                "paymentStatus", o.getPaymentStatus() == null || "UNPAID".equals(o.getPaymentStatus().getCode()) ? "未付款" : o.getPaymentStatus().getDescription(), "name", s(o.getSupplierName()) + "采购订单");
+                "paymentStatus", o.getPaymentStatus() == null || "UNPAID".equals(o.getPaymentStatus().getCode()) ? "未付款" : o.getPaymentStatus().getDescription(),
+                "prepayment", o.getPrepaymentAmount() == null || o.getPrepaymentAmount().signum() == 0 ? "—" : o.getPrepaymentAmount().setScale(2, RoundingMode.HALF_UP),
+                "name", s(o.getSupplierName()) + "采购订单");
         summarize(v, lines, "、"); v.put("total", total(lines, "prices", "quantities"));
         documentSearch(v, lines, true, "quantities");
         return new Row(o.getId(), v, lines);

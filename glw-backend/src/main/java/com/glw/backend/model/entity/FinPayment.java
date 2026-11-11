@@ -26,6 +26,14 @@ public class FinPayment {
     @TableField("direction")
     private String direction;
 
+    /** 关联业务订单ID；从订单收付款时写入，用于预付款归集。 */
+    @TableField("order_id")
+    private Long orderId;
+
+    /** NORMAL/预付款 PREPAYMENT。 */
+    @TableField("payment_type")
+    private String paymentType;
+
     @TableField("partner_id")
     private Long partnerId;
 

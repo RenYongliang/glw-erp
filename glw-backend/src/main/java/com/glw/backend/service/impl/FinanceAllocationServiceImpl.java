@@ -83,7 +83,12 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         if ("VOID".equals(p.getStatus())) throw bad("已作废收付款不能核销");
         if (!Objects.equals(p.getDirection(), o.getDirection()) || !Objects.equals(p.getPartnerId(), o.getPartnerId()) || !Objects.equals(p.getCurrency(), o.getCurrency()))
             throw bad("只能核销同方向、同往来单位、同币种的记录");
-        if (!"RECONCILED".equals(o.getReconcileStatus())) throw bad("对账确认后才能核销");
+        boolean prepaymentForOrder = "PREPAYMENT".equals(p.getPaymentType()) && p.getOrderId() != null;
+        if (prepaymentForOrder && !Objects.equals(o.getOrderId(), p.getOrderId()))
+            throw bad("预付款只能核销关联订单的应付");
+        boolean allocatable = "RECONCILED".equals(o.getReconcileStatus())
+                || (prepaymentForOrder && "OPEN".equals(o.getReconcileStatus()));
+        if (!allocatable) throw bad("对账确认后才能核销");
         if (amount.compareTo(p.getAmount().subtract(p.getAllocatedAmount())) > 0 || amount.compareTo(o.getGrossAmount().subtract(o.getSettledAmount())) > 0)
             throw bad("核销金额超过未分配余额或未结金额");
     }
@@ -108,6 +113,7 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         PaymentInput paymentInput = new PaymentInput();
         paymentInput.setRequestKey(input.getRequestKey());
         paymentInput.setDirection(input.getDirection());
+        paymentInput.setOrderId(input.getOrderId());
         paymentInput.setPartnerId(partnerId);
         paymentInput.setPaymentDate(input.getPaymentDate());
         paymentInput.setAmount(input.getAmount());
@@ -136,12 +142,17 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
             remaining = remaining.subtract(amount);
         }
 
+        BigDecimal allocated = input.getAmount().subtract(remaining);
+        // 没有可核销的已确认应付时，这笔钱先作为预付款挂在订单上，后续手工冲应付。
+        if (allocated.signum() == 0) {
+            finPaymentMapper.updateOrderAndType(payment.getId(), input.getOrderId(), "PREPAYMENT");
+        }
         PaymentDetail detail = paymentService.payment(payment.getId());
         SettleOrderResult result = new SettleOrderResult();
         result.setPayment(detail.payment());
         result.setAllocations(detail.allocations());
         result.setOrderOutstanding(outstanding);
-        result.setAllocatedAmount(input.getAmount().subtract(remaining));
+        result.setAllocatedAmount(allocated);
         result.setUnallocatedAmount(remaining);
         return result;
     }

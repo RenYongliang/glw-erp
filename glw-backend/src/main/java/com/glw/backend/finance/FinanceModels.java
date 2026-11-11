@@ -13,6 +13,8 @@ public final class FinanceModels {
     @Data public static class Query {
         @NotNull @Pattern(regexp = "AR|AP") private String direction = "AR";
         private Long partnerId;
+        /** 按业务订单过滤开项；预付款核销时使用。 */
+        private Long orderId;
         @Pattern(regexp = "\\d{4}-(0[1-9]|1[0-2])") private String period;
         @Size(max = 128) private String keyword = "";
         @Size(max = 30) private String status;
@@ -45,8 +47,8 @@ public final class FinanceModels {
         private LocalDateTime createdAt, sentAt, confirmedAt;
     }
     @Data public static class Payment {
-        private Long id, partnerId;
-        private String paymentNo, requestKey, direction, partnerName, currency, bankReference, remark, status;
+        private Long id, partnerId, orderId;
+        private String paymentNo, requestKey, direction, orderNo, paymentType, partnerName, currency, bankReference, remark, status;
         private LocalDate paymentDate;
         private BigDecimal amount, allocatedAmount;
         private LocalDateTime createdAt;
@@ -116,6 +118,8 @@ public final class FinanceModels {
     @Data public static class PaymentInput {
         @NotBlank @Size(max = 64) private String requestKey;
         @NotNull @Pattern(regexp = "AR|AP") private String direction;
+        /** 从订单直接收付款时关联的订单ID。 */
+        private Long orderId;
         @NotNull @Positive private Long partnerId;
         @NotNull private LocalDate paymentDate;
         @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 4) private BigDecimal amount;

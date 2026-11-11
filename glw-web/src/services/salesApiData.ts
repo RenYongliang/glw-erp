@@ -36,6 +36,8 @@ export interface SalesOrderResponse {
   orderStatus: string
   deliveryStatus?: string | null
   paymentStatus: string
+  /** 已登记但尚未核销的预付款余额。 */
+  prepaymentAmount?: number | null
   remark?: string | null
   version?: number
   items: SalesOrderItemResponse[]
@@ -107,6 +109,7 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
     orderStatus: orderStatuses[order.orderStatus] || '执行中',
     deliveryStatus: deliveryStatuses[order.deliveryStatus || ''] || '未发货',
     paymentStatus: payments[order.paymentStatus],    remark: order.remark || '',
+    prepaymentAmount: Number(order.prepaymentAmount ?? 0),
     version: order.version,
     lines: order.items.map(item => ({
       id: String(item.id), productId: String(item.productId),

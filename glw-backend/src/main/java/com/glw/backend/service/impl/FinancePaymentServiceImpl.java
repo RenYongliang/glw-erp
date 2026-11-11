@@ -43,6 +43,7 @@ public class FinancePaymentServiceImpl extends ServiceImpl<FinPaymentMapper, Fin
         Payment existing = finPaymentMapper.paymentByKey(input.getRequestKey());
         if (existing != null) {
             if (!Objects.equals(existing.getDirection(), input.getDirection()) || !Objects.equals(existing.getPartnerId(), input.getPartnerId())
+                    || !Objects.equals(existing.getOrderId(), input.getOrderId())
                     || existing.getAmount().compareTo(input.getAmount()) != 0 || !Objects.equals(existing.getPaymentDate(), input.getPaymentDate())
                     || !Objects.equals(existing.getBankReference(), input.getBankReference()) || !Objects.equals(existing.getRemark(), input.getRemark()))
                 throw conflict("重复请求标识对应了不同收付款内容");
@@ -50,7 +51,8 @@ public class FinancePaymentServiceImpl extends ServiceImpl<FinPaymentMapper, Fin
         }
         Partner partner = profileService.partner(input.getDirection(), input.getPartnerId());
         var p = new Payment();
-        p.setDirection(input.getDirection()); p.setPartnerId(partner.getId()); p.setPartnerName(partner.getName());
+        p.setDirection(input.getDirection()); p.setOrderId(input.getOrderId());
+        p.setPaymentType("NORMAL"); p.setPartnerId(partner.getId()); p.setPartnerName(partner.getName());
         p.setRequestKey(input.getRequestKey()); p.setAmount(input.getAmount()); p.setPaymentDate(input.getPaymentDate());
         p.setBankReference(input.getBankReference().trim()); p.setRemark(input.getRemark());
         p.setPaymentNo(numbers.next("AR".equals(input.getDirection()) ? DocumentNumberService.Kind.RECEIPT : DocumentNumberService.Kind.PAYMENT, input.getPaymentDate().atStartOfDay()));

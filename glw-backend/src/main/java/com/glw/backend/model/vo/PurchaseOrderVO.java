@@ -7,6 +7,7 @@ import com.glw.backend.model.enums.TaxIncluded;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +27,8 @@ public class PurchaseOrderVO {
     private PurchaseOrderStatus orderStatus;
     private PurchaseReceiptStatus receiptStatus;
     private PurchasePaymentStatus paymentStatus;
+    /** 已登记但尚未核销的预付款余额。 */
+    private BigDecimal prepaymentAmount;
     private String remark;
     private Integer version;
     private List<PurchaseOrderItemVO> items = new ArrayList<>();
