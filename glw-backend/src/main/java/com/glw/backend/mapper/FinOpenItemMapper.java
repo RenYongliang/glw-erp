@@ -16,6 +16,8 @@ public interface FinOpenItemMapper extends BaseMapper<FinOpenItem> {
     Summary summary(@Param("q") Query query);
     OpenItem openItem(Long id);
     List<OpenItem> openItemsBySource(@Param("type") String type, @Param("sourceId") Long sourceId);
+    /** 某张订单下仍有未结金额的开项，按业务日期、id 升序，供订单收付款自动核销。 */
+    List<OpenItem> openItemsByOrder(@Param("direction") String direction, @Param("orderId") Long orderId);
     /** 可参与出单的记录：已签收/已入库、未对账、未进入任何对账单。 */
     List<OpenItem> statementCandidates(@Param("direction") String direction, @Param("partnerId") Long partnerId);
     /** 结算档案变更后需要按新口径重算期间的未出账记录。 */

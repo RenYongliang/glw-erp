@@ -27,6 +27,7 @@ import InboundReceiptDialog from '../components/purchase/InboundReceiptDialog.vu
 import PurchaseInboundHistoryDialog from '../components/purchase/PurchaseInboundHistoryDialog.vue'
 import MultiOrderInboundDialog from '../components/purchase/MultiOrderInboundDialog.vue'
 import { usePurchaseStore } from '../stores/purchase'
+import { financeApi, type SettleOrderResult } from '../services/financeApi'
 import {
   suppliers,
   purchaseSupplierName,
@@ -384,27 +385,55 @@ const operation = ref(''),
   activeOrder = ref<PurchaseOrder>(),
   payment = ref<PurchasePayment>(),
   returned = ref<PurchaseReturn>()
-const unpaid = computed(() =>
-  activeOrder.value
-    ? orderTotals(activeOrder.value).total -
-      store.state.payments
-        .filter((p) => p.orderId === activeOrder.value!.id)
-        .reduce((s, p) => s + p.amount, 0)
-    : 0,
-)
+// 剩余应付以财务开项的未结金额为准，不再使用订单总额或本地付款记录。
+const financeOutstanding = ref<number | null>(null),
+  financeOutstandingLoading = ref(false),
+  paymentRequestKey = ref('')
+const unpaid = computed(() => financeOutstanding.value ?? 0)
+async function loadOutstanding(order: PurchaseOrder) {
+  financeOutstanding.value = null
+  financeOutstandingLoading.value = true
+  try {
+    const page = await financeApi.openItems({
+      direction: 'AP',
+      keyword: order.code,
+      pageNo: 1,
+      pageSize: 200,
+    })
+    financeOutstanding.value = page.records
+      .filter((item) => item.orderNo === order.code)
+      .reduce(
+        (sum, item) =>
+          sum + Number(item.grossAmount ?? 0) - Number(item.settledAmount ?? 0),
+        0,
+      )
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '未结金额加载失败')
+  } finally {
+    financeOutstandingLoading.value = false
+  }
+}
 function business(order: PurchaseOrder, kind: string) {
   activeOrder.value = order
   operation.value = kind
-  if (kind === '付款')
+  if (kind === '付款') {
+    paymentRequestKey.value = crypto.randomUUID()
     payment.value = {
       id: crypto.randomUUID(),
       orderId: order.id,
-      amount: Math.max(0, Math.round(unpaid.value * 100) / 100),
+      amount: 0,
       date: today(),
       method: '银行转账',
       note: '',
     }
-  else
+    void loadOutstanding(order).then(() => {
+      if (payment.value)
+        payment.value.amount = Math.max(
+          0,
+          Math.round((financeOutstanding.value ?? 0) * 100) / 100,
+        )
+    })
+  } else
     returned.value = {
       id: crypto.randomUUID(),
       orderId: order.id,
@@ -415,10 +444,34 @@ function business(order: PurchaseOrder, kind: string) {
       reason: '',
     }
 }
-function submitBusiness() {
+function settlementMessage(action: string, result: SettleOrderResult) {
+  const allocated = Number(result.allocatedAmount ?? 0),
+    unallocated = Number(result.unallocatedAmount ?? 0)
+  if (unallocated > 0)
+    return `${action}已登记：已核销 ${money(allocated)} 元，未分配 ${money(unallocated)} 元（待对账确认后核销）`
+  return `${action}已登记并核销 ${money(allocated)} 元`
+}
+async function submitBusiness() {
   try {
-    if (operation.value === '付款') store.pay(payment.value!)
-    else store.returnGoods(returned.value!)
+    if (operation.value === '付款') {
+      const row = payment.value!
+      if (!row.amount || row.amount <= 0) throw Error('请填写付款金额')
+      if (row.amount > unpaid.value + 0.005) throw Error('付款金额不能超过订单未结金额')
+      const result = await financeApi.settleOrder({
+        requestKey: paymentRequestKey.value,
+        direction: 'AP',
+        orderId: Number(row.orderId),
+        paymentDate: row.date,
+        amount: row.amount,
+        bankReference: '',
+        remark: [row.method, row.note].filter(Boolean).join('；'),
+      })
+      operation.value = ''
+      ElMessage.success(settlementMessage('付款', result))
+      await refresh()
+      return
+    }
+    store.returnGoods(returned.value!)
     operation.value = ''
     ElMessage.success('已保存')
   } catch (e) {
@@ -926,6 +979,7 @@ function confirmImport() {
     <el-form v-if="operation === '付款' && payment" label-position="top"
       ><p>
         剩余应付金额：<strong>¥ {{ money(unpaid) }}</strong>
+        <span v-if="financeOutstandingLoading">（加载中…）</span>
       </p>
       <el-form-item label="付款金额/元" required
         ><el-input-number

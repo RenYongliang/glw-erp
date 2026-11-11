@@ -91,7 +91,6 @@ const order = ref<PurchaseOrder>(
 order.value.contact = purchaseContact(order.value)
 order.value.phone = purchasePhone(order.value)
 /** 附件异步加载，有附件时再展开执行跟踪，避免入口藏在折叠区里。 */
-const businessOpen = ref<string[]>([])
 order.value.taxIncluded ??= true
 for (const line of order.value.lines) {
   line.delivery ??= order.value.delivery
@@ -384,22 +383,37 @@ function openPicker(name: string) {
   productSelection.value = []
   picker.value = name
 }
+const savedOrder = ref<PurchaseOrder | null>(null),
+  successOpen = ref(false)
+/** 保存成功后先展示订单号和采购合同打印/下载，关闭后再通知父级刷新并关闭编辑弹窗。 */
+function finishSaved() {
+  successOpen.value = false
+  savedOrder.value = null
+  emit('saved')
+}
 async function save() {
   if (saving.value) return
   saving.value = true
   try {
-    if (isOrder) await store.saveOrder(order.value)
-    else {
-      receipt.value.confirmed = true
-      receipt.value.receivedAt ||= new Date().toLocaleString('sv-SE').slice(0, 16)
-      receipt.value.keeper = auth.user?.name || receipt.value.keeper
-      receipt.value.department = auth.user?.department || receipt.value.department
-      await store.saveReceipt(receipt.value)
+    if (isOrder) {
+      const saved = await store.saveOrder(order.value)
+      dirty.value = false
+      if (saved?.code) {
+        savedOrder.value = saved
+        successOpen.value = true
+        return
+      }
+      ElMessage.success('采购订单已保存')
+      emit('saved')
+      return
     }
+    receipt.value.confirmed = true
+    receipt.value.receivedAt ||= new Date().toLocaleString('sv-SE').slice(0, 16)
+    receipt.value.keeper = auth.user?.name || receipt.value.keeper
+    receipt.value.department = auth.user?.department || receipt.value.department
+    await store.saveReceipt(receipt.value)
     dirty.value = false
-    ElMessage.success(
-      isOrder ? '采购订单已保存' : receipt.value.confirmed ? '入库已确认' : '已保存到待入库',
-    )
+    ElMessage.success('入库已确认')
     emit('saved')
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -444,7 +458,6 @@ async function loadAttachments() {
   try {
     const rows = await fetchOrderAttachments('PURCHASE_ORDER', Number(order.value.id))
     attachments.value = rows.map(toAttachment)
-    if (rows.length && !businessOpen.value.includes('business')) businessOpen.value = ['business']
   } catch (e) {
     attachmentError.value = e instanceof Error ? e.message : '附件加载失败'
   } finally {
@@ -838,13 +851,12 @@ function quickFill() {
           <el-form-item label="合计金额大写"><div class="purchase-read">{{ chineseMoney(totals.total) }}</div></el-form-item>
         </template>
 </el-form>
-      <PurchaseContractActions v-if="isOrder" :order="order" />
       <template v-if="isOrder">
-        <el-collapse v-if="order.code" v-model="businessOpen" class="purchase-order-business"><el-collapse-item name="business">
-        <template #title>
+        <section v-if="order.code" class="purchase-order-business">
+        <header class="purchase-business-header">
           <span class="purchase-business-title">执行跟踪</span>
           <span class="purchase-business-counts">附件 {{ attachments.length }} · 入库 {{ linkedReceipts.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ financeItems.length }}</span>
-        </template>
+        </header>
         <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
             v-for="name in ['订单附件', '产品入库', '采购退货', '财务明细']"
@@ -936,7 +948,7 @@ function quickFill() {
             </el-table>
           </div>
         </template>
-        </el-collapse-item></el-collapse>
+        </section>
       </template>
       <template v-else>
         <h3 class="purchase-section">入库确认</h3>
@@ -977,6 +989,25 @@ function quickFill() {
         ><el-button v-else type="primary" :loading="saving" @click="save">{{ isOrder ? '保存' : '确认入库' }}</el-button
         ><el-button @click="close()">{{ view ? '关闭' : '取消' }}</el-button>
       </div></template
+    >
+  </el-dialog>
+  <el-dialog
+    v-model="successOpen"
+    title="采购订单已保存"
+    width="min(560px,94vw)"
+    append-to-body
+    :close-on-click-modal="false"
+    class="purchase-dialog purchase-success-dialog"
+    @closed="finishSaved"
+  >
+    <div class="purchase-success">
+      <p>
+        采购订单 <strong>{{ savedOrder?.code }}</strong> 已保存，可以打印或下载采购合同。
+      </p>
+      <PurchaseContractActions v-if="savedOrder" :order="savedOrder" />
+    </div>
+    <template #footer
+      ><el-button type="primary" @click="successOpen = false">完成</el-button></template
     >
   </el-dialog>
   <el-dialog
@@ -1103,8 +1134,10 @@ function quickFill() {
 .purchase-order-lines .el-select { width: 100%; }
 .purchase-order-lines .purchase-tax-empty { color: #a8abb2; }
 .purchase-order-business { margin-top: 16px; border-top: 0; }
-.purchase-order-business .el-collapse-item__header {
+.purchase-order-business .purchase-business-header {
   position: relative;
+  display: flex;
+  align-items: center;
   height: auto;
   padding: 0 0 12px;
   border-bottom: 4px solid #d2e6ff;
@@ -1113,7 +1146,7 @@ function quickFill() {
   font-weight: 600;
   line-height: 22px;
 }
-.purchase-order-business .el-collapse-item__header:after {
+.purchase-order-business .purchase-business-header:after {
   content: '';
   position: absolute;
   bottom: -4px;
@@ -1123,7 +1156,6 @@ function quickFill() {
   background: #1384ff;
   border-radius: 0 8px 0 6px;
 }
-.purchase-order-business .el-collapse-item__arrow { color: #1384ff; }
 .purchase-business-counts { margin-left: 12px; color: #8a94a6; font-size: 12px; font-weight: 400; }
 .purchase-dialog-controls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .purchase-custom-supplier { display: flex; gap: 16px; align-items: center; margin: 12px 0; color: #8491a4; }

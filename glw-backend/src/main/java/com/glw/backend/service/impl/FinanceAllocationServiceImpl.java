@@ -5,10 +5,20 @@ import com.glw.backend.finance.FinanceModels.OpenItem;
 import com.glw.backend.finance.FinanceModels.Payment;
 import com.glw.backend.finance.FinanceModels.Allocation;
 import com.glw.backend.finance.FinanceModels.Allocate;
+import com.glw.backend.finance.FinanceModels.PaymentDetail;
+import com.glw.backend.finance.FinanceModels.PaymentInput;
+import com.glw.backend.finance.FinanceModels.SettleOrderInput;
+import com.glw.backend.finance.FinanceModels.SettleOrderResult;
 import com.glw.backend.mapper.FinOpenItemMapper;
 import com.glw.backend.mapper.FinPaymentMapper;
 import com.glw.backend.mapper.FinAllocationMapper;
+import com.glw.backend.mapper.SalesOrderMapper;
+import com.glw.backend.mapper.PurchaseOrderMapper;
 import com.glw.backend.model.entity.FinAllocation;
+import com.glw.backend.model.entity.SalesOrder;
+import com.glw.backend.model.entity.PurchaseOrder;
+import com.glw.backend.model.enums.SalesOrderStatus;
+import com.glw.backend.model.enums.PurchaseOrderStatus;
 import com.glw.backend.service.FinanceOpenItemService;
 import com.glw.backend.service.FinancePaymentService;
 import com.glw.backend.service.FinanceAllocationService;
@@ -21,6 +31,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Objects;
 import static com.glw.backend.finance.FinanceSupport.*;
 
@@ -39,6 +50,8 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
     private final FinancePaymentService paymentService;
     private final SalesOrderService salesOrderService;
     private final PurchaseOrderService purchaseOrderService;
+    private final SalesOrderMapper salesOrderMapper;
+    private final PurchaseOrderMapper purchaseOrderMapper;
 
     @Transactional
     @Override
@@ -73,6 +86,64 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         if (!"RECONCILED".equals(o.getReconcileStatus())) throw bad("对账确认后才能核销");
         if (amount.compareTo(p.getAmount().subtract(p.getAllocatedAmount())) > 0 || amount.compareTo(o.getGrossAmount().subtract(o.getSettledAmount())) > 0)
             throw bad("核销金额超过未分配余额或未结金额");
+    }
+
+    @Transactional
+    @Override
+    public SettleOrderResult settleOrder(SettleOrderInput input) {
+        lockService.lock();
+        long partnerId;
+        if ("AR".equals(input.getDirection())) {
+            SalesOrder order = salesOrderMapper.selectById(input.getOrderId());
+            if (order == null) throw missing();
+            if (order.getOrderStatus() == SalesOrderStatus.CANCELLED) throw bad("已取消的销售订单不能收款");
+            partnerId = order.getCustomerId();
+        } else {
+            PurchaseOrder order = purchaseOrderMapper.selectById(input.getOrderId());
+            if (order == null) throw missing();
+            if (order.getOrderStatus() == PurchaseOrderStatus.CANCELLED) throw bad("已取消的采购订单不能付款");
+            partnerId = order.getSupplierId();
+        }
+
+        PaymentInput paymentInput = new PaymentInput();
+        paymentInput.setRequestKey(input.getRequestKey());
+        paymentInput.setDirection(input.getDirection());
+        paymentInput.setPartnerId(partnerId);
+        paymentInput.setPaymentDate(input.getPaymentDate());
+        paymentInput.setAmount(input.getAmount());
+        paymentInput.setBankReference(input.getBankReference());
+        paymentInput.setRemark(input.getRemark());
+        Payment payment = paymentService.createPayment(paymentInput).payment();
+
+        List<OpenItem> items = finOpenItemMapper.openItemsByOrder(input.getDirection(), input.getOrderId());
+        BigDecimal outstanding = items.stream()
+                .map(item -> item.getGrossAmount().subtract(item.getSettledAmount()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal remaining = input.getAmount();
+        // 按业务日期从早到晚核销已对账确认的开项；未确认的保留为未分配余额。
+        for (OpenItem item : items) {
+            if (!"RECONCILED".equals(item.getReconcileStatus())) continue;
+            BigDecimal available = item.getGrossAmount().subtract(item.getSettledAmount());
+            if (available.signum() <= 0) continue;
+            BigDecimal amount = remaining.min(available);
+            if (amount.signum() <= 0) break;
+            Allocate allocate = new Allocate();
+            allocate.setRequestKey(input.getRequestKey() + ":" + item.getId());
+            allocate.setPaymentId(payment.getId());
+            allocate.setOpenItemId(item.getId());
+            allocate.setAmount(amount);
+            allocate(allocate);
+            remaining = remaining.subtract(amount);
+        }
+
+        PaymentDetail detail = paymentService.payment(payment.getId());
+        SettleOrderResult result = new SettleOrderResult();
+        result.setPayment(detail.payment());
+        result.setAllocations(detail.allocations());
+        result.setOrderOutstanding(outstanding);
+        result.setAllocatedAmount(input.getAmount().subtract(remaining));
+        result.setUnallocatedAmount(remaining);
+        return result;
     }
 
     @Transactional

@@ -723,6 +723,8 @@
 
 .shipment-success p { margin: 0 0 8px; color: #4b5565; }
 .shipment-success .delivery-document-actions { margin: 4px 0 0; }
+.purchase-success p { margin: 0 0 8px; color: #4b5565; }
+.purchase-success .purchase-contract-actions { margin: 4px 0 0; }
 
 /* 出库单收货确认：勾选与时间放在同一行 */
 .shipment-confirm-row {

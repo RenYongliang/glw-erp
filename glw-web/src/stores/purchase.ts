@@ -11,7 +11,6 @@ import {
   type PurchaseState,
   type PurchaseOrder,
   type PurchaseReceipt,
-  type PurchasePayment,
   type PurchaseReturn,
 } from '../domain/purchase'
 import {
@@ -80,10 +79,10 @@ export const usePurchaseStore = defineStore('purchase', () => {
         state.value.returns.some((r) => r.orderId === order.id))
     )
       throw Error('订单已有入库或财务记录，不能再修改订单基础数据')
-    if (existing) await updatePurchaseOrder(order)
-    else await createPurchaseOrder(order)
+    const saved = existing ? await updatePurchaseOrder(order) : await createPurchaseOrder(order)
     // 以服务端数据为准刷新列表，确保拿到后端订单号和状态。
     await load()
+    return saved
   }
   /** 撤销已入库单，后端会扣回库存并作废未生效应付。 */
   async function reverseReceipt(id: string) {
@@ -104,25 +103,6 @@ export const usePurchaseStore = defineStore('purchase', () => {
     if (receipt.code) throw Error('已保存的入库单不能修改')
     await createInboundOrder(receipt)
     await load()
-  }
-  function pay(input: PurchasePayment) {
-    const next = snapshot(),
-      order = next.orders.find((o) => o.id === input.orderId)
-    if (!order || order.orderStatus !== '执行中')
-      throw Error('当前订单状态不能付款')
-    const remaining =
-      orderTotals(order).total -
-      next.payments.filter((p) => p.orderId === order.id).reduce((a, p) => a + p.amount, 0)
-    if (
-      !Number.isFinite(input.amount) ||
-      input.amount <= 0 ||
-      Math.round(input.amount * 100) > Math.round(remaining * 100) ||
-      !input.date ||
-      !input.method
-    )
-      throw Error('请填写有效付款信息，金额不得超过剩余应付金额')
-    next.payments.unshift({ ...input })
-    commit(next, '采购付款', order.code)
   }
   function returnGoods(input: PurchaseReturn) {
     const next = snapshot(),
@@ -170,7 +150,6 @@ export const usePurchaseStore = defineStore('purchase', () => {
     cancelOrder,
     saveReceipt,
     reverseReceipt,
-    pay,
     returnGoods,
     importOrders,
     importReceipts,

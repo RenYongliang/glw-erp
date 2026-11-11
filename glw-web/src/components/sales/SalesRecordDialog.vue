@@ -157,8 +157,6 @@ const order = ref<SalesOrder>(
       },
 );
 /** 附件异步加载，有附件时再展开执行跟踪，避免入口藏在折叠区里。 */
-// 从其他列表返回时直接展开执行跟踪，停留在上次查看的页签。
-const businessOpen = ref<string[]>(props.initialTab ? ["business"] : []);
 // 返回销售订单时跳过弹窗的出现动画，进入页面即呈现打开状态。
 const instantOpen = ref(!!props.initialTab);
 const shipment = ref<SalesShipment>(
@@ -676,7 +674,6 @@ async function loadAttachments() {
   try {
     const rows = await fetchOrderAttachments("SALES_ORDER", Number(order.value.id));
     attachments.value = rows.map(toAttachment);
-    if (rows.length && !businessOpen.value.includes("business")) businessOpen.value = ["business"];
   } catch (e) {
     attachmentError.value = e instanceof Error ? e.message : "附件加载失败";
   } finally {
@@ -1204,12 +1201,11 @@ function quickFill() {
         >
       </el-form>
       <template v-if="isOrder">
-        <el-collapse v-if="order.code" v-model="businessOpen" class="sales-order-business">
-          <el-collapse-item name="business">
-            <template #title>
+        <section v-if="order.code" class="sales-order-business">
+            <header class="sales-business-header">
               <span class="sales-business-title">执行跟踪</span>
               <span class="sales-business-counts">附件 {{ attachments.length }} · 出库 {{ linkedShipments.length }} · 退货 {{ linkedReturns.length }} · 财务 {{ financeItems.length }}</span>
-            </template>
+            </header>
           <nav class="purchase-detail-tabs" aria-label="订单关联信息">
           <button
             v-for="name in [
@@ -1330,8 +1326,7 @@ function quickFill() {
             </el-table>
           </div>
         </template>
-          </el-collapse-item>
-        </el-collapse>
+        </section>
       </template>
       <template v-else>
         <h3 class="purchase-section">发货信息</h3>
@@ -1652,8 +1647,10 @@ function quickFill() {
   margin-top: 16px;
   border-top: 0;
 }
-.sales-order-business .el-collapse-item__header {
+.sales-order-business .sales-business-header {
   position: relative;
+  display: flex;
+  align-items: center;
   height: auto;
   padding: 0 0 12px;
   border-bottom: 4px solid #d2e6ff;
@@ -1662,7 +1659,7 @@ function quickFill() {
   font-weight: 600;
   line-height: 22px;
 }
-.sales-order-business .el-collapse-item__header:after {
+.sales-order-business .sales-business-header:after {
   content: '';
   position: absolute;
   bottom: -4px;
@@ -1672,7 +1669,6 @@ function quickFill() {
   background: #1384ff;
   border-radius: 0 8px 0 6px;
 }
-.sales-order-business .el-collapse-item__arrow { color: #1384ff; }
 .sales-business-counts {
   margin-left: 12px;
   color: #8a94a6;

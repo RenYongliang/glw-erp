@@ -12,6 +12,8 @@ import com.glw.backend.finance.FinanceModels.Partner;
 import com.glw.backend.finance.FinanceModels.Generate;
 import com.glw.backend.finance.FinanceModels.PaymentInput;
 import com.glw.backend.finance.FinanceModels.Allocate;
+import com.glw.backend.finance.FinanceModels.SettleOrderInput;
+import com.glw.backend.finance.FinanceModels.SettleOrderResult;
 import com.glw.backend.finance.FinanceModels.Summary;
 import com.glw.backend.finance.FinanceModels.StatementDetail;
 import com.glw.backend.finance.FinanceModels.PaymentDetail;
@@ -115,6 +117,7 @@ public class FinanceController {
         return ApiResponse.ok(financeStatementTemplateService.delete(id));
     }
     @PostMapping("/payment/create") public ApiResponse<PaymentDetail> payment(@Valid @RequestBody PaymentInput input) { return ApiResponse.ok(financePaymentService.createPayment(input)); }
+    @PostMapping("/payment/settle-order") public ApiResponse<SettleOrderResult> settleOrder(@Valid @RequestBody SettleOrderInput input) { return ApiResponse.ok(financeAllocationService.settleOrder(input)); }
     @PostMapping("/payment/list") public ApiResponse<Page<Payment>> payments(@Valid @RequestBody Query q) { return ApiResponse.ok(financePaymentService.payments(q)); }
     @GetMapping("/payment/{id}") public ApiResponse<PaymentDetail> payment(@PathVariable Long id) { return ApiResponse.ok(financePaymentService.payment(id)); }
     @PostMapping("/payment/{id}/void") public ApiResponse<Void> voidPayment(@PathVariable Long id) { financePaymentService.voidPayment(id); return ApiResponse.ok(null); }

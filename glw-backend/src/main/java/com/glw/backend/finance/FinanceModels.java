@@ -128,6 +128,25 @@ public final class FinanceModels {
         @NotNull @Positive private Long openItemId;
         @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 4) private BigDecimal amount;
     }
+    /** 从订单直接收付款：创建收付款单并核销该订单下已对账确认的开项。 */
+    @Data public static class SettleOrderInput {
+        /** 幂等键，最长 40 位，服务端会为每笔核销追加开项 id。 */
+        @NotBlank @Size(max = 40) private String requestKey;
+        @NotNull @Pattern(regexp = "AR|AP") private String direction;
+        @NotNull @Positive private Long orderId;
+        @NotNull private LocalDate paymentDate;
+        @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 4) private BigDecimal amount;
+        @NotNull @Size(max = 128) private String bankReference = "";
+        @NotNull @Size(max = 500) private String remark = "";
+    }
+    @Data public static class SettleOrderResult {
+        private Payment payment;
+        private List<Allocation> allocations;
+        /** 该订单当前未结金额（含尚未对账确认的部分）。 */
+        private BigDecimal orderOutstanding;
+        private BigDecimal allocatedAmount;
+        private BigDecimal unallocatedAmount;
+    }
     public record Summary(BigDecimal grossAmount, BigDecimal settledAmount, BigDecimal outstandingAmount,
                           BigDecimal overdueAmount, BigDecimal unallocatedAmount) {}
     public record StatementDetail(Statement statement, List<OpenItem> items, List<Allocation> allocations) {}

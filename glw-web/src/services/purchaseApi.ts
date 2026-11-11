@@ -233,10 +233,11 @@ function toPurchaseOrderRequest(order: PurchaseOrder) {
 }
 
 export async function createPurchaseOrder(order: PurchaseOrder) {
-  await apiRequest<unknown>('/purchase-order', {
+  const created = await apiRequest<PurchaseOrderResponse>('/purchase-order', {
     method: 'POST',
     body: JSON.stringify(toPurchaseOrderRequest(order)),
   })
+  return toPurchaseOrder(created)
 }
 
 export async function reverseInboundOrder(id: string) {
@@ -252,10 +253,11 @@ export async function cancelPurchaseOrder(id: string) {
 }
 
 export async function updatePurchaseOrder(order: PurchaseOrder) {
-  await apiRequest<unknown>(`/purchase-order/${order.id}`, {
+  const updated = await apiRequest<PurchaseOrderResponse>(`/purchase-order/${order.id}`, {
     method: 'PUT',
     body: JSON.stringify(toPurchaseOrderRequest(order)),
   })
+  return toPurchaseOrder(updated)
 }
 
 export async function fetchInboundOrders() {

@@ -161,6 +161,24 @@ export interface PaymentInput {
   bankReference: string
   remark: string
 }
+/** 从订单直接收付款：后端创建收付款单并自动核销该订单已对账确认的开项。 */
+export interface SettleOrderInput {
+  requestKey: string
+  direction: Direction
+  orderId: number
+  paymentDate: string
+  amount: number
+  bankReference?: string
+  remark?: string
+}
+export interface SettleOrderResult {
+  payment: Payment
+  allocations: Allocation[]
+  /** 该订单当前未结金额（含尚未对账确认的部分）。 */
+  orderOutstanding: Money
+  allocatedAmount: Money
+  unallocatedAmount: Money
+}
 const post = <T>(path: string, body: object = {}) =>
   apiRequest<T>(`/fin/${path}`, { method: 'POST', body: JSON.stringify(body) })
 export const financeApi = {
@@ -178,6 +196,7 @@ export const financeApi = {
     post<StatementDetail>(`statement/${id}/${action}`),
   payments: (q: FinanceQuery) => post<PageResponse<Payment>>('payment/list', q),
   createPayment: (input: PaymentInput) => post<PaymentDetail>('payment/create', input),
+  settleOrder: (input: SettleOrderInput) => post<SettleOrderResult>('payment/settle-order', input),
   payment: (id: number) => apiRequest<PaymentDetail>(`/fin/payment/${id}`),
   voidPayment: (id: number) => post<void>(`payment/${id}/void`),
   allocate: (paymentId: number, openItemId: number, amount: number, requestKey: string) =>

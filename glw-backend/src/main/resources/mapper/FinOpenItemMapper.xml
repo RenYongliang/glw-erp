@@ -110,6 +110,11 @@
   <select id="openItemsBySource" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
     SELECT * FROM fin_open_item WHERE source_type=#{type} AND source_id=#{sourceId} ORDER BY id
   </select>
+  <select id="openItemsByOrder" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
+    SELECT * FROM fin_open_item
+    WHERE direction=#{direction} AND order_id=#{orderId} AND gross_amount > settled_amount
+    ORDER BY COALESCE(basis_date,biz_date), id
+  </select>
   <select id="statementCandidates" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
     SELECT * FROM fin_open_item
     WHERE direction=#{direction} AND partner_id=#{partnerId} AND basis_ready=1

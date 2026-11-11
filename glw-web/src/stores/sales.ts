@@ -12,7 +12,6 @@ import {
   type SalesState,
   type SalesOrder,
   type SalesShipment,
-  type SalesPayment,
   type SalesReturn,
   type Product,
 } from '../domain/sales'
@@ -163,25 +162,6 @@ export const useSalesStore = defineStore('sales', () => {
     await reverseOutboundOrder(id)
     await load()
   }
-  function pay(input: SalesPayment) {
-    const next = snapshot(),
-      order = next.orders.find((o) => o.id === input.orderId)
-    if (!order || order.orderStatus !== '执行中')
-      throw Error('当前订单状态不能收款')
-    const remaining =
-      orderTotals(order).total -
-      next.payments.filter((p) => p.orderId === order.id).reduce((a, p) => a + p.amount, 0)
-    if (
-      !Number.isFinite(input.amount) ||
-      input.amount <= 0 ||
-      Math.round(input.amount * 100) > Math.round(remaining * 100) ||
-      !input.date ||
-      !input.method
-    )
-      throw Error('请填写有效收款信息，金额不得超过剩余应收金额')
-    next.payments.unshift({ ...input })
-    commit(next, '销售收款', order.code)
-  }
   function returnGoods(input: SalesReturn) {
     const next = snapshot(),
       order = next.orders.find((o) => o.id === input.orderId)
@@ -228,7 +208,6 @@ export const useSalesStore = defineStore('sales', () => {
     cancelOrder,
     saveShipment,
     reverseShipment,
-    pay,
     returnGoods,
     importOrders,
     importShipments,

@@ -40,7 +40,7 @@ abstract class FinanceTestFixture {
     final FinanceOpenItemServiceImpl open = new FinanceOpenItemServiceImpl(finOpenItem, finProfile, lock, audit);
     final FinanceStatementServiceImpl statements = new FinanceStatementServiceImpl(finStatement, finOpenItem, finStatementItem, finAllocation, lock, audit, open, statementTemplates, finProfile, numbers);
     final FinancePaymentServiceImpl cash = new FinancePaymentServiceImpl(finPayment, finAllocation, lock, audit, profile, numbers);
-    final FinanceAllocationServiceImpl clearing = new FinanceAllocationServiceImpl(finAllocation, finPayment, finOpenItem, lock, audit, open, cash, mock(com.glw.backend.service.SalesOrderService.class), mock(com.glw.backend.service.PurchaseOrderService.class));
+    final FinanceAllocationServiceImpl clearing = new FinanceAllocationServiceImpl(finAllocation, finPayment, finOpenItem, lock, audit, open, cash, mock(com.glw.backend.service.SalesOrderService.class), mock(com.glw.backend.service.PurchaseOrderService.class), mock(com.glw.backend.mapper.SalesOrderMapper.class), mock(com.glw.backend.mapper.PurchaseOrderMapper.class));
     OpenItem item() {
         var o = new OpenItem(); o.setId(1L); o.setDirection("AR"); o.setPartnerId(6L); o.setCurrency("CNY");
         o.setSourceType("OUTBOUND"); o.setSourceLineId(10L); o.setSourceNo("OUT20261028001");
