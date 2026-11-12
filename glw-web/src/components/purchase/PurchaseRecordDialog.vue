@@ -19,6 +19,7 @@ import {
   PURCHASE_ATTACHMENT_TYPES,
   attachmentTypeLabel,
 } from '../../domain/attachments'
+import { purchaseContractPdf } from '../../domain/purchaseContract'
 import {
   purchaseSupplierName,
   purchaseContact,
@@ -385,11 +386,26 @@ function openPicker(name: string) {
   picker.value = name
 }
 const savedOrder = ref<PurchaseOrder | null>(null),
-  successOpen = ref(false)
+  successOpen = ref(false),
+  contractUploadState = ref<'idle' | 'uploaded' | 'failed'>('idle')
+/** 新增订单保存后自动生成采购合同并归档到订单附件。 */
+async function archiveContract(order: PurchaseOrder) {
+  try {
+    const blob = await purchaseContractPdf(order)
+    const file = new File([blob], `采购合同-${order.code || '草稿'}.pdf`, {
+      type: 'application/pdf',
+    })
+    await uploadOrderAttachment('PURCHASE_ORDER', Number(order.id), 'PURCHASE_CONTRACT', file)
+    contractUploadState.value = 'uploaded'
+  } catch {
+    contractUploadState.value = 'failed'
+  }
+}
 /** 保存成功后先展示订单号和采购合同打印/下载，关闭后再通知父级刷新并关闭编辑弹窗。 */
 function finishSaved() {
   successOpen.value = false
   savedOrder.value = null
+  contractUploadState.value = 'idle'
   emit('saved')
 }
 async function save() {
@@ -397,9 +413,12 @@ async function save() {
   saving.value = true
   try {
     if (isOrder) {
+      const creating = !/^\d+$/.test(order.value.id)
       const saved = await store.saveOrder(order.value)
       dirty.value = false
       if (saved?.code) {
+        contractUploadState.value = 'idle'
+        if (creating) await archiveContract(saved)
         savedOrder.value = saved
         successOpen.value = true
         return
@@ -1008,6 +1027,12 @@ function quickFill() {
     <div class="purchase-success">
       <p>
         采购订单 <strong>{{ savedOrder?.code }}</strong> 已保存，可以打印或下载采购合同。
+        <template v-if="contractUploadState === 'uploaded'">
+          采购合同已自动上传到订单附件。
+        </template>
+        <template v-else-if="contractUploadState === 'failed'">
+          采购合同自动上传失败，可在订单附件中手动上传。
+        </template>
       </p>
       <PurchaseContractActions v-if="savedOrder" :order="savedOrder" />
     </div>
