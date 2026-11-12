@@ -119,6 +119,13 @@ export async function signOutboundOrder(id: string, signTime: string) {
   })
 }
 
+/** 取消客户签收；应收已进入对账单或已核销时后端会拒绝。 */
+export async function unsignOutboundOrder(id: string) {
+  await apiRequest<void>(`/outbound-order/${encodeURIComponent(id)}/unsign`, {
+    method: 'POST',
+  })
+}
+
 /** 修改出库单的收货和物流信息，不影响库存和应收。 */
 export async function updateOutboundShipping(id: string, shipping: ShippingInfo) {
   await apiRequest<unknown>(`/outbound-order/${encodeURIComponent(id)}/shipping`, {

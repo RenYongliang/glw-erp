@@ -355,6 +355,31 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void unsignOutboundOrder(Long id) {
+        OutboundOrder order = getOne(
+                Wrappers.<OutboundOrder>lambdaQuery()
+                        .eq(OutboundOrder::getId, id)
+                        .last("FOR UPDATE"));
+        if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "出库单不存在");
+        if (order.getStatus() != OutboundStatus.COMPLETED)
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已完成出库的单据可以取消签收");
+        if (order.getSignTime() == null) return;
+        List<FinOpenItem> items = financeService.lambdaQuery()
+                .eq(FinOpenItem::getSourceType, "OUTBOUND")
+                .eq(FinOpenItem::getSourceId, id)
+                .list();
+        for (FinOpenItem item : items) {
+            if (item.getStatementId() != null
+                    || (item.getSettledAmount() != null && item.getSettledAmount().signum() > 0))
+                throw new BusinessException(ErrorCode.CONFLICT, "该出库单的应收已进入对账单或已核销，不能取消客户签收");
+        }
+        if (baseMapper.clearSign(id, order.getVersion()) == 0)
+            throw new BusinessException(ErrorCode.CONFLICT, "出库单已发生变化，请刷新后重试");
+        financeService.refreshBasis("AR", id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void reverseOutboundOrder(Long id) {
         // 锁住出库单，和签收操作串行，避免一边撤销一边签收。
         OutboundOrder outbound = getOne(

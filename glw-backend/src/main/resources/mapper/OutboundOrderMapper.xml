@@ -33,4 +33,8 @@
     <sql id="Base_Column_List">
         `id`, `outbound_order_no`, `customer_id`, `customer_name`, `outbound_type`, `warehouse_code`, `warehouse_name`, `request_key`, `status`, `outbound_time`, `sign_time`, `shipping_address`, `shipping_recipient`, `shipping_phone`, `shipping_sender`, `shipping_sender_phone`, `shipping_method`, `shipping_carrier`, `shipping_tracking_number`, `shipping_purchase_number`, `shipping_remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
+    <update id="clearSign">
+        UPDATE outbound_order SET sign_time=NULL, version=version+1
+        WHERE id=#{id} AND version=#{version}
+    </update>
 </mapper>

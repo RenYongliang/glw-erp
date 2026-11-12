@@ -23,6 +23,7 @@ import {
   fetchOutboundOrders,
   reverseOutboundOrder,
   signOutboundOrder,
+  unsignOutboundOrder,
   updateOutboundShipping,
   updateSalesOrder,
 } from '../services/salesApi'
@@ -119,10 +120,14 @@ export const useSalesStore = defineStore('sales', () => {
         await updateOutboundShipping(previous.id, shipment.shipping)
         changed = true
       }
-      if (
+      if (!shipment.customerConfirmed && previous.customerConfirmed) {
+        await unsignOutboundOrder(previous.id)
+        changed = true
+      } else if (
         shipment.customerConfirmed &&
         shipment.customerReceivedAt &&
-        shipment.customerReceivedAt.slice(0, 10) !== previous.customerReceivedAt.slice(0, 10)
+        shipment.customerReceivedAt.replace('T', ' ').slice(0, 16) !==
+          previous.customerReceivedAt.replace('T', ' ').slice(0, 16)
       ) {
         await signOutboundOrder(previous.id, shipment.customerReceivedAt)
         changed = true

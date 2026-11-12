@@ -501,13 +501,26 @@ export function validateOrder(order: SalesOrder, catalog: Pick<Product, 'id'>[] 
 export function validateShipment(shipment: SalesShipment, state: SalesState) {
   const orders = shipmentOrders(shipment, state.orders)
   if (!orders.length) return '请选择可发货的销售订单'
-  if (orders.some((o) => o.orderStatus !== '执行中'))
-    return '请选择可发货的销售订单'
   if (shipment.shipping && shipment.confirmed) {
     if (!shipment.shipping.address.trim()) return '请填写收货地址'
     if (!shipment.shipping.recipient.trim()) return '请填写收货人'
     if (!shipment.shipping.phone.trim()) return '请填写收货联系电话'
   }
+  // 已落库的出库单只允许改发货信息和客户收货确认，数量和库存由后端锁定；
+  // 此时订单的 pendingQuantity 已扣除了本单，不能再按待出库数量校验，否则保存必然误报超发。
+  const persisted = /^\d+$/.test(shipment.id)
+  if (persisted) {
+    if (
+      shipment.customerConfirmed &&
+      (!shipment.confirmed ||
+        !dateValid(shipment.customerReceivedAt) ||
+        shipment.customerReceivedAt < shipment.shippedAt)
+    )
+      return '请先确认出库，收货时间不能早于出库时间'
+    return ''
+  }
+  if (orders.some((o) => o.orderStatus !== '执行中'))
+    return '请选择可发货的销售订单'
   if (orders.some((o) => shipment.warehouse !== o.warehouse))
     return '出库仓库必须与销售订单一致'
   if (!['出库', '库存冻结', '计划出库'].includes(shipment.tag)) return '请选择产品出库标签'

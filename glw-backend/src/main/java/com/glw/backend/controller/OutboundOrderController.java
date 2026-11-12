@@ -43,6 +43,13 @@ public class OutboundOrderController {
         return ApiResponse.ok(outboundOrderService.signOutboundOrders(signDTO));
     }
 
+    /** 取消客户签收；已进入对账单或已核销的应收不允许取消。 */
+    @PostMapping("/{id}/unsign")
+    public ApiResponse<Void> unsign(@PathVariable Long id) {
+        outboundOrderService.unsignOutboundOrder(id);
+        return ApiResponse.ok(null);
+    }
+
     /** 撤销出库单，回补库存并作废未生效应收。 */
     @PostMapping("/{id}/reverse")
     public ApiResponse<Void> reverse(@PathVariable Long id) {

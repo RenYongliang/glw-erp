@@ -613,6 +613,11 @@ async function save() {
         }
       }
       shipment.value.shipping = clone({ ...shippingInfo.value, purchaseNumber: linkedOrder.value?.purchaseNumber || "" });
+      if (!props.dispatch && shipment.value.customerConfirmed) {
+        if (!receiptAttachments.value.length) await loadReceiptAttachments();
+        if (!receiptAttachments.value.length)
+          throw Error("客户确认收货时请先上传回签单");
+      }
       const saved = await store.saveShipment(shipment.value);
       await flushPendingPhotos(saved.id);
       dirty.value = false;
@@ -624,12 +629,19 @@ async function save() {
       }
     }
     dirty.value = false;
+    const editingPersistedShipment = !isOrder && !!props.shipment?.confirmed;
     ElMessage.success(
       isOrder
         ? "销售订单已保存"
-        : shipment.value.confirmed
-          ? "出库成功，可在“产品出库”查看并打印发货单"
-          : `已保存${shipment.value.tag}单据`,
+        : editingPersistedShipment
+          ? props.shipment?.customerConfirmed && !shipment.value.customerConfirmed
+            ? "客户签收已取消"
+            : shipment.value.customerConfirmed
+              ? "客户签收已保存"
+              : "发货信息已保存"
+          : shipment.value.confirmed
+            ? "出库成功，可在“产品出库”查看并打印发货单"
+            : `已保存${shipment.value.tag}单据`,
     );
     emit("saved");
   } catch (e) {
@@ -1427,7 +1439,9 @@ function quickFill() {
         </div>
         <div v-if="shipment.code || props.shipment" class="shipment-receipt">
           <div class="shipment-receipt-head">
-            <strong>回签单</strong>
+            <strong
+              >回签单<span v-if="shipment.customerConfirmed" style="color: #f56c6c"> *</span></strong
+            >
           </div>
           <AttachmentTiles
             :attachments="receiptAttachments"

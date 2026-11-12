@@ -87,6 +87,9 @@ export interface OutboundOrderResponse {
 }
 
 const date = (value?: string | null) => value?.slice(0, 10) || ''
+/** 签收时间精确到分钟，列表编辑时保留时间，避免只改时分却不触发保存。 */
+const dateTime = (value?: string | null) =>
+  value ? value.replace('T', ' ').slice(0, 16) : ''
 const orderStatuses: Record<string, SalesOrder['orderStatus']> = {
   PENDING_APPROVAL: '待审核', CONFIRMED: '执行中', COMPLETED: '已完结', CANCELLED: '已取消',
 }
@@ -147,7 +150,7 @@ export function toSalesShipment(order: OutboundOrderResponse): SalesShipment {
       : undefined,
     tag: '出库', confirmed: order.status === 'COMPLETED', shippedAt: date(order.outboundTime),
     keeper: '', department: '', photos: [],
-    customerConfirmed: !!order.signTime, customerReceivedAt: date(order.signTime),
+    customerConfirmed: !!order.signTime, customerReceivedAt: dateTime(order.signTime),
     statementStatus: order.statementStatus || undefined,
     lines: allocations.map(alloc => ({
       lineId: String(alloc.salesOrderItemId), orderId: String(alloc.salesOrderId),

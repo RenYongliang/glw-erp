@@ -20,6 +20,9 @@ public interface OutboundOrderService extends IService<OutboundOrder> {
     /** 登记客户签收日期，并同步应收记录的账单月归属。 */
     List<OutboundOrderVO> signOutboundOrders(OutboundOrderSignDTO signDTO);
 
+    /** 取消客户签收；已进入对账单或已核销的应收不允许取消。 */
+    void unsignOutboundOrder(Long id);
+
     /** 撤销出库单：回补库存、作废未生效应收并回滚销售订单发货状态。 */
     void reverseOutboundOrder(Long id);
 
