@@ -67,6 +67,10 @@ const allocating = ref<OpenItem>(),
 let generation = 0,
   eligibleGeneration = 0,
   timer: ReturnType<typeof setTimeout> | undefined
+/** 后端返回 ISO 时间（2026-11-12T09:06:02），列表统一显示为空格分隔。 */
+function dateTime(value?: string | null) {
+  return value ? value.replace('T', ' ').slice(0, 19) : '—'
+}
 const statusLabels: Record<string, string> = {
   OPEN: '待对账',
   IN_STATEMENT: '对账中',
@@ -824,12 +828,14 @@ onBeforeUnmount(() => {
           ><span v-if="statementOverdue(row)" class="finance-overdue-badge">逾期</span></template
         ></el-table-column
       ><el-table-column
-        label="金额"
+        label="账单金额"
         width="140"
         align="right"
         ><template #default="{ row }">{{ money(row.grossAmount) }}</template></el-table-column
       ><el-table-column label="已结金额" width="140" align="right"
         ><template #default="{ row }">{{ money(row.settledAmount) }}</template></el-table-column
+      ><el-table-column label="未结金额" width="140" align="right"
+        ><template #default="{ row }">{{ money(Number(row.grossAmount ?? 0) - Number(row.settledAmount ?? 0)) }}</template></el-table-column
       ><el-table-column label="账单状态" width="110"
         ><template #default="{ row }"
           ><el-tag
@@ -980,7 +986,16 @@ onBeforeUnmount(() => {
           ><span v-if="statementDetail.statement.dueDate"
             >到期日 {{ statementDetail.statement.dueDate }}</span
           ><span>合计 {{ money(statementDetail.statement.grossAmount) }}</span
-          ><span>已结 {{ money(statementDetail.statement.settledAmount) }}</span>
+          ><span>已结 {{ money(statementDetail.statement.settledAmount) }}</span
+          ><span
+            >未结
+            {{
+              money(
+                Number(statementDetail.statement.grossAmount ?? 0) -
+                  Number(statementDetail.statement.settledAmount ?? 0),
+              )
+            }}</span
+          >
         </p>
         <FinanceItemTable
           :rows="statementDetail.items"
@@ -1114,7 +1129,9 @@ onBeforeUnmount(() => {
             ><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
           ><el-table-column label="状态" width="120"
             ><template #default="{ row }">{{ label(row.status) }}</template></el-table-column
-          ><el-table-column prop="createdAt" label="核销时间" min-width="175" /><el-table-column
+          ><el-table-column label="核销时间" min-width="175"
+            ><template #default="{ row }">{{ dateTime(row.createdAt) }}</template></el-table-column
+          ><el-table-column
             label="操作"
             width="100"
             ><template #default="{ row }"
