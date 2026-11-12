@@ -20,6 +20,8 @@ public class PurchaseOrderVO {
     private String supplierName;
     private String supplierShortName;
     private String deliveryTime;
+    private String warehouseCode;
+    private String warehouseName;
 
     /** 单价口径, EXCLUDED:未税; INCLUDED:含税；整张订单统一。 */
     private TaxIncluded taxIncluded;

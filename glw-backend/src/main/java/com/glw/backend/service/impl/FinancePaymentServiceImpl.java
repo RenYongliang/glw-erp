@@ -57,7 +57,9 @@ public class FinancePaymentServiceImpl extends ServiceImpl<FinPaymentMapper, Fin
         p.setBankReference(input.getBankReference().trim()); p.setRemark(input.getRemark());
         p.setPaymentNo(numbers.next("AR".equals(input.getDirection()) ? DocumentNumberService.Kind.RECEIPT : DocumentNumberService.Kind.PAYMENT, input.getPaymentDate().atStartOfDay()));
         finPaymentMapper.insertPayment(p);
-        auditService.record("PAYMENT", p.getId(), "CREATE", p.getAmount().toPlainString());
+        auditService.record("PAYMENT", p.getId(), "CREATE",
+                p.getAmount().toPlainString()
+                        + (p.getOrderId() == null ? "" : " orderId=" + p.getOrderId()));
         return payment(p.getId());
     }
 
@@ -73,7 +75,7 @@ public class FinancePaymentServiceImpl extends ServiceImpl<FinPaymentMapper, Fin
         lockService.lock(); Payment p = requirePayment(id);
         if ("VOID".equals(p.getStatus())) return;
         if (p.getAllocatedAmount().signum() != 0) throw bad("请先反核销全部核销记录，再作废收付款单");
-        changed(finPaymentMapper.voidPayment(id)); auditService.record("PAYMENT", id, "VOID", "");
+        changed(finPaymentMapper.voidPayment(id)); auditService.record("PAYMENT", id, "VOID", p.getAmount().toPlainString());
     }
 
     @Override

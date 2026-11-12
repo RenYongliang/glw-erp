@@ -164,6 +164,7 @@ const shipment = ref<SalesShipment>(
     ? clone(props.shipment)
     : {
         id: crypto.randomUUID(),
+        requestKey: crypto.randomUUID(),
         code: "",
         orderId: "",
         warehouse: "",
@@ -512,6 +513,7 @@ onMounted(() => {
   if (isOrder && order.value.code) void loadFinance();
   if (isOrder && order.value.code) void loadAttachments();
   if (!isOrder) void loadReceiptAttachments();
+  if (!isOrder) void loadShipmentPhotos();
   if (isOrder && /^\d+$/.test(order.value.customerId))
     void loadCustomerPartCodes(order.value.customerId);
   syncDispatchFont();
@@ -612,6 +614,7 @@ async function save() {
       }
       shipment.value.shipping = clone({ ...shippingInfo.value, purchaseNumber: linkedOrder.value?.purchaseNumber || "" });
       const saved = await store.saveShipment(shipment.value);
+      await flushPendingPhotos(saved.id);
       dirty.value = false;
       if (props.dispatch && saved.code) {
         shipment.value = clone(saved);
@@ -783,16 +786,39 @@ async function uploadAttachment(files: File[], type: string) {
   await loadAttachments();
   ElMessage.success(`${attachmentTypeLabel(attachmentTypes, type)}已上传`);
 }
-/** 出库单本地图片附件（拍照），仍保存在浏览器本地。 */
-const photoType: AttachmentTypeDef = { key: "OTHER", label: "发货照片", slots: "unlimited" };
+/** 出库照片统一存 MinIO；未保存的出库单先暂存 File，提交后再上传。 */
+const photoType: AttachmentTypeDef = { key: "OUTBOUND_PHOTO", label: "发货照片", slots: "unlimited" };
+const pendingPhotos = ref<{ file: File; preview: Attachment }[]>([]);
+async function loadShipmentPhotos() {
+  if (!/^\d+$/.test(shipment.value.id)) return;
+  const rows = await fetchOrderAttachments("OUTBOUND_ORDER", Number(shipment.value.id));
+  shipment.value.photos = rows
+    .filter((item) => item.category === "OUTBOUND_PHOTO")
+    .map(toAttachment);
+}
 async function uploadPhotos(files: File[]) {
   for (const file of files) {
-    if (file.size > 2 * 1024 * 1024) {
-      ElMessage.warning("图片每个不超过 2MB");
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning("图片每个不超过 10MB");
       continue;
     }
     if (!file.type.startsWith("image/")) {
       ElMessage.warning("请选择图片");
+      continue;
+    }
+    if (/^\d+$/.test(shipment.value.id)) {
+      try {
+        const uploaded = await uploadOrderAttachment(
+          "OUTBOUND_ORDER",
+          Number(shipment.value.id),
+          "OUTBOUND_PHOTO",
+          file,
+        );
+        shipment.value.photos.push(toAttachment(uploaded));
+        dirty.value = true;
+      } catch (e) {
+        ElMessage.error(e instanceof Error ? e.message : "照片上传失败");
+      }
       continue;
     }
     const url = await new Promise<string>((resolve, reject) => {
@@ -800,21 +826,43 @@ async function uploadPhotos(files: File[]) {
       r.onload = () => resolve(String(r.result));
       r.onerror = reject;
       r.readAsDataURL(file);
-    }).catch(() => {
-      ElMessage.error("文件读取失败");
-      return "";
-    });
+    }).catch(() => "");
     if (url) {
-      shipment.value.photos.push({ name: file.name, url });
+      const preview: Attachment = { name: file.name, url, type: "OUTBOUND_PHOTO" };
+      shipment.value.photos.push(preview);
+      pendingPhotos.value.push({ file, preview });
       dirty.value = true;
     }
   }
 }
-function removePhoto(file: Attachment) {
+async function flushPendingPhotos(outboundId: string) {
+  if (!pendingPhotos.value.length || !/^\d+$/.test(outboundId)) return;
+  let failed = 0;
+  for (const item of pendingPhotos.value) {
+    try {
+      await uploadOrderAttachment("OUTBOUND_ORDER", Number(outboundId), "OUTBOUND_PHOTO", item.file);
+    } catch {
+      failed++;
+    }
+  }
+  pendingPhotos.value = [];
+  if (failed) ElMessage.warning(`${failed} 张照片上传失败，可在出库详情中重新上传`);
+}
+async function removePhoto(file: Attachment) {
   const index = shipment.value.photos.indexOf(file);
-  if (index >= 0) {
-    shipment.value.photos.splice(index, 1);
+  if (index >= 0) shipment.value.photos.splice(index, 1);
+  const pendingIndex = pendingPhotos.value.findIndex((item) => item.preview === file);
+  if (pendingIndex >= 0) {
+    pendingPhotos.value.splice(pendingIndex, 1);
     dirty.value = true;
+    return;
+  }
+  if (file.id) {
+    try {
+      await deleteOrderAttachment(file.id);
+    } catch (e) {
+      ElMessage.error(e instanceof Error ? e.message : "照片删除失败");
+    }
   }
 }
 /** 勾选客户收货确认时默认带出当前时间。 */

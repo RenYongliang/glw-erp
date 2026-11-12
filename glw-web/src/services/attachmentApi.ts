@@ -1,6 +1,6 @@
 import { apiRequest } from './api'
 
-export type AttachmentBizType = 'SALES_ORDER' | 'PURCHASE_ORDER'
+export type AttachmentBizType = 'SALES_ORDER' | 'PURCHASE_ORDER' | 'INBOUND_ORDER' | 'OUTBOUND_ORDER'
 
 export interface AttachmentVO {
   id: number

@@ -233,6 +233,7 @@ function createShipment(): SalesShipment {
   const first = selectedOrders.value[0]!.order
   return {
     id: draftId,
+    requestKey: draftId,
     code: '',
     orderId: first.id,
     orderIds: [...orderIds.value],

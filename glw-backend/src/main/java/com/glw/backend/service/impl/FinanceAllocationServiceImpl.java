@@ -70,7 +70,8 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         var row = new Allocation(); row.setRequestKey(input.getRequestKey()); row.setPaymentId(p.getId());
         row.setOpenItemId(o.getId()); row.setAmount(input.getAmount());
         finAllocationMapper.insertAllocation(row);
-        auditService.record("ALLOCATION", row.getId(), "ALLOCATE", input.getAmount().toPlainString());
+        auditService.record("ALLOCATION", row.getId(), "ALLOCATE",
+                input.getAmount().toPlainString() + " paymentId=" + p.getId() + " openItemId=" + o.getId());
         if ("AR".equals(o.getDirection()) && o.getOrderId() != null)
             salesOrderService.refreshCompletionStatus(o.getOrderId());
         else if ("AP".equals(o.getDirection()) && o.getOrderId() != null)
@@ -168,6 +169,8 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         // 没有可核销的已确认应付，或付款超过可核销金额时，剩余部分作为预付款挂在订单上，后续手工冲应付。
         if (remaining.signum() > 0) {
             finPaymentMapper.updateOrderAndType(payment.getId(), input.getOrderId(), "PREPAYMENT");
+            auditService.record("PAYMENT", payment.getId(), "MARK_PREPAYMENT",
+                    "orderId=" + input.getOrderId() + " unallocated=" + remaining.toPlainString());
         }
         PaymentDetail detail = paymentService.payment(payment.getId());
         SettleOrderResult result = new SettleOrderResult();
@@ -189,7 +192,8 @@ public class FinanceAllocationServiceImpl extends ServiceImpl<FinAllocationMappe
         OpenItem o = finOpenItemMapper.openItem(row.getOpenItemId());
         changed(finPaymentMapper.allocate(row.getPaymentId(), row.getAmount().negate()));
         changed(finOpenItemMapper.settle(row.getOpenItemId(), row.getAmount().negate()));
-        changed(finAllocationMapper.reverse(id)); auditService.record("ALLOCATION", id, "REVERSE", row.getAmount().toPlainString());
+        changed(finAllocationMapper.reverse(id)); auditService.record("ALLOCATION", id, "REVERSE",
+                row.getAmount().toPlainString() + " paymentId=" + row.getPaymentId() + " openItemId=" + row.getOpenItemId());
         if (o != null && "AR".equals(o.getDirection()) && o.getOrderId() != null)
             salesOrderService.refreshCompletionStatus(o.getOrderId());
         if (o != null && "AP".equals(o.getDirection()) && o.getOrderId() != null)

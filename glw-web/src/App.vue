@@ -75,6 +75,7 @@ const financeMenus = [
   { title: '对账单', path: '/finance/statements' },
   { title: '收付款', path: '/finance/payments' },
   { title: '结算档案', path: '/finance/profiles' },
+  { title: '财务审计', path: '/finance/audit' },
   { title: '文档模板', path: '/finance/templates' },
 ]
 const financeExpanded = ref(route.path.startsWith('/finance/'))

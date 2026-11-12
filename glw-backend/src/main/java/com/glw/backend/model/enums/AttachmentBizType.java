@@ -6,7 +6,9 @@ import com.glw.backend.common.ErrorCode;
 /** 附件所属业务类型；新增业务模块时在这里扩展。 */
 public enum AttachmentBizType {
     SALES_ORDER,
-    PURCHASE_ORDER;
+    PURCHASE_ORDER,
+    INBOUND_ORDER,
+    OUTBOUND_ORDER;
 
     public static AttachmentBizType of(String value) {
         for (var type : values()) {

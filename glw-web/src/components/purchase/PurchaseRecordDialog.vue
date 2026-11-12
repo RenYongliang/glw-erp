@@ -100,6 +100,7 @@ const receipt = ref<PurchaseReceipt>(
     ? clone(props.receipt)
     : {
         id: crypto.randomUUID(),
+        requestKey: crypto.randomUUID(),
         code: '',
         orderId: '',
         warehouse: '',
@@ -890,10 +891,7 @@ function quickFill() {
         </template>
         <template v-else-if="tab === '产品入库'"
           ><el-table :data="linkedReceipts" border empty-text="暂无入库记录"
-            ><el-table-column prop="code" label="采购入库单编号" /><el-table-column
-              prop="warehouse"
-              label="仓库"
-            /><el-table-column label="入库产品总数"
+            ><el-table-column prop="code" label="采购入库单编号" /><el-table-column label="入库产品总数"
               ><template #default="{ row }">{{
                 receiptTotals(row, order).quantity
               }}</template></el-table-column
@@ -1072,7 +1070,7 @@ function quickFill() {
         label="订单编号"
         min-width="140"
         show-overflow-tooltip
-      /><el-table-column prop="warehouse" label="入库仓库" width="100" /><el-table-column width="80"
+      /><el-table-column width="80"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="chooseOrder(row)">选择</el-button></template
         ></el-table-column

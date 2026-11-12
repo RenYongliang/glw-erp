@@ -137,6 +137,13 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
     @Override
     @Transactional(rollbackFor = Exception.class)
     public InboundOrderVO createInboundOrder(InboundOrderCreateDTO createDTO) {
+        String requestKey = StringUtils.hasText(createDTO.getRequestKey())
+                ? createDTO.getRequestKey().trim() : java.util.UUID.randomUUID().toString();
+        if (baseMapper != null) {
+            InboundOrder existing = getOne(
+                    Wrappers.<InboundOrder>lambdaQuery().eq(InboundOrder::getRequestKey, requestKey));
+            if (existing != null) return detail(existing.getId(), null);
+        }
         List<Long> purchaseIds = createDTO.getPurchaseOrderIds().stream().distinct().sorted().toList();
         if (purchaseIds.size() != createDTO.getPurchaseOrderIds().size())
             throw new BusinessException(ErrorCode.BAD_REQUEST, "采购订单不可重复选择");
@@ -185,6 +192,9 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
         inboundOrder.setSupplierId(supplierOrder.getSupplierId());
         inboundOrder.setSupplierName(supplierOrder.getSupplierName());
         inboundOrder.setInboundType(InboundType.PURCHASE);
+        inboundOrder.setWarehouseCode(com.glw.backend.common.WarehouseDefaults.CODE);
+        inboundOrder.setWarehouseName(com.glw.backend.common.WarehouseDefaults.NAME);
+        inboundOrder.setRequestKey(requestKey);
         inboundOrder.setStatus(InboundStatus.COMPLETED);
         inboundOrder.setInboundTime(inboundTime);
         inboundOrder.setVersion(0);
@@ -405,6 +415,8 @@ public class InboundOrderServiceImpl extends ServiceImpl<InboundOrderMapper, Inb
             int quantity = rows.stream().mapToInt(InboundOrderItemAlloc::getAllocatedQuantity).sum();
             Inventory inventory = new Inventory();
             inventory.setProductId(key.productId());
+            inventory.setWarehouseCode(com.glw.backend.common.WarehouseDefaults.CODE);
+            inventory.setWarehouseName(com.glw.backend.common.WarehouseDefaults.NAME);
             inventory.setDateCode(key.dateCode());
             inventory.setLotCode(key.lotCode());
             inventory.setBatchNo(nextBatchNo(key.productId(), inboundTime));

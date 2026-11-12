@@ -15,6 +15,8 @@ public class InboundOrderVO {
     private Long supplierId;
     private String supplierName;
     private InboundType inboundType;
+    private String warehouseCode;
+    private String warehouseName;
     private InboundStatus status;
     private String inboundTime;
     private Integer version;

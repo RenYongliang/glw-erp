@@ -59,6 +59,14 @@ public class SalesOrder {
     @TableField("delivery_time")
     private LocalDateTime deliveryTime;
 
+    /** 仓库编码；当前固定 SZYT。 */
+    @TableField("warehouse_code")
+    private String warehouseCode;
+
+    /** 仓库名称快照；当前固定深圳盐田仓。 */
+    @TableField("warehouse_name")
+    private String warehouseName;
+
     /** 订单状态, PENDING_APPROVAL:待审核（预留）; CONFIRMED:执行中; COMPLETED:已完结; CANCELLED:已取消。 */
     @TableField("order_status")
     private SalesOrderStatus orderStatus;

@@ -7,6 +7,9 @@
         <result column="customer_id" property="customerId" jdbcType="BIGINT"/>
         <result column="customer_name" property="customerName" jdbcType="VARCHAR"/>
         <result column="outbound_type" property="outboundType" javaType="com.glw.backend.model.enums.OutboundType" jdbcType="VARCHAR"/>
+        <result column="warehouse_code" property="warehouseCode" jdbcType="VARCHAR"/>
+        <result column="warehouse_name" property="warehouseName" jdbcType="VARCHAR"/>
+        <result column="request_key" property="requestKey" jdbcType="VARCHAR"/>
         <result column="status" property="status" javaType="com.glw.backend.model.enums.OutboundStatus" jdbcType="VARCHAR"/>
         <result column="outbound_time" property="outboundTime" jdbcType="TIMESTAMP"/>
         <result column="sign_time" property="signTime" jdbcType="TIMESTAMP"/>
@@ -28,6 +31,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `outbound_order_no`, `customer_id`, `customer_name`, `outbound_type`, `status`, `outbound_time`, `sign_time`, `shipping_address`, `shipping_recipient`, `shipping_phone`, `shipping_sender`, `shipping_sender_phone`, `shipping_method`, `shipping_carrier`, `shipping_tracking_number`, `shipping_purchase_number`, `shipping_remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `outbound_order_no`, `customer_id`, `customer_name`, `outbound_type`, `warehouse_code`, `warehouse_name`, `request_key`, `status`, `outbound_time`, `sign_time`, `shipping_address`, `shipping_recipient`, `shipping_phone`, `shipping_sender`, `shipping_sender_phone`, `shipping_method`, `shipping_carrier`, `shipping_tracking_number`, `shipping_purchase_number`, `shipping_remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

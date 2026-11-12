@@ -122,6 +122,8 @@ export interface ReceiptLine {
   batches: ReceiptBatch[]
 }
 export interface PurchaseReceipt {
+  /** 创建入库单的幂等键；失败重试沿用同一个值。 */
+  requestKey?: string
   orderIds?: string[]
   supplierName?: string
   id: string
@@ -217,7 +219,7 @@ export function purchaseLineProductText(line: PurchaseLine | undefined, key: str
 export const legacyPurchaseProductIds: Record<string, string> = Object.fromEntries(
   Array.from({ length: 6 }, (_, index) => [`p${index + 1}`, products[index % products.length]!.id]),
 )
-export const warehouses = ['杭州仓', '无锡仓']
+export const warehouses = ['深圳盐田仓']
 export const money = (n: number) =>
   n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 export const roundMoney = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100

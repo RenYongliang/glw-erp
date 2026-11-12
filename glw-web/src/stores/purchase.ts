@@ -101,8 +101,9 @@ export const usePurchaseStore = defineStore('purchase', () => {
       error = validateReceipt(receipt, state.value)
     if (error) throw Error(error)
     if (receipt.code) throw Error('已保存的入库单不能修改')
-    await createInboundOrder(receipt)
+    const created = await createInboundOrder(receipt)
     await load()
+    return created
   }
   function returnGoods(input: PurchaseReturn) {
     const next = snapshot(),

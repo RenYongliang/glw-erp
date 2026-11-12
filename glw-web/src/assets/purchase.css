@@ -395,6 +395,15 @@
   font-weight: 400;
   color: #8a94a6;
 }
+/* 只读时仍保留选中的含税/未税口径，用偏灰的绿色与普通禁用态区分。 */
+.purchase-price-mode .el-radio-group.is-disabled .el-radio-button.is-active .el-radio-button__inner,
+.purchase-price-mode .el-radio-button.is-active.is-disabled .el-radio-button__inner {
+  background-color: #86c5ba !important;
+  border-color: #86c5ba !important;
+  color: #fff !important;
+  box-shadow: -1px 0 0 0 #86c5ba !important;
+  opacity: 1;
+}
 .purchase-tip {
   color: #8491a4;
   font-size: 12px;

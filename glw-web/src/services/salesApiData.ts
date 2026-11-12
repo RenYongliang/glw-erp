@@ -33,6 +33,8 @@ export interface SalesOrderResponse {
   /** 订单级单价口径：0 未税，1 含税。 */
   taxIncluded?: number | null
   deliveryTime?: string | null
+  warehouseCode?: string | null
+  warehouseName?: string | null
   orderStatus: string
   deliveryStatus?: string | null
   paymentStatus: string
@@ -69,6 +71,8 @@ export interface OutboundOrderResponse {
   customerShortName?: string | null
   status: string
   outboundTime?: string | null
+  warehouseCode?: string | null
+  warehouseName?: string | null
   /** 客户签收时间；为空表示尚未签收，应收记录暂不进入对账单。 */
   signTime?: string | null
   statementStatus?: string | null
@@ -104,7 +108,7 @@ export function toSalesOrder(order: SalesOrderResponse): SalesOrder {
     customerName: order.customerName, purchaseNumber: order.customerOrderNo || '',
     customerShortName: order.customerShortName?.trim() || undefined,
     signed: date(order.orderTime), delivery: date(order.deliveryTime),
-    owner: '', department: '', warehouse: '', address: '', discount: 0,
+    owner: '', department: '', warehouse: order.warehouseName || '深圳盐田仓', address: '', discount: 0,
     term: terms[order.settleType || ''] || '',
     orderStatus: orderStatuses[order.orderStatus] || '执行中',
     deliveryStatus: deliveryStatuses[order.deliveryStatus || ''] || '未发货',
@@ -133,7 +137,8 @@ export function toSalesShipment(order: OutboundOrderResponse): SalesShipment {
     orderIds: salesOrders.map(link => String(link.salesOrderId)),
     customerName: order.customerName,
     customerShortName: order.customerShortName?.trim() || undefined,
-    purchaseNumber: salesOrders[0]?.customerOrderNo || '', warehouse: '',
+    purchaseNumber: salesOrders[0]?.customerOrderNo || '',
+    warehouse: order.warehouseName || '深圳盐田仓',
     shipping: order.shipping && Object.values(order.shipping).some(value => !!value)
       ? { address: order.shipping.address ?? '', recipient: order.shipping.recipient ?? '', phone: order.shipping.phone ?? '',
         sender: order.shipping.sender ?? '', senderPhone: order.shipping.senderPhone ?? '', method: order.shipping.method ?? '',

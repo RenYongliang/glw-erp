@@ -14,6 +14,8 @@ public class OutboundOrderVO {
     private String customerName;
     private String customerShortName;
     private OutboundType outboundType;
+    private String warehouseCode;
+    private String warehouseName;
     private OutboundStatus status;
     private String outboundTime;
     /** 客户签收时间；为空表示尚未签收，应收记录暂不进入对账单。 */

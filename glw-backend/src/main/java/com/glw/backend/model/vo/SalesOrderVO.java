@@ -33,6 +33,8 @@ public class SalesOrderVO {
     private TaxIncluded taxIncluded;
 
     private String deliveryTime;
+    private String warehouseCode;
+    private String warehouseName;
 
     private SalesOrderStatus orderStatus;
 

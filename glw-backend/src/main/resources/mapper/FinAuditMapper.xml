@@ -14,4 +14,31 @@
   <insert id="audit">
     INSERT INTO fin_audit (entity_type,entity_id,action,actor_id,detail) VALUES (#{type},#{id},#{action},#{actor},#{detail})
   </insert>
+  <sql id="auditFilter">
+    WHERE 1=1
+    <if test="q.entityType != null and q.entityType != ''">AND a.entity_type=#{q.entityType}</if>
+    <if test="q.action != null and q.action != ''">AND a.action=#{q.action}</if>
+    <if test="q.actorId != null">AND a.actor_id=#{q.actorId}</if>
+    <if test="q.keyword != null and q.keyword != ''">
+      AND (LOCATE(#{q.keyword}, a.detail)>0 OR CAST(a.entity_id AS CHAR)=#{q.keyword})
+    </if>
+    <if test="q.startDate != null and q.startDate != ''">AND a.created_at &gt;= CONCAT(#{q.startDate}, ' 00:00:00')</if>
+    <if test="q.endDate != null and q.endDate != ''">AND a.created_at &lt;= CONCAT(#{q.endDate}, ' 23:59:59')</if>
+  </sql>
+  <select id="audits" resultType="com.glw.backend.model.vo.FinanceAuditVO">
+    SELECT a.id, a.entity_type, a.entity_id, a.action, a.actor_id,
+           COALESCE(u.name, CONCAT('用户#', a.actor_id)) AS actor_name,
+           d.name AS department_name, a.detail,
+           DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i:%s') AS created_at
+    FROM fin_audit a
+    LEFT JOIN sys_user u ON u.id=a.actor_id
+    LEFT JOIN sys_department d ON d.id=u.department_id
+    <include refid="auditFilter"/>
+    ORDER BY a.id DESC
+    LIMIT #{q.pageSize} OFFSET #{q.offset}
+  </select>
+  <select id="countAudits" resultType="long">
+    SELECT COUNT(*) FROM fin_audit a
+    <include refid="auditFilter"/>
+  </select>
 </mapper>

@@ -138,6 +138,17 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OutboundOrderVO createOutboundOrder(OutboundOrderCreateDTO createDTO) {
+        String requestKey = org.springframework.util.StringUtils.hasText(createDTO.getRequestKey())
+                ? createDTO.getRequestKey().trim() : java.util.UUID.randomUUID().toString();
+        if (baseMapper != null) {
+            OutboundOrder existing = getOne(
+                    Wrappers.<OutboundOrder>lambdaQuery().eq(OutboundOrder::getRequestKey, requestKey));
+            if (existing != null) {
+                OutboundOrderVO vo = converter.toVO(existing);
+                fillItems(List.of(vo));
+                return vo;
+            }
+        }
         List<Long> salesIds = createDTO.getSalesOrderIds().stream().distinct().sorted().toList();
         if (salesIds.size() != createDTO.getSalesOrderIds().size())
             throw new BusinessException(ErrorCode.BAD_REQUEST, "销售订单不可重复选择");
@@ -213,6 +224,9 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         outboundOrder.setCustomerId(customerOrder.getCustomerId());
         outboundOrder.setCustomerName(customerOrder.getCustomerName());
         outboundOrder.setOutboundType(OutboundType.SALE);
+        outboundOrder.setWarehouseCode(com.glw.backend.common.WarehouseDefaults.CODE);
+        outboundOrder.setWarehouseName(com.glw.backend.common.WarehouseDefaults.NAME);
+        outboundOrder.setRequestKey(requestKey);
         outboundOrder.setStatus(OutboundStatus.COMPLETED);
         outboundOrder.setOutboundTime(outboundTime);
         converter.applyShipping(createDTO.getShipping(), outboundOrder);

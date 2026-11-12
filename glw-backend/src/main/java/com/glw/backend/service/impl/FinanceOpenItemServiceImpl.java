@@ -83,7 +83,11 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
 
     @Transactional
     @Override
-    public int rebuild() { return project("AR", null) + project("AP", null); }
+    public int rebuild() {
+        int added = project("AR", null) + project("AP", null);
+        auditService.record("OPEN_ITEM", 0L, "REBUILD", "added=" + added);
+        return added;
+    }
 
     public static void prepare(OpenItem item, FinanceModels.Profile profile) {
         if (!"CNY".equals(item.getCurrency())) throw bad("第一版仅支持人民币，请检查来源单据币种");

@@ -46,6 +46,14 @@ public class PurchaseOrder {
     @TableField("delivery_time")
     private LocalDateTime deliveryTime;
 
+    /** 仓库编码；当前固定 SZYT。 */
+    @TableField("warehouse_code")
+    private String warehouseCode;
+
+    /** 仓库名称快照；当前固定深圳盐田仓。 */
+    @TableField("warehouse_name")
+    private String warehouseName;
+
     /** 单价口径, EXCLUDED:未税; INCLUDED:含税；整张订单统一。 */
     @TableField("tax_included")
     private TaxIncluded taxIncluded;

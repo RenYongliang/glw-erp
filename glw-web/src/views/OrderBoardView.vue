@@ -446,10 +446,7 @@ function exportCsv() {
             </div>
           </div>
           <template v-if="purchase"
-            ><BoardTextFilter
-              v-model="warehouse"
-              label="仓库"
-              :options="options.warehouses" /><BoardDateFilter
+            ><BoardDateFilter
               v-model="date"
               label="订单签署日期" /><BoardTextFilter
               v-model="partner"
@@ -561,13 +558,6 @@ function exportCsv() {
                 </button></template
               ></el-table-column
             >
-            <el-table-column
-              v-if="purchase"
-              prop="warehouse"
-              label="仓库"
-              width="95"
-              sortable="custom"
-            />
             <el-table-column
               prop="order.amount"
               :label="`${prefix}订单金额/元`"
@@ -758,9 +748,6 @@ function exportCsv() {
             ><el-descriptions-item :label="partnerLabel">{{ detail.partner }}</el-descriptions-item
             ><el-descriptions-item :label="`${prefix}订单名称`">{{
               detail.name
-            }}</el-descriptions-item
-            ><el-descriptions-item v-if="purchase" label="仓库">{{
-              detail.warehouse
             }}</el-descriptions-item
             ><el-descriptions-item :label="`${prefix}订单金额/元`">{{
               money(detail.amount)

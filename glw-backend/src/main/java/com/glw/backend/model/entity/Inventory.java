@@ -25,6 +25,14 @@ public class Inventory {
     @TableField("product_id")
     private Long productId;
 
+    /** 仓库编码；当前固定 SZYT。 */
+    @TableField("warehouse_code")
+    private String warehouseCode;
+
+    /** 仓库名称快照；当前固定深圳盐田仓。 */
+    @TableField("warehouse_name")
+    private String warehouseName;
+
     /** 原厂日期码。 */
     @TableField("date_code")
     private String dateCode;

@@ -11,12 +11,14 @@ import com.glw.backend.finance.statement.StatementRenderModel;
 import com.glw.backend.finance.statement.StatementRenderModelAssembler;
 import com.glw.backend.finance.statement.StatementRenderer;
 import com.glw.backend.model.entity.FinStatementTemplate;
+import com.glw.backend.service.FinanceAuditService;
 import com.glw.backend.service.FinanceStatementExportService;
 import com.glw.backend.service.FinanceStatementService;
 import com.glw.backend.service.FinanceStatementTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
@@ -32,9 +34,18 @@ public class FinanceStatementExportServiceImpl implements FinanceStatementExport
     private final LayoutStatementRenderer layoutRenderer;
     private final LayoutPdfRenderer layoutPdfRenderer;
     private final List<StatementRenderer> renderers;
+    private final FinanceAuditService auditService;
 
     @Override
+    @Transactional
     public StatementFile export(Long statementId, String format) {
+        StatementFile file = render(statementId, format);
+        auditService.record("STATEMENT", statementId, "EXPORT",
+                file.fileName() + (format == null ? "" : " format=" + format));
+        return file;
+    }
+
+    private StatementFile render(Long statementId, String format) {
         StatementDetail detail = financeStatementService.statement(statementId);
         Statement statement = detail.statement();
         FinStatementTemplate template = select(statement, format);

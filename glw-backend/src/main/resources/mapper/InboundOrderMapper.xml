@@ -7,6 +7,9 @@
         <result column="supplier_id" property="supplierId" jdbcType="BIGINT"/>
         <result column="supplier_name" property="supplierName" jdbcType="VARCHAR"/>
         <result column="inbound_type" property="inboundType" javaType="com.glw.backend.model.enums.InboundType" jdbcType="VARCHAR"/>
+        <result column="warehouse_code" property="warehouseCode" jdbcType="VARCHAR"/>
+        <result column="warehouse_name" property="warehouseName" jdbcType="VARCHAR"/>
+        <result column="request_key" property="requestKey" jdbcType="VARCHAR"/>
         <result column="status" property="status" javaType="com.glw.backend.model.enums.InboundStatus" jdbcType="VARCHAR"/>
         <result column="inbound_time" property="inboundTime" jdbcType="TIMESTAMP"/>
         <result column="version" property="version" jdbcType="INTEGER"/>
@@ -17,6 +20,6 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `inbound_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `status`, `inbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `inbound_order_no`, `supplier_id`, `supplier_name`, `inbound_type`, `warehouse_code`, `warehouse_name`, `request_key`, `status`, `inbound_time`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
 </mapper>

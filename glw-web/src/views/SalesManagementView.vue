@@ -126,8 +126,8 @@ const orderColumns = [
   ["customer", "客户名称"],
   ["signed", "订单日期"],
   ["deliveryStatus", "发货状态"],
-  ["brands", "品牌"],
   ["productNames", "型号"],
+  ["brands", "品牌"],
   ["models", "封装"],
   ["prices", "单价"],
   ["ordered", "销售数量"],
@@ -171,8 +171,8 @@ const shipmentColumns = [
   ["purchaseNumber", "客户采购单号"],
   ["customer", "客户名称"],
   ["shippedAt", "出库日期"],
-  ["brands", "品牌"],
   ["productNames", "型号"],
+  ["brands", "品牌"],
   ["models", "封装"],
   ["ordered", "销售数量"],
   ["pending", "出库数量"],
@@ -230,8 +230,8 @@ const shownColumns = computed(() =>
   columns.filter((c) => !hidden.value.includes(c.key)),
 );
 const productKeys = isOrder
-  ? ["brands", "productNames", "models", "prices", "ordered", "pendingShipment", "amounts"]
-  : ["brands", "productNames", "models", "ordered", "pending"];
+  ? ["productNames", "brands", "models", "prices", "ordered", "pendingShipment", "amounts"]
+  : ["productNames", "brands", "models", "ordered", "pending"];
 const productColumns = computed(() =>
   shownColumns.value.filter((c) => productKeys.includes(c.key)),
 );
@@ -968,7 +968,10 @@ function confirmImport() {
       class="purchase-table-scroll"
       :class="{ 'purchase-comfortable': rowHeight === 'comfortable' }"
     >
-      <table class="purchase-table sales-management-table">
+      <table
+        class="purchase-table sales-management-table"
+        :class="{ 'sales-shipment-head-centered': !isOrder }"
+      >
         <thead>
           <tr>
             <th
@@ -1043,6 +1046,7 @@ function confirmImport() {
                     'sales-product-cell': productKeys.includes(c.key),
                     'sales-packaging-cell': c.key === 'models',
                     'shipment-centered-cell': !isOrder && ['code', 'purchaseNumber', 'customer', 'shippedAt', 'status'].includes(c.key),
+                    'shipment-text-centered': !isOrder && ['purchaseNumber', 'customer', 'shippedAt'].includes(c.key),
                     'sales-code-cell': ['code', 'orderCode'].includes(c.key),
                     'purchase-money': [
                       'gross',
@@ -1368,8 +1372,14 @@ function confirmImport() {
 .sales-management-table td.shipment-centered-cell {
   vertical-align: middle;
 }
+.sales-management-table td.shipment-text-centered {
+  text-align: center;
+}
 .sales-management-table thead tr:first-child th {
   height: 38px;
+}
+.sales-shipment-head-centered thead th {
+  text-align: center;
 }
 .sales-management-table thead tr:nth-child(2) th {
   top: 38px;

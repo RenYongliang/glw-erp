@@ -13,6 +13,12 @@ const router = createRouter({
       component: () => import('../views/FinanceView.vue'), props: { kind }, meta: { title },
     })),
     {
+      path: '/finance/audit',
+      name: 'finance-audit',
+      component: () => import('../views/FinanceAuditView.vue'),
+      meta: { title: '财务审计' },
+    },
+    {
       path: '/finance/templates',
       name: 'finance-templates',
       component: () => import('../views/StatementTemplateView.vue'),

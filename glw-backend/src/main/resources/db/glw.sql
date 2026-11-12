@@ -122,6 +122,9 @@ CREATE TABLE `inbound_order`  (
   `supplier_id` bigint(0) NOT NULL COMMENT '供应商id',
   `supplier_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '供应商名称',
   `inbound_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'PURCHASE' COMMENT '入库类型, PURCHASE:采购入库',
+  `warehouse_code` varchar(32) NOT NULL DEFAULT 'SZYT' COMMENT '仓库编码，当前固定 SZYT',
+  `warehouse_name` varchar(64) NOT NULL DEFAULT '深圳盐田仓' COMMENT '仓库名称快照',
+  `request_key` varchar(64) NULL DEFAULT NULL COMMENT '创建幂等键',
   `status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '状态, PENDING:待入库; COMPLETED:已入库;',
   `inbound_time` timestamp(0) NULL DEFAULT NULL COMMENT '入库时间',
   `version` int(0) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
@@ -131,6 +134,7 @@ CREATE TABLE `inbound_order`  (
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_inbound_order_no`(`inbound_order_no`) USING BTREE,
+  UNIQUE INDEX `uk_inbound_request_key`(`request_key`) USING BTREE,
   INDEX `idx_inbound_order_supplier_id`(`supplier_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '入库表' ROW_FORMAT = Dynamic;
 
@@ -199,6 +203,8 @@ DROP TABLE IF EXISTS `inventory`;
 CREATE TABLE `inventory`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `product_id` bigint NOT NULL COMMENT '产品ID',
+    `warehouse_code` varchar(32) NOT NULL DEFAULT 'SZYT' COMMENT '仓库编码，当前固定 SZYT',
+    `warehouse_name` varchar(64) NOT NULL DEFAULT '深圳盐田仓' COMMENT '仓库名称快照',
     `date_code` varchar(32) NOT NULL DEFAULT '' COMMENT '原厂日期码，如2519',
     `lot_code` varchar(64) NOT NULL DEFAULT '' COMMENT '原厂批次号',
     `batch_no` varchar(64) NOT NULL COMMENT '库存批次号：BAT+实际入库日期yyMMdd+五位产品ID+同产品当天三位流水号',
@@ -229,6 +235,9 @@ CREATE TABLE `outbound_order`  (
   `customer_id` bigint(0) NOT NULL COMMENT '客户id',
   `customer_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '客户名称',
   `outbound_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'SALE' COMMENT '出库类型, SALE:销售出库',
+  `warehouse_code` varchar(32) NOT NULL DEFAULT 'SZYT' COMMENT '仓库编码，当前固定 SZYT',
+  `warehouse_name` varchar(64) NOT NULL DEFAULT '深圳盐田仓' COMMENT '仓库名称快照',
+  `request_key` varchar(64) NULL DEFAULT NULL COMMENT '创建幂等键',
   `status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '状态, PENDING:待出库; COMPLETED:已出库;',
   `outbound_time` timestamp(0) NULL DEFAULT NULL COMMENT '出库时间',
   `sign_time` timestamp(0) NULL DEFAULT NULL COMMENT '客户签收日期',
@@ -249,6 +258,7 @@ CREATE TABLE `outbound_order`  (
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_outbound_order_no`(`outbound_order_no`) USING BTREE,
+  UNIQUE INDEX `uk_outbound_request_key`(`request_key`) USING BTREE,
   INDEX `idx_customer_id`(`customer_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '出库表' ROW_FORMAT = Dynamic;
 
@@ -362,6 +372,8 @@ CREATE TABLE `purchase_order`  (
   `supplier_id` bigint(0) NOT NULL COMMENT '供应商id',
   `supplier_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '供应商名称',
   `delivery_time` timestamp(0) NULL DEFAULT NULL COMMENT '交付日期',
+  `warehouse_code` varchar(32) NOT NULL DEFAULT 'SZYT' COMMENT '仓库编码，当前固定 SZYT',
+  `warehouse_name` varchar(64) NOT NULL DEFAULT '深圳盐田仓' COMMENT '仓库名称快照',
   `tax_included` int(0) NOT NULL DEFAULT 1 COMMENT '单价口径 0未税 1含税，订单级统一',
   `order_status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'CONFIRMED' COMMENT '订单状态, PENDING_APPROVAL:待审核（预留）; CONFIRMED:执行中; COMPLETED:已完结; CANCELLED:已取消',
   `receipt_status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'PENDING_RECEIPT' COMMENT '收货状态, PENDING_RECEIPT:未收货; PARTIALLY_RECEIVED:部分收货; RECEIVED:全部收货',
@@ -438,6 +450,8 @@ CREATE TABLE `sales_order`  (
   `settle_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'CASH' COMMENT '结算类型, CASH:现金; MONTHLY:月结; PREPAID:预付; COD:货到付款',
   `tax_included` int(0) NOT NULL DEFAULT 1 COMMENT '单价口径 0未税 1含税，订单级统一',
   `delivery_time` timestamp(0) NULL DEFAULT NULL COMMENT '交付日期',
+  `warehouse_code` varchar(32) NOT NULL DEFAULT 'SZYT' COMMENT '仓库编码，当前固定 SZYT',
+  `warehouse_name` varchar(64) NOT NULL DEFAULT '深圳盐田仓' COMMENT '仓库名称快照',
   `order_status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'CONFIRMED' COMMENT '订单状态, PENDING_APPROVAL:待审核（预留）; CONFIRMED:执行中; COMPLETED:已完结; CANCELLED:已取消',
   `delivery_status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'PENDING_SHIPMENT' COMMENT '发货状态, PENDING_SHIPMENT:未发货; PARTIALLY_SHIPPED:部分发货; SHIPPED:全部发货',
   `payment_status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'UNPAID' COMMENT '收款状态, UNPAID:待收款; PARTIALLY_PAID:部分收款; PAID:已收款',

@@ -32,6 +32,10 @@
       AND order_id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     GROUP BY order_id
   </select>
+  <select id="activePaymentCount" resultType="long">
+    SELECT COUNT(*) FROM fin_payment
+    WHERE direction=#{direction} AND order_id=#{orderId} AND status&lt;&gt;'VOID'
+  </select>
   <select id="orderIdsByStatus" resultType="long">
     <choose>
       <when test="direction == 'AR'">SELECT id FROM sales_order WHERE (<include refid="arStatus"/>)=#{status}</when>

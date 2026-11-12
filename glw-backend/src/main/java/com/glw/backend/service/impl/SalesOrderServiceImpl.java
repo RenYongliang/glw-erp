@@ -46,6 +46,7 @@ import java.util.List;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /** 销售订单表基础服务实现。 */
@@ -90,6 +91,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         // 含税口径是订单级的：明细单价统一按订单口径解释，不再逐行选择。
         order.setTaxIncluded(createDTO.getTaxIncluded() == null ? TaxIncluded.INCLUDED : createDTO.getTaxIncluded());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
+        order.setWarehouseCode(com.glw.backend.common.WarehouseDefaults.CODE);
+        order.setWarehouseName(com.glw.backend.common.WarehouseDefaults.NAME);
         // 后端不设审批环节，新建销售订单直接进入执行中；待审核状态保留给以后启用。
         order.setOrderStatus(SalesOrderStatus.CONFIRMED);
         order.setDeliveryStatus(SalesDeliveryStatus.PENDING_SHIPMENT);
@@ -113,6 +116,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         if (outboundOrderItemAllocMapper.selectCount(Wrappers.<OutboundOrderItemAlloc>lambdaQuery()
                 .eq(OutboundOrderItemAlloc::getSalesOrderId, id)) > 0)
             throw new BusinessException(ErrorCode.CONFLICT, "已有出库记录的销售订单不能修改");
+        if (financeMapper.activePaymentCount("AR", id) > 0 && amountOrItemsChanged(order, createDTO))
+            throw new BusinessException(ErrorCode.CONFLICT, "销售订单已有收付款记录，不能修改金额或产品明细");
 
         Customer customer = requireCustomer(createDTO.getCustomerId());
         Map<Long, Product> products = requireProducts(createDTO.getItems());
@@ -125,6 +130,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         if (createDTO.getSettleType() != null) order.setSettleType(createDTO.getSettleType());
         if (createDTO.getTaxIncluded() != null) order.setTaxIncluded(createDTO.getTaxIncluded());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
+        order.setWarehouseCode(com.glw.backend.common.WarehouseDefaults.CODE);
+        order.setWarehouseName(com.glw.backend.common.WarehouseDefaults.NAME);
         order.setRemark(trimText(createDTO.getRemark(), 256, "备注"));
         if (!updateById(order))
             throw new BusinessException(ErrorCode.CONFLICT, "销售订单已发生变化，请刷新后重试");
@@ -134,6 +141,30 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
                 .remove();
         saveItems(order, createDTO.getItems(), products);
         return toDetailVO(order);
+    }
+
+    /** 已有收付款后，只允许修改非金额字段；金额与产品明细变化在这里拦截。 */
+    private boolean amountOrItemsChanged(SalesOrder order, SalesOrderCreateDTO createDTO) {
+        if (createDTO.getTaxIncluded() != null && createDTO.getTaxIncluded() != order.getTaxIncluded())
+            return true;
+        List<SalesOrderItem> rows = salesOrderItemService.lambdaQuery()
+                .eq(SalesOrderItem::getSalesOrderId, order.getId())
+                .orderByAsc(SalesOrderItem::getId)
+                .list();
+        if (rows.size() != createDTO.getItems().size()) return true;
+        Map<Long, SalesOrderItem> existing = rows.stream()
+                .collect(Collectors.toMap(SalesOrderItem::getProductId, item -> item));
+        TaxIncluded taxIncluded = createDTO.getTaxIncluded() == null
+                ? order.getTaxIncluded() : createDTO.getTaxIncluded();
+        for (SalesOrderItemCreateDTO item : createDTO.getItems()) {
+            SalesOrderItem row = existing.get(item.getProductId());
+            if (row == null) return true;
+            if (!Objects.equals(row.getQuantity(), item.getQuantity())) return true;
+            if (row.getUnitPrice().compareTo(item.getUnitPrice()) != 0) return true;
+            Integer taxRate = taxIncluded == TaxIncluded.INCLUDED ? item.getTaxRate() : null;
+            if (!Objects.equals(row.getTaxRate(), taxRate)) return true;
+        }
+        return false;
     }
 
     private Customer requireCustomer(Long customerId) {
@@ -344,6 +375,9 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
                         .eq(OutboundOrderItemAlloc::getSalesOrderId, orderId));
         if (outbound > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "订单已有出库记录，请先撤销出库");
+        }
+        if (financeMapper.activePaymentCount("AR", orderId) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "订单已有收付款记录，请先在财务作废未核销收付款后再取消");
         }
         List<SalesOrderItem> items = salesOrderItemService.lambdaQuery()
                 .eq(SalesOrderItem::getSalesOrderId, orderId)

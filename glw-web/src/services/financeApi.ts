@@ -111,6 +111,28 @@ export interface Allocation {
   createdAt: string
   reversedAt?: string
 }
+export interface FinanceAudit {
+  id: number
+  entityType: string
+  entityId: number
+  action: string
+  actorId?: number | null
+  actorName?: string | null
+  departmentName?: string | null
+  detail?: string | null
+  createdAt: string
+}
+
+export interface FinanceAuditQuery {
+  entityType?: string
+  action?: string
+  keyword?: string
+  startDate?: string
+  endDate?: string
+  pageNo: number
+  pageSize: number
+}
+
 export interface StatementDetail {
   statement: Statement
   items: OpenItem[]
@@ -203,6 +225,7 @@ export const financeApi = {
   transition: (id: number, action: 'send' | 'confirm' | 'void') =>
     post<StatementDetail>(`statement/${id}/${action}`),
   payments: (q: FinanceQuery) => post<PageResponse<Payment>>('payment/list', q),
+  audits: (q: FinanceAuditQuery) => post<PageResponse<FinanceAudit>>('audit/list', q),
   createPayment: (input: PaymentInput) => post<PaymentDetail>('payment/create', input),
   settleOrder: (input: SettleOrderInput) => post<SettleOrderResult>('payment/settle-order', input),
   payment: (id: number) => apiRequest<PaymentDetail>(`/fin/payment/${id}`),

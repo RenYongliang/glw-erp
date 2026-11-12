@@ -32,6 +32,8 @@ interface PurchaseOrderResponse {
   supplierName: string
   supplierShortName?: string | null
   deliveryTime?: string | null
+  warehouseCode?: string | null
+  warehouseName?: string | null
   /** 订单级单价口径：0 未税，1 含税。 */
   taxIncluded?: number | null
   orderStatus: string
@@ -80,11 +82,14 @@ interface InboundOrderResponse {
   inboundType: string
   status: string
   inboundTime?: string | null
+  warehouseCode?: string | null
+  warehouseName?: string | null
   items: InboundOrderItemResponse[]
 }
 
 interface InboundOrderCreateRequest {
   purchaseOrderIds: number[]
+  requestKey?: string
   inboundTime?: string
   allocations: {
     purchaseOrderItemId: number
@@ -127,7 +132,7 @@ function toPurchaseOrder(order: PurchaseOrderResponse): PurchaseOrder {
     delivery,
     owner: '',
     department: '',
-    warehouse: '',
+    warehouse: order.warehouseName || '深圳盐田仓',
     address: '',
     discount: 0,
     lines: order.items.map(item => ({
@@ -193,7 +198,6 @@ function toPurchaseReceipt(receipt: InboundOrderResponse, purchaseOrderId?: stri
     orderId: String(receipt.purchaseOrders[0]?.purchaseOrderId ?? ''),
     orderIds: receipt.purchaseOrders.map(order => String(order.purchaseOrderId)),
     supplierName: receipt.supplierName,
-    warehouse: '',
     lines,
     quality: '合格',
     qualityNote: '',
@@ -204,6 +208,7 @@ function toPurchaseReceipt(receipt: InboundOrderResponse, purchaseOrderId?: stri
     receivedAt: date(receipt.inboundTime),
     keeper: '',
     department: '',
+    warehouse: receipt.warehouseName || '深圳盐田仓',
     photos: [],
   }
 }
@@ -293,10 +298,11 @@ export async function createInboundOrder(receipt: PurchaseReceipt) {
   if (!allocations.length) throw Error('请填写至少一个入库批次')
   const request: InboundOrderCreateRequest = {
     purchaseOrderIds: receiptOrderIds(receipt).map(Number),
+    requestKey: receipt.requestKey || crypto.randomUUID(),
     inboundTime: receipt.receivedAt ? (receipt.receivedAt.length === 10 ? `${receipt.receivedAt}T00:00:00` : receipt.receivedAt.replace(' ', 'T')) : undefined,
     allocations,
   }
-  await apiRequest<unknown>('/inbound-order', {
+  return apiRequest<InboundOrderResponse>('/inbound-order', {
     method: 'POST',
     body: JSON.stringify(request),
   })

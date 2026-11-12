@@ -76,6 +76,7 @@ export async function updateSalesOrder(order: SalesOrder) {
 
 interface OutboundOrderCreateRequest {
   salesOrderIds: number[]
+  requestKey?: string
   outboundTime?: string
   shipping?: ShippingInfo
   allocations: {
@@ -100,6 +101,7 @@ export async function createOutboundOrder(shipment: SalesShipment) {
     throw Error('请为每条出库明细选择批次')
   const request: OutboundOrderCreateRequest = {
     salesOrderIds,
+    requestKey: shipment.requestKey || crypto.randomUUID(),
     outboundTime: shipment.shippedAt
       ? (shipment.shippedAt.length === 10 ? `${shipment.shippedAt}T00:00:00` : shipment.shippedAt.replace(' ', 'T'))
       : undefined,

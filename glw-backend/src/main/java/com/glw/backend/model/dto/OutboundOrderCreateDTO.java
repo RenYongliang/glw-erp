@@ -17,6 +17,10 @@ public class OutboundOrderCreateDTO {
 
     private String outboundTime;
 
+    /** 幂等键；同一 key 的重复提交返回原出库单。 */
+    @Size(max = 64)
+    private String requestKey;
+
     @Valid
     private OutboundShippingDTO shipping;
 

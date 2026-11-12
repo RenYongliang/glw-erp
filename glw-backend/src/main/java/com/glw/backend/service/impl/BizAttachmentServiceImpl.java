@@ -48,16 +48,22 @@ public class BizAttachmentServiceImpl extends ServiceImpl<BizAttachmentMapper, B
 
     private final SalesOrderMapper salesOrderMapper;
     private final PurchaseOrderMapper purchaseOrderMapper;
+    private final com.glw.backend.mapper.InboundOrderMapper inboundOrderMapper;
+    private final com.glw.backend.mapper.OutboundOrderMapper outboundOrderMapper;
     private final AttachmentStorage storage;
     private final MinioProperties properties;
 
     public BizAttachmentServiceImpl(
             SalesOrderMapper salesOrderMapper,
             PurchaseOrderMapper purchaseOrderMapper,
+            com.glw.backend.mapper.InboundOrderMapper inboundOrderMapper,
+            com.glw.backend.mapper.OutboundOrderMapper outboundOrderMapper,
             AttachmentStorage storage,
             MinioProperties properties) {
         this.salesOrderMapper = salesOrderMapper;
         this.purchaseOrderMapper = purchaseOrderMapper;
+        this.inboundOrderMapper = inboundOrderMapper;
+        this.outboundOrderMapper = outboundOrderMapper;
         this.storage = storage;
         this.properties = properties;
     }
@@ -186,18 +192,28 @@ public class BizAttachmentServiceImpl extends ServiceImpl<BizAttachmentMapper, B
         if (bizId == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少业务单据ID");
         }
-        if (type == AttachmentBizType.SALES_ORDER) {
-            var order = salesOrderMapper.selectById(bizId);
-            if (order == null) {
-                throw new BusinessException(ErrorCode.NOT_FOUND, "销售订单不存在");
+        return switch (type) {
+            case SALES_ORDER -> {
+                var order = salesOrderMapper.selectById(bizId);
+                if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "销售订单不存在");
+                yield new OrderInfo(order.getOrderNo(), order.getCustomerName(), "客户");
             }
-            return new OrderInfo(order.getOrderNo(), order.getCustomerName(), "客户");
-        }
-        var order = purchaseOrderMapper.selectById(bizId);
-        if (order == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "采购订单不存在");
-        }
-        return new OrderInfo(order.getPurchaseOrderNo(), order.getSupplierName(), "供应商");
+            case PURCHASE_ORDER -> {
+                var order = purchaseOrderMapper.selectById(bizId);
+                if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "采购订单不存在");
+                yield new OrderInfo(order.getPurchaseOrderNo(), order.getSupplierName(), "供应商");
+            }
+            case INBOUND_ORDER -> {
+                var order = inboundOrderMapper.selectById(bizId);
+                if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "入库单不存在");
+                yield new OrderInfo(order.getInboundOrderNo(), order.getSupplierName(), "供应商");
+            }
+            case OUTBOUND_ORDER -> {
+                var order = outboundOrderMapper.selectById(bizId);
+                if (order == null) throw new BusinessException(ErrorCode.NOT_FOUND, "出库单不存在");
+                yield new OrderInfo(order.getOutboundOrderNo(), order.getCustomerName(), "客户");
+            }
+        };
     }
 
     private String provisionalName(OrderInfo order, AttachmentCategory category, String extension) {

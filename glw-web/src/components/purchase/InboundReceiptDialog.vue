@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, FullScreen, Camera, Upload, Close } from '@element-plus/icons-vue'
+import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
 import { usePurchaseStore } from '../../stores/purchase'
 import { useAuthStore } from '../../stores/auth'
 import { fetchInboundDetail } from '../../services/purchaseApi'
+import AttachmentTiles from '../common/AttachmentTiles.vue'
+import {
+  deleteOrderAttachment,
+  fetchOrderAttachments,
+  uploadOrderAttachment,
+  type AttachmentVO,
+} from '../../services/attachmentApi'
+import type { AttachmentTypeDef } from '../../domain/attachments'
 import {
   receiptOrders,
   receiptOrderIds,
@@ -32,11 +40,16 @@ const loading = ref(false)
 const loadError = ref('')
 const dirty = ref(false)
 const selectedId = ref('')
+const inboundPhotoTypes: AttachmentTypeDef[] = [
+  { key: 'INBOUND_PHOTO', label: '入库照片', slots: 'unlimited' },
+]
+const pendingPhotos = ref<{ file: File; preview: PurchaseReceipt['photos'][number] }[]>([])
 const receipt = ref<PurchaseReceipt>(
   props.receipt
     ? structuredClone(JSON.parse(JSON.stringify(props.receipt)))
     : {
         id: crypto.randomUUID(),
+        requestKey: crypto.randomUUID(),
         code: '',
         orderId: '',
         orderIds: [],
@@ -164,10 +177,65 @@ async function load() {
   loadError.value = ''
   try {
     receipt.value = await fetchInboundDetail(props.receipt.id, props.scopeOrder?.id)
+    if (/^\d+$/.test(receipt.value.id)) {
+      const files = await fetchOrderAttachments('INBOUND_ORDER', Number(receipt.value.id))
+      receipt.value.photos = files
+        .filter(file => file.category === 'INBOUND_PHOTO')
+        .map(attachment)
+    }
   } catch (error) {
     loadError.value = (error as Error).message
   } finally {
     loading.value = false
+  }
+}
+function attachment(file: AttachmentVO): PurchaseReceipt['photos'][number] {
+  return {
+    id: file.id,
+    name: file.fileName,
+    url: file.downloadUrl,
+    fileSize: file.fileSize,
+    type: file.category,
+  }
+}
+async function uploadPhotos(files: File[]) {
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) {
+      ElMessage.warning('请选择图片')
+      continue
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning('图片每个不超过 10MB')
+      continue
+    }
+    const url = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    }).catch(() => '')
+    if (!url) continue
+    const preview = { name: file.name, url, type: 'INBOUND_PHOTO' }
+    receipt.value.photos.push(preview)
+    pendingPhotos.value.push({ file, preview })
+    dirty.value = true
+  }
+}
+async function removePhoto(photo: PurchaseReceipt['photos'][number]) {
+  const index = receipt.value.photos.indexOf(photo)
+  if (index >= 0) receipt.value.photos.splice(index, 1)
+  const pendingIndex = pendingPhotos.value.findIndex(item => item.preview === photo)
+  if (pendingIndex >= 0) {
+    pendingPhotos.value.splice(pendingIndex, 1)
+    dirty.value = true
+    return
+  }
+  if (photo.id) {
+    try {
+      await deleteOrderAttachment(photo.id)
+    } catch (error) {
+      ElMessage.error((error as Error).message)
+    }
   }
 }
 onMounted(() => {
@@ -192,7 +260,18 @@ async function save() {
   saving.value = true
   try {
     receipt.value.lines.forEach(syncQuantity)
-    await store.saveReceipt(receipt.value)
+    const created = await store.saveReceipt(receipt.value)
+    if (pendingPhotos.value.length && created?.id) {
+      let failed = 0
+      for (const item of pendingPhotos.value) {
+        try {
+          await uploadOrderAttachment('INBOUND_ORDER', created.id, 'INBOUND_PHOTO', item.file)
+        } catch {
+          failed++
+        }
+      }
+      if (failed) ElMessage.warning(`${failed} 张照片上传失败，可在入库详情中重新上传`)
+    }
     ElMessage.success('入库成功')
     emit('saved')
   } catch (error) {
@@ -200,24 +279,6 @@ async function save() {
   } finally {
     saving.value = false
   }
-}
-async function photos(event: Event) {
-  const input = event.target as HTMLInputElement
-  for (const file of Array.from(input.files || [])) {
-    if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
-      ElMessage.warning('请选择 5MB 以内的图片')
-      continue
-    }
-    const url = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-    receipt.value.photos.push({ name: file.name, url })
-    dirty.value = true
-  }
-  input.value = ''
 }
 </script>
 
@@ -437,37 +498,18 @@ async function photos(event: Event) {
           </el-table>
         </section>
       </div>
-      <template v-if="!view"
-        ><h3 class="purchase-section">入库确认</h3>
-        <div class="inbound-photo-actions">
-          <label
-            ><el-icon><Camera /></el-icon>拍照<input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              @change="photos" /></label
-          ><label
-            ><el-icon><Upload /></el-icon>选择文件<input
-              type="file"
-              accept="image/*"
-              multiple
-              @change="photos"
-          /></label>
-        </div>
-        <div class="inbound-photos">
-          <div v-for="(photo, index) in receipt.photos" :key="index">
-            <el-image
-              :src="photo.url"
-              :preview-src-list="receipt.photos.map((p) => p.url)"
-              fit="cover"
-            /><el-button
-              :icon="Close"
-              text
-              aria-label="删除照片"
-              @click="receipt.photos.splice(index, 1)"
-            />
-          </div></div
-      ></template>
+      <section v-if="!view || receipt.photos.length" class="purchase-section">
+        <h3>入库照片</h3>
+        <AttachmentTiles
+          v-if="receipt.photos.length || !view"
+          :attachments="receipt.photos"
+          :types="inboundPhotoTypes"
+          :uploadable="!view"
+          :removable="!view"
+          @upload="uploadPhotos"
+          @remove="removePhoto"
+        />
+      </section>
     </div>
     <template #footer
       ><el-button :disabled="saving" @click="close">{{ view ? '关闭' : '取消' }}</el-button

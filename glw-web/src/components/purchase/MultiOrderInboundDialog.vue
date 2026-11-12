@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, FullScreen, Camera, Upload, Close } from '@element-plus/icons-vue'
+import { Plus, Delete, FullScreen } from '@element-plus/icons-vue'
 import { usePurchaseStore } from '../../stores/purchase'
 import { useAuthStore } from '../../stores/auth'
+import AttachmentTiles from '../common/AttachmentTiles.vue'
+import { uploadOrderAttachment } from '../../services/attachmentApi'
+import type { AttachmentTypeDef } from '../../domain/attachments'
 import {
   remainingQuantity,
   purchaseSupplierName,
@@ -33,7 +36,12 @@ const productIds = ref<string[]>([]),
   orderIds = ref<string[]>([])
 const drafts = ref<Record<string, MultiInboundProduct>>({})
 const receivedAt = ref(`${today()} 09:00:00`)
+const requestKey = crypto.randomUUID()
 const photos = ref<PurchaseReceipt['photos']>([])
+const pendingPhotos = ref<{ file: File; preview: PurchaseReceipt['photos'][number] }[]>([])
+const inboundPhotoTypes: AttachmentTypeDef[] = [
+  { key: 'INBOUND_PHOTO', label: '入库照片', slots: 'unlimited' },
+]
 const pendingLines = computed(() =>
   store.state.orders.flatMap((order) =>
     order.lines.map((line) => ({
@@ -166,6 +174,7 @@ async function save() {
     const first = selectedOrders.value[0]!.order
     const receipt: PurchaseReceipt = {
       id: crypto.randomUUID(),
+      requestKey,
       code: '',
       orderId: first.id,
       orderIds: [...orderIds.value],
@@ -183,7 +192,18 @@ async function save() {
       photos: photos.value,
     }
     saving.value = true
-    await store.saveReceipt(receipt)
+    const created = await store.saveReceipt(receipt)
+    if (pendingPhotos.value.length && created?.id) {
+      let failed = 0
+      for (const item of pendingPhotos.value) {
+        try {
+          await uploadOrderAttachment('INBOUND_ORDER', created.id, 'INBOUND_PHOTO', item.file)
+        } catch {
+          failed++
+        }
+      }
+      if (failed) ElMessage.warning(`${failed} 张照片上传失败，可在入库详情中重新上传`)
+    }
     dirty.value = false
     ElMessage.success('入库成功')
     emit('saved')
@@ -208,15 +228,21 @@ async function close() {
   }
   emit('close')
 }
-function removePhoto(index: number) {
-  photos.value.splice(index, 1)
+async function removePhoto(photo: PurchaseReceipt['photos'][number]) {
+  const index = photos.value.indexOf(photo)
+  if (index >= 0) photos.value.splice(index, 1)
+  const pendingIndex = pendingPhotos.value.findIndex(item => item.preview === photo)
+  if (pendingIndex >= 0) pendingPhotos.value.splice(pendingIndex, 1)
   dirty.value = true
 }
-async function selectPhotos(event: Event) {
-  const input = event.target as HTMLInputElement
-  for (const file of Array.from(input.files || [])) {
-    if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
-      ElMessage.warning('请选择 5MB 以内的图片')
+async function selectPhotos(files: File[]) {
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) {
+      ElMessage.warning('请选择图片')
+      continue
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning('图片每个不超过 10MB')
       continue
     }
     const url = await new Promise<string>((resolve, reject) => {
@@ -224,11 +250,13 @@ async function selectPhotos(event: Event) {
       reader.onload = () => resolve(String(reader.result))
       reader.onerror = reject
       reader.readAsDataURL(file)
-    })
-    photos.value.push({ name: file.name, url })
+    }).catch(() => '')
+    if (!url) continue
+    const preview = { name: file.name, url, type: 'INBOUND_PHOTO' }
+    photos.value.push(preview)
+    pendingPhotos.value.push({ file, preview })
     dirty.value = true
   }
-  input.value = ''
 }
 </script>
 
@@ -503,38 +531,14 @@ async function selectPhotos(event: Event) {
     </template>
     <el-empty v-else description="该入库类型暂未开放" :image-size="52" />
     <h3 class="purchase-section multi-section-heading">入库凭证 <small>照片选填</small></h3>
-    <div class="multi-photo-actions">
-      <label
-        ><el-icon><Camera /></el-icon>拍照<input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          :disabled="saving"
-          @change="selectPhotos" /></label
-      ><label
-        ><el-icon><Upload /></el-icon>选择文件<input
-          type="file"
-          accept="image/*"
-          multiple
-          :disabled="saving"
-          @change="selectPhotos"
-      /></label>
-    </div>
-    <div class="multi-photos">
-      <div v-for="(photo, index) in photos" :key="index">
-        <el-image
-          :src="photo.url"
-          :preview-src-list="photos.map((p) => p.url)"
-          fit="cover"
-        /><el-button
-          :icon="Close"
-          text
-          aria-label="删除照片"
-          :disabled="saving"
-          @click="removePhoto(index)"
-        />
-      </div>
-    </div>
+    <AttachmentTiles
+      :attachments="photos"
+      :types="inboundPhotoTypes"
+      :uploadable="!saving"
+      :removable="!saving"
+      @upload="selectPhotos"
+      @remove="removePhoto"
+    />
     <template #footer
       ><span class="multi-footer-total"
         >{{ products.length }} 个产品 · {{ orderIds.length }} 张采购单 ·

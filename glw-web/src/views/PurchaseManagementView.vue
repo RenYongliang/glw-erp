@@ -116,7 +116,7 @@ type TableRow = {
 const orderColumns = [
   ['code', '采购单号'], ['supplier', '供应商'], ['signed', '采购日期'],
   ['receiptStatus', '收货状态'],
-  ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
+  ['productNames', '型号'], ['brands', '品牌'], ['models', '封装'],
   ['prices', '单价'], ['quantities', '采购数量'], ['pendingDelivery', '待交数量'],
   ['amounts', '金额'], ['deliveries', '交付日期'],
   ['total', '订单金额'],
@@ -124,8 +124,8 @@ const orderColumns = [
   ['owner', '采购负责人'],
 ]
 const productKeys = isOrder
-  ? ['brands', 'productNames', 'models', 'prices', 'quantities', 'pendingDelivery', 'amounts', 'deliveries']
-  : ['brands', 'productNames', 'models', 'quantities', 'received']
+  ? ['productNames', 'brands', 'models', 'prices', 'quantities', 'pendingDelivery', 'amounts', 'deliveries']
+  : ['productNames', 'brands', 'models', 'quantities', 'received']
 function productCells(order: PurchaseOrder, key: string, receipt?: PurchaseReceipt): string[] {
   const totals = orderTotals(order)
   return order.lines.flatMap((l, i) => {
@@ -145,7 +145,7 @@ const receiptColumns = [
   ['orderCode', '采购单号'],
   ['supplier', '供应商'],
   ['receivedAt', '入库日期'],
-  ['brands', '品牌'], ['productNames', '型号'], ['models', '封装'],
+  ['productNames', '型号'], ['brands', '品牌'], ['models', '封装'],
   ['quantities', '采购数量'], ['received', '入库数量'],
   ['status', '入库状态'],
 ]
@@ -854,6 +854,7 @@ function confirmImport() {
                     'purchase-code-compact': ['code', 'orderCode'].includes(c.key),
                     'purchase-packaging-compact': c.key === 'models',
                     'purchase-product-td': productKeys.includes(c.key),
+                    'purchase-center-cell': ['receivedAt', 'signed', 'receiptStatus'].includes(c.key),
                     'purchase-money': ['gross', 'discount', 'total', 'net', 'quantity'].includes(
                       c.key,
                     ),
@@ -1102,6 +1103,7 @@ function confirmImport() {
 .purchase-product-cell > div + div { border-top: 1px solid #eef0f3; }
 .purchase-table .purchase-packaging-compact { width: 160px; max-width: 160px; }
 .purchase-table .purchase-code-compact { width: 1%; padding-left: 8px; padding-right: 8px; }
+.purchase-table td.purchase-center-cell { text-align: center; }
 .purchase-order-code { display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px; }
 .purchase-packaging-compact .purchase-product-cell { width: 160px; }
 .purchase-packaging-compact .purchase-product-cell > div { overflow: hidden; text-overflow: ellipsis; }
@@ -1115,8 +1117,9 @@ function confirmImport() {
 
 <style>
 .purchase-order-head tr:first-child { height: 37px; }
+.purchase-order-head th { text-align: center; }
 .purchase-order-head tr:nth-child(2) th { top: 37px; }
-.purchase-order-head tr:nth-child(2) th { text-align: left; white-space: nowrap; }
+.purchase-order-head tr:nth-child(2) th { text-align: center; white-space: nowrap; }
 .purchase-order-head .purchase-product-heading { text-align: center; }
 </style>
 

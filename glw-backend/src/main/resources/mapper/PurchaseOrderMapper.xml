@@ -8,6 +8,8 @@
         <result column="supplier_id" property="supplierId" jdbcType="BIGINT"/>
         <result column="supplier_name" property="supplierName" jdbcType="VARCHAR"/>
         <result column="delivery_time" property="deliveryTime" jdbcType="TIMESTAMP"/>
+        <result column="warehouse_code" property="warehouseCode" jdbcType="VARCHAR"/>
+        <result column="warehouse_name" property="warehouseName" jdbcType="VARCHAR"/>
         <result column="tax_included" property="taxIncluded" javaType="com.glw.backend.model.enums.TaxIncluded" jdbcType="INTEGER"/>
         <result column="order_status" property="orderStatus" javaType="com.glw.backend.model.enums.PurchaseOrderStatus" jdbcType="VARCHAR"/>
         <result column="receipt_status" property="receiptStatus" javaType="com.glw.backend.model.enums.PurchaseReceiptStatus" jdbcType="VARCHAR"/>
@@ -21,7 +23,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        `id`, `purchase_order_no`, `order_time`, `supplier_id`, `supplier_name`, `delivery_time`, `tax_included`, `order_status`, `receipt_status`, `payment_status`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+        `id`, `purchase_order_no`, `order_time`, `supplier_id`, `supplier_name`, `delivery_time`, `warehouse_code`, `warehouse_name`, `tax_included`, `order_status`, `receipt_status`, `payment_status`, `remark`, `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
     </sql>
     <select id="orderTotal" resultType="java.math.BigDecimal">
         SELECT COALESCE(SUM(COALESCE(amount, unit_price * quantity)), 0)

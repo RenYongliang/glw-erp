@@ -186,6 +186,8 @@ public class FinanceStatementServiceImpl extends ServiceImpl<FinStatementMapper,
         for (OpenItem item : finStatementItemMapper.statementItems(statementId)) {
             changed(finOpenItemMapper.setReconciliation(item.getId(), "IN_STATEMENT", "OPEN", null));
         }
+        auditService.record("STATEMENT", statementId, "VOID_BY_REVERSAL",
+                "来源单据撤销，原状态 " + statement.getStatus());
     }
 
     private Statement requireStatement(Long id) { Statement row = finStatementMapper.statement(id); if (row == null) throw missing(); return row; }

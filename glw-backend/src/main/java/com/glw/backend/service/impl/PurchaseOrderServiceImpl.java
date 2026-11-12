@@ -43,6 +43,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /** 采购订单表基础服务实现。 */
@@ -83,6 +84,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierId(supplier.getId());
         order.setSupplierName(supplier.getName());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
+        order.setWarehouseCode(com.glw.backend.common.WarehouseDefaults.CODE);
+        order.setWarehouseName(com.glw.backend.common.WarehouseDefaults.NAME);
         order.setTaxIncluded(createDTO.getTaxIncluded() == null ? TaxIncluded.INCLUDED : createDTO.getTaxIncluded());
         // 业务上不设审批环节，新建订单直接进入执行中；待审核状态保留给以后启用。
         order.setOrderStatus(PurchaseOrderStatus.CONFIRMED);
@@ -110,6 +113,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (inboundOrderItemAllocMapper.selectCount(Wrappers.<InboundOrderItemAlloc>lambdaQuery()
                 .eq(InboundOrderItemAlloc::getPurchaseOrderId, id)) > 0)
             throw new BusinessException(ErrorCode.CONFLICT, "已有入库记录的采购订单不能修改");
+        if (financeMapper.activePaymentCount("AP", id) > 0 && amountOrItemsChanged(order, createDTO))
+            throw new BusinessException(ErrorCode.CONFLICT, "采购订单已有收付款记录，不能修改金额或产品明细");
 
         Supplier supplier = requireSupplier(createDTO.getSupplierId());
         Map<Long, Product> products = requireProducts(createDTO.getItems());
@@ -119,6 +124,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierId(supplier.getId());
         order.setSupplierName(supplier.getName());
         order.setDeliveryTime(parseOrderTime(createDTO.getDeliveryTime(), orderTime));
+        order.setWarehouseCode(com.glw.backend.common.WarehouseDefaults.CODE);
+        order.setWarehouseName(com.glw.backend.common.WarehouseDefaults.NAME);
         if (createDTO.getTaxIncluded() != null) order.setTaxIncluded(createDTO.getTaxIncluded());
         order.setRemark(trimRemark(createDTO.getRemark()));
         if (!updateById(order))
@@ -132,6 +139,27 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         PurchaseOrderVO result = purchaseOrderConverter.toVO(order);
         fillItems(List.of(result));
         return result;
+    }
+
+    /** 已有收付款后，只允许修改非金额字段；金额与产品明细变化在这里拦截。 */
+    private boolean amountOrItemsChanged(PurchaseOrder order, PurchaseOrderCreateDTO createDTO) {
+        if (createDTO.getTaxIncluded() != null && createDTO.getTaxIncluded() != order.getTaxIncluded())
+            return true;
+        List<PurchaseOrderItem> rows = purchaseOrderItemService.lambdaQuery()
+                .eq(PurchaseOrderItem::getPurchaseOrderId, order.getId())
+                .orderByAsc(PurchaseOrderItem::getId)
+                .list();
+        if (rows.size() != createDTO.getItems().size()) return true;
+        Map<Long, PurchaseOrderItem> existing = rows.stream()
+                .collect(Collectors.toMap(PurchaseOrderItem::getProductId, item -> item));
+        for (PurchaseOrderItemCreateDTO item : createDTO.getItems()) {
+            PurchaseOrderItem row = existing.get(item.getProductId());
+            if (row == null) return true;
+            if (!Objects.equals(row.getQuantity(), item.getQuantity())) return true;
+            if (row.getUnitPrice().compareTo(item.getUnitPrice()) != 0) return true;
+            if (!Objects.equals(row.getTaxRate(), item.getTaxRate())) return true;
+        }
+        return false;
     }
 
     private Supplier requireSupplier(Long supplierId) {
@@ -323,6 +351,9 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                         .eq(InboundOrderItemAlloc::getPurchaseOrderId, orderId));
         if (inbound > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "订单已有入库记录，请先撤销入库");
+        }
+        if (financeMapper.activePaymentCount("AP", orderId) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "订单已有收付款记录，请先在财务作废未核销收付款后再取消");
         }
         order.setOrderStatus(PurchaseOrderStatus.CANCELLED);
         if (!updateById(order)) {

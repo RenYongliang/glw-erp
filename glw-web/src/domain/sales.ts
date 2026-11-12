@@ -144,6 +144,8 @@ export interface SalesShipment {
   orderId: string
   /** 一张出库单可关联多张销售订单。 */
   orderIds?: string[]
+  /** 创建出库单的幂等键；失败重试沿用同一个值。 */
+  requestKey?: string
   warehouse: string
   lines: ShipmentLine[]
   tag: '出库' | '库存冻结' | '计划出库'
@@ -293,7 +295,7 @@ export function availableStock(
     .reduce((sum, r) => sum + r.quantity, 0)
   return Math.max(0, base - reserved + returned)
 }
-export const warehouses = ['杭州仓', '无锡仓']
+export const warehouses = ['深圳盐田仓']
 export const money = (n: number) =>
   n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 export const roundMoney = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100

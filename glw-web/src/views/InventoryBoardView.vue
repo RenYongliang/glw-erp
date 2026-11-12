@@ -83,7 +83,6 @@ const titles: Record<Tab, string> = {
   period: '库存期初期末',
 }
 const baseColumns = [
-  ['warehouse', '仓库'],
   ['product', '产品名称'],
   ['code', '产品编码'],
 ]
@@ -154,7 +153,7 @@ const chartData = computed(() =>
     })),
 )
 function span(index: number, column: number) {
-  if (column > (tab.value === 'period' ? 2 : 0)) return 1
+  if (column > (tab.value === 'period' ? 1 : 0)) return 1
   const keys = columns.value.slice(0, column + 1).map((c) => c[0]!)
   const same = (other: Row) => keys.every((key) => other[key] === visibleRows.value[index]![key])
   if (index > 0 && same(visibleRows.value[index - 1]!)) return 0
@@ -257,22 +256,12 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
           :options="options('model')"
         />
         <BoardTextFilter
-          v-model="filters.realtime.warehouse"
-          label="仓库"
-          :options="options('warehouse')"
-        />
-        <BoardTextFilter
           v-model="filters.realtime.brand"
           label="品牌"
           :options="options('brand')"
         />
       </section>
       <section v-else-if="tab === 'warnings'" class="inventory-filters warning-filters">
-        <BoardTextFilter
-          v-model="filters.warnings.warehouse"
-          label="仓库"
-          :options="options('warehouse')"
-        />
         <BoardTextFilter
           v-model="filters.warnings.product"
           label="产品名称"
@@ -297,11 +286,6 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
       </section>
       <section v-else class="inventory-filters period-filters">
         <BoardDateFilter v-model="date" label="日期" />
-        <BoardTextFilter
-          v-model="filters.period.warehouse"
-          label="仓库"
-          :options="options('warehouse')"
-        />
         <BoardTextFilter
           v-model="filters.period.product"
           label="产品名称"

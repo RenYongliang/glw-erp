@@ -40,6 +40,18 @@ public class InboundOrder {
     @TableField("inbound_type")
     private InboundType inboundType;
 
+    /** 仓库编码；当前固定 SZYT。 */
+    @TableField("warehouse_code")
+    private String warehouseCode;
+
+    /** 仓库名称快照；当前固定深圳盐田仓。 */
+    @TableField("warehouse_name")
+    private String warehouseName;
+
+    /** 创建幂等键；重复提交时返回原入库单。 */
+    @TableField("request_key")
+    private String requestKey;
+
     /** 状态, PENDING:待入库; COMPLETED:已入库;。 */
     @TableField("status")
     private InboundStatus status;

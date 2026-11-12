@@ -27,6 +27,9 @@ import com.glw.backend.service.FinanceStatementTemplateService;
 import com.glw.backend.service.FinancePaymentService;
 import com.glw.backend.service.FinanceAllocationService;
 import com.glw.backend.service.FinanceProfileService;
+import com.glw.backend.service.FinanceAuditService;
+import com.glw.backend.model.dto.FinanceAuditQueryDTO;
+import com.glw.backend.model.vo.FinanceAuditVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
@@ -52,6 +55,12 @@ public class FinanceController {
     private final FinancePaymentService financePaymentService;
     private final FinanceAllocationService financeAllocationService;
     private final FinanceProfileService financeProfileService;
+    private final FinanceAuditService financeAuditService;
+    @PostMapping("/audit/list")
+    public ApiResponse<com.baomidou.mybatisplus.core.metadata.IPage<FinanceAuditVO>> audits(
+            @RequestBody FinanceAuditQueryDTO query) {
+        return ApiResponse.ok(financeAuditService.audits(query));
+    }
     @PostMapping("/open-item/list") public ApiResponse<Page<OpenItem>> openItems(@Valid @RequestBody Query q) { return ApiResponse.ok(financeOpenItemService.openItems(q)); }
     @PostMapping("/open-item/summary") public ApiResponse<Summary> summary(@Valid @RequestBody Query q) { return ApiResponse.ok(financeOpenItemService.summary(q)); }
     @PreAuthorize("hasRole('ADMIN')")

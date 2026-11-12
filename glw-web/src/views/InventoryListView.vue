@@ -145,8 +145,8 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); generation++ })
         </template>
       </el-table-column>
       <el-table-column type="index" label="#" width="50" align="center" :index="(index: number) => (page - 1) * pageSize + index + 1" />
-      <el-table-column prop="brand" label="品牌" width="65" show-overflow-tooltip />
       <el-table-column prop="partNo" label="型号" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="brand" label="品牌" width="65" show-overflow-tooltip />
       <el-table-column prop="packageType" label="封装" width="160" show-overflow-tooltip />
       <el-table-column label="可出库库存" width="125" align="right"><template #default="{ row }"><strong class="inventory-available">{{ quantity(row.availableQuantity) }}</strong></template></el-table-column>
       <el-table-column label="批次数" width="80" align="right"><template #default="{ row }">{{ quantity(row.batchCount) }}</template></el-table-column>
