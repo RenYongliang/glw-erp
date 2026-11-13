@@ -108,6 +108,8 @@ async function allRecords<T>(path: string, filters: Record<string, unknown> = {}
   }
 }
 const date = (value?: string | null) => (value ? value.slice(0, 10) : '')
+const dateTime = (value?: string | null) =>
+  value ? value.replace('T', ' ').slice(0, 19) : ''
 
 const orderStatuses: Record<string, PurchaseOrder['orderStatus']> = {
   PENDING_APPROVAL: '待审核', CONFIRMED: '执行中', COMPLETED: '已完结', CANCELLED: '已取消',
@@ -205,7 +207,7 @@ function toPurchaseReceipt(receipt: InboundOrderResponse, purchaseOrderId?: stri
     inspectionDepartment: '',
     inspectedAt: date(receipt.inboundTime),
     confirmed: receipt.status === 'COMPLETED',
-    receivedAt: date(receipt.inboundTime),
+    receivedAt: dateTime(receipt.inboundTime),
     keeper: '',
     department: '',
     warehouse: receipt.warehouseName || '深圳盐田仓',

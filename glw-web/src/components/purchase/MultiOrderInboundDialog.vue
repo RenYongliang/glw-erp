@@ -10,7 +10,6 @@ import type { AttachmentTypeDef } from '../../domain/attachments'
 import {
   remainingQuantity,
   purchaseSupplierName,
-  today,
   type PurchaseReceipt,
 } from '../../domain/purchase'
 import {
@@ -35,12 +34,13 @@ const isPurchaseInbound = computed(() => inboundType.value === 'PURCHASE')
 const productIds = ref<string[]>([]),
   orderIds = ref<string[]>([])
 const drafts = ref<Record<string, MultiInboundProduct>>({})
-const receivedAt = ref(`${today()} 09:00:00`)
+const receivedAt = ref('')
+const confirmed = ref(false)
 const requestKey = crypto.randomUUID()
 const photos = ref<PurchaseReceipt['photos']>([])
 const pendingPhotos = ref<{ file: File; preview: PurchaseReceipt['photos'][number] }[]>([])
-const inboundPhotoTypes: AttachmentTypeDef[] = [
-  { key: 'INBOUND_PHOTO', label: '入库照片', slots: 'unlimited' },
+const inboundReceiptTypes: AttachmentTypeDef[] = [
+  { key: 'INBOUND_RECEIPT', label: '入库回签件', slots: 'unlimited' },
 ]
 const pendingLines = computed(() =>
   store.state.orders.flatMap((order) =>
@@ -170,6 +170,9 @@ async function save() {
   if (saving.value) return
   if (!isPurchaseInbound.value) return ElMessage.warning('该入库类型暂未开放')
   try {
+    if (!confirmed.value) return ElMessage.warning('请勾选入库确认')
+    if (!receivedAt.value) return ElMessage.warning('请填写入库时间')
+    if (!photos.value.length) return ElMessage.warning('请上传入库回签件')
     const lines = buildMultiInboundLines(products.value, pendingLines.value, orderIds.value)
     const first = selectedOrders.value[0]!.order
     const receipt: PurchaseReceipt = {
@@ -185,7 +188,7 @@ async function save() {
       inspector: '',
       inspectionDepartment: '',
       inspectedAt: '',
-      confirmed: true,
+      confirmed: confirmed.value,
       receivedAt: receivedAt.value,
       keeper: auth.user?.name || '入库员',
       department: auth.user?.department || '',
@@ -197,12 +200,12 @@ async function save() {
       let failed = 0
       for (const item of pendingPhotos.value) {
         try {
-          await uploadOrderAttachment('INBOUND_ORDER', created.id, 'INBOUND_PHOTO', item.file)
+          await uploadOrderAttachment('INBOUND_ORDER', created.id, 'INBOUND_RECEIPT', item.file)
         } catch {
           failed++
         }
       }
-      if (failed) ElMessage.warning(`${failed} 张照片上传失败，可在入库详情中重新上传`)
+      if (failed) ElMessage.warning(`${failed} 个回签件上传失败，可在入库详情中重新上传`)
     }
     dirty.value = false
     ElMessage.success('入库成功')
@@ -228,6 +231,13 @@ async function close() {
   }
   emit('close')
 }
+function onConfirmChange(value: boolean | string | number) {
+  const checked = value === true || value === 'true'
+  if (checked && !receivedAt.value)
+    receivedAt.value = new Date().toLocaleString('sv-SE').slice(0, 19)
+  if (!checked) receivedAt.value = ''
+  dirty.value = true
+}
 async function removePhoto(photo: PurchaseReceipt['photos'][number]) {
   const index = photos.value.indexOf(photo)
   if (index >= 0) photos.value.splice(index, 1)
@@ -237,12 +247,8 @@ async function removePhoto(photo: PurchaseReceipt['photos'][number]) {
 }
 async function selectPhotos(files: File[]) {
   for (const file of files) {
-    if (!file.type.startsWith('image/')) {
-      ElMessage.warning('请选择图片')
-      continue
-    }
     if (file.size > 10 * 1024 * 1024) {
-      ElMessage.warning('图片每个不超过 10MB')
+      ElMessage.warning('单个回签件不超过 10MB')
       continue
     }
     const url = await new Promise<string>((resolve, reject) => {
@@ -252,7 +258,7 @@ async function selectPhotos(files: File[]) {
       reader.readAsDataURL(file)
     }).catch(() => '')
     if (!url) continue
-    const preview = { name: file.name, url, type: 'INBOUND_PHOTO' }
+    const preview = { name: file.name, url, type: 'INBOUND_RECEIPT' }
     photos.value.push(preview)
     pendingPhotos.value.push({ file, preview })
     dirty.value = true
@@ -293,17 +299,6 @@ async function selectPhotos(files: File[]) {
             :value='item.value'
           />
         </el-select>
-      </el-form-item>
-      <el-form-item label='入库日期' required>
-        <el-date-picker
-          v-model='receivedAt'
-          type='datetime'
-          format='YYYY-MM-DD HH:mm'
-          value-format='YYYY-MM-DD HH:mm:ss'
-          :clearable='false'
-          :disabled='saving'
-          @change='dirty = true'
-        />
       </el-form-item>
     </el-form>
     <template v-if='isPurchaseInbound'>
@@ -530,10 +525,35 @@ async function selectPhotos(files: File[]) {
     </div>
     </template>
     <el-empty v-else description="该入库类型暂未开放" :image-size="52" />
-    <h3 class="purchase-section multi-section-heading">入库凭证 <small>照片选填</small></h3>
+    <h3 class="purchase-section multi-section-heading">入库确认</h3>
+    <div class="multi-inbound-confirm">
+      <div class="multi-inbound-confirm-field">
+        <span>入库确认</span>
+        <el-checkbox
+          v-model="confirmed"
+          :disabled="saving"
+          aria-label="入库确认"
+          @change="onConfirmChange"
+        />
+      </div>
+      <div class="multi-inbound-confirm-field multi-inbound-confirm-time">
+        <span>入库时间</span>
+        <el-date-picker
+          v-model="receivedAt"
+          type="datetime"
+          format="YYYY-MM-DD HH:mm"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          :clearable="false"
+          :disabled="saving || !confirmed"
+          placeholder="勾选后自动填写当前时间"
+          aria-label="入库时间"
+        />
+      </div>
+    </div>
+    <p class="purchase-tip">入库回签件为必传，支持 PDF、图片等格式。</p>
     <AttachmentTiles
       :attachments="photos"
-      :types="inboundPhotoTypes"
+      :types="inboundReceiptTypes"
       :uploadable="!saving"
       :removable="!saving"
       @upload="selectPhotos"
@@ -765,6 +785,26 @@ async function selectPhotos(files: File[]) {
   width: 64px;
   height: 64px;
   border-radius: 4px;
+}
+.multi-inbound-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 40px;
+  padding: 2px 0 8px;
+}
+.multi-inbound-confirm-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #7a8291;
+}
+.multi-inbound-confirm-field > span {
+  white-space: nowrap;
+}
+.multi-inbound-confirm-time :deep(.el-date-editor) {
+  width: 210px;
 }
 .multi-footer-total {
   float: left;

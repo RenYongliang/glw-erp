@@ -18,6 +18,7 @@ import {
 import {
   PURCHASE_ATTACHMENT_TYPES,
   attachmentTypeLabel,
+  type AttachmentTypeDef,
 } from '../../domain/attachments'
 import { purchaseContractPdf } from '../../domain/purchaseContract'
 import {
@@ -118,6 +119,10 @@ const receipt = ref<PurchaseReceipt>(
         photos: [],
       },
 )
+const inboundReceiptTypes: AttachmentTypeDef[] = [
+  { key: 'INBOUND_RECEIPT', label: '入库回签件', slots: 'unlimited' },
+]
+const pendingReceipts = ref<{ file: File; preview: Attachment }[]>([])
 const isOrder = props.kind === 'orders',
   title = isOrder ? '采购订单' : '产品入库'
 for (const line of receipt.value.lines) {
@@ -170,7 +175,19 @@ onMounted(() => {
   void loadProductList()
   if (isOrder && order.value.code) void loadFinance()
   if (isOrder && order.value.code) void loadAttachments()
+  if (!isOrder) void loadInboundReceipts()
 })
+async function loadInboundReceipts() {
+  if (!/^\d+$/.test(receipt.value.id)) return
+  try {
+    const rows = await fetchOrderAttachments('INBOUND_ORDER', Number(receipt.value.id))
+    receipt.value.photos = rows
+      .filter(item => item.category === 'INBOUND_RECEIPT')
+      .map(toAttachment)
+  } catch (error) {
+    ElMessage.error((error as Error).message)
+  }
+}
 const supplier = computed(() => supplierList.value.find((s) => s.id === linkedOrder.value?.supplierId))
 const taxIncludedOrder = computed(() => order.value.taxIncluded !== false)
 /** 切换订单级含税口径：不换算已填单价，只改变价格的口径解释。 */
@@ -427,11 +444,24 @@ async function save() {
       emit('saved')
       return
     }
-    receipt.value.confirmed = true
-    receipt.value.receivedAt ||= new Date().toLocaleString('sv-SE').slice(0, 16)
+    if (!receipt.value.confirmed) throw Error('请勾选入库确认')
+    if (!receipt.value.receivedAt) throw Error('请填写入库时间')
     receipt.value.keeper = auth.user?.name || receipt.value.keeper
     receipt.value.department = auth.user?.department || receipt.value.department
-    await store.saveReceipt(receipt.value)
+    if (!pendingReceipts.value.length && !receipt.value.photos.length)
+      throw Error('请上传入库回签件')
+    const created = await store.saveReceipt(receipt.value)
+    if (pendingReceipts.value.length && created?.id) {
+      let failed = 0
+      for (const item of pendingReceipts.value) {
+        try {
+          await uploadOrderAttachment('INBOUND_ORDER', created.id, 'INBOUND_RECEIPT', item.file)
+        } catch {
+          failed++
+        }
+      }
+      if (failed) ElMessage.warning(`${failed} 个回签件上传失败，可在入库详情中重新上传`)
+    }
     dirty.value = false
     ElMessage.success('入库已确认')
     emit('saved')
@@ -529,32 +559,48 @@ async function uploadAttachment(files: File[], type: string) {
   ElMessage.success(`${attachmentTypeLabel(attachmentTypes, type)}已上传`)
 }
 /** 入库单本地图片附件（拍照），仍保存在浏览器本地。 */
-async function attachImages(event: Event) {
-  const input = event.target as HTMLInputElement
-  for (const file of Array.from(input.files || [])) {
-    if (file.size > 2 * 1024 * 1024) {
-      ElMessage.warning('图片每个不超过 2MB')
-      continue
-    }
-    if (!file.type.startsWith('image/')) {
-      ElMessage.warning('请选择图片')
+function onReceiptConfirmChange(value: boolean | string | number) {
+  const checked = value === true || value === 'true'
+  if (checked && !receipt.value.receivedAt)
+    receipt.value.receivedAt = new Date().toLocaleString('sv-SE').slice(0, 19)
+  if (!checked) receipt.value.receivedAt = ''
+  dirty.value = true
+}
+async function attachReceipts(files: File[]) {
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning('单个回签件不超过 10MB')
       continue
     }
     const url = await new Promise<string>((resolve, reject) => {
-      const r = new FileReader()
-      r.onload = () => resolve(String(r.result))
-      r.onerror = reject
-      r.readAsDataURL(file)
-    }).catch(() => {
-      ElMessage.error('文件读取失败')
-      return ''
-    })
-    if (url) {
-      receipt.value.photos.push({ name: file.name, url })
-      dirty.value = true
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    }).catch(() => '')
+    if (!url) continue
+    const preview: Attachment = { name: file.name, url, type: 'INBOUND_RECEIPT' }
+    receipt.value.photos.push(preview)
+    pendingReceipts.value.push({ file, preview })
+    dirty.value = true
+  }
+}
+async function removeReceipt(file: Attachment) {
+  const index = receipt.value.photos.indexOf(file)
+  if (index >= 0) receipt.value.photos.splice(index, 1)
+  const pendingIndex = pendingReceipts.value.findIndex(item => item.preview === file)
+  if (pendingIndex >= 0) {
+    pendingReceipts.value.splice(pendingIndex, 1)
+    dirty.value = true
+    return
+  }
+  if (file.id) {
+    try {
+      await deleteOrderAttachment(file.id)
+    } catch (error) {
+      ElMessage.error((error as Error).message)
     }
   }
-  input.value = ''
 }
 const quick = ref(false),
   quickText = ref('')
@@ -976,30 +1022,38 @@ function quickFill() {
       </template>
       <template v-else>
         <h3 class="purchase-section">入库确认</h3>
-        <div class="purchase-field-label">拍照</div>
-        <input
-          v-if="!view"
-          type="file"
-          accept="image/*"
-          multiple
-          aria-label="入库拍照"
-          @change="attachImages"
-        />
-        <div v-for="(file, i) in receipt.photos" :key="i" class="purchase-attachment">
-          <a :href="file.url" :download="file.name">{{ file.name }}</a
-          ><el-button
-            v-if="!view"
-            text
-            type="danger"
-            @click="
-              () => {
-                receipt.photos.splice(i, 1)
-                dirty = true
-              }
-            "
-            >移除</el-button
-          >
+        <div class="inbound-confirm-row">
+          <div class="inbound-confirm-field">
+            <span>入库确认</span>
+            <el-checkbox
+              v-model="receipt.confirmed"
+              :disabled="view"
+              aria-label="入库确认"
+              @change="onReceiptConfirmChange"
+            />
+          </div>
+          <div class="inbound-confirm-field inbound-confirm-time">
+            <span>入库时间</span>
+            <el-date-picker
+              v-model="receipt.receivedAt"
+              type="datetime"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              :disabled="view || !receipt.confirmed"
+              placeholder="勾选后自动填写当前时间"
+              aria-label="入库时间"
+            />
+          </div>
         </div>
+        <p class="purchase-tip">入库回签件为必传，支持 PDF、图片等格式。</p>
+        <AttachmentTiles
+          v-if="receipt.photos.length || !view"
+          :attachments="receipt.photos"
+          :types="inboundReceiptTypes"
+          :uploadable="!view"
+          :removable="!view"
+          @upload="attachReceipts"
+          @remove="removeReceipt"
+        />
       </template>
     </div>
     <template #footer
@@ -1148,6 +1202,33 @@ function quickFill() {
 </template>
 
 <style>
+.inbound-confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 40px;
+  padding: 2px 0 8px;
+}
+.inbound-confirm-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #7a8291;
+}
+.inbound-confirm-field > span {
+  white-space: nowrap;
+}
+.inbound-confirm-time :deep(.el-date-editor) {
+  width: 210px;
+}
+.inbound-confirm-field :deep(.el-checkbox.is-disabled.is-checked .el-checkbox__inner) {
+  background-color: #86c5ba !important;
+  border-color: #86c5ba !important;
+}
+.inbound-confirm-field :deep(.el-checkbox.is-disabled.is-checked .el-checkbox__inner::after) {
+  border-color: #fff;
+}
 .purchase-order-editor .purchase-form-grid { margin: 12px 0 8px; column-gap: 16px; row-gap: 0; }
 .purchase-order-editor .el-form-item { margin-bottom: 10px; }
 .purchase-order-editor .el-form-item__label { margin-bottom: 5px; }

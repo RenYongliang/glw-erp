@@ -40,8 +40,8 @@ const loading = ref(false)
 const loadError = ref('')
 const dirty = ref(false)
 const selectedId = ref('')
-const inboundPhotoTypes: AttachmentTypeDef[] = [
-  { key: 'INBOUND_PHOTO', label: '入库照片', slots: 'unlimited' },
+const inboundReceiptTypes: AttachmentTypeDef[] = [
+  { key: 'INBOUND_RECEIPT', label: '入库回签件', slots: 'unlimited' },
 ]
 const pendingPhotos = ref<{ file: File; preview: PurchaseReceipt['photos'][number] }[]>([])
 const receipt = ref<PurchaseReceipt>(
@@ -180,7 +180,7 @@ async function load() {
     if (/^\d+$/.test(receipt.value.id)) {
       const files = await fetchOrderAttachments('INBOUND_ORDER', Number(receipt.value.id))
       receipt.value.photos = files
-        .filter(file => file.category === 'INBOUND_PHOTO')
+        .filter(file => file.category === 'INBOUND_RECEIPT')
         .map(attachment)
     }
   } catch (error) {
@@ -198,14 +198,32 @@ function attachment(file: AttachmentVO): PurchaseReceipt['photos'][number] {
     type: file.category,
   }
 }
+function onConfirmChange(value: boolean | string | number) {
+  const confirmed = value === true || value === 'true'
+  if (confirmed && !receipt.value.receivedAt)
+    receipt.value.receivedAt = new Date().toLocaleString('sv-SE').slice(0, 19)
+  if (!confirmed) receipt.value.receivedAt = ''
+  dirty.value = true
+}
 async function uploadPhotos(files: File[]) {
   for (const file of files) {
-    if (!file.type.startsWith('image/')) {
-      ElMessage.warning('请选择图片')
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning('单个回签件不超过 10MB')
       continue
     }
-    if (file.size > 10 * 1024 * 1024) {
-      ElMessage.warning('图片每个不超过 10MB')
+    if (/^\d+$/.test(receipt.value.id)) {
+      try {
+        const uploaded = await uploadOrderAttachment(
+          'INBOUND_ORDER',
+          Number(receipt.value.id),
+          'INBOUND_RECEIPT',
+          file,
+        )
+        receipt.value.photos.push(attachment(uploaded))
+        ElMessage.success('入库回签件已上传')
+      } catch (error) {
+        ElMessage.error((error as Error).message)
+      }
       continue
     }
     const url = await new Promise<string>((resolve, reject) => {
@@ -215,7 +233,7 @@ async function uploadPhotos(files: File[]) {
       reader.readAsDataURL(file)
     }).catch(() => '')
     if (!url) continue
-    const preview = { name: file.name, url, type: 'INBOUND_PHOTO' }
+    const preview = { name: file.name, url, type: 'INBOUND_RECEIPT' }
     receipt.value.photos.push(preview)
     pendingPhotos.value.push({ file, preview })
     dirty.value = true
@@ -260,17 +278,21 @@ async function save() {
   saving.value = true
   try {
     receipt.value.lines.forEach(syncQuantity)
+    if (!receipt.value.confirmed) throw Error('请勾选入库确认')
+    if (!receipt.value.receivedAt) throw Error('请填写入库时间')
+    if (!pendingPhotos.value.length && !receipt.value.photos.length)
+      throw Error('请上传入库回签件')
     const created = await store.saveReceipt(receipt.value)
     if (pendingPhotos.value.length && created?.id) {
       let failed = 0
       for (const item of pendingPhotos.value) {
         try {
-          await uploadOrderAttachment('INBOUND_ORDER', created.id, 'INBOUND_PHOTO', item.file)
+          await uploadOrderAttachment('INBOUND_ORDER', created.id, 'INBOUND_RECEIPT', item.file)
         } catch {
           failed++
         }
       }
-      if (failed) ElMessage.warning(`${failed} 张照片上传失败，可在入库详情中重新上传`)
+      if (failed) ElMessage.warning(`${failed} 个回签件上传失败，可在入库详情中重新上传`)
     }
     ElMessage.success('入库成功')
     emit('saved')
@@ -287,6 +309,7 @@ async function save() {
     :model-value="true"
     :title="title"
     width="min(1060px,96vw)"
+    top="3vh"
     :fullscreen="full"
     class="purchase-dialog inbound-receipt-dialog"
     :close-on-click-modal="false"
@@ -296,6 +319,7 @@ async function save() {
       ><div class="inbound-dialog-heading">
         <strong>{{ title }}</strong
         ><span v-if="view">{{ receipt.code }}</span
+        ><el-tag v-if="view" size="small" type="success" effect="light">已入库</el-tag
         ><el-button
           text
           :icon="FullScreen"
@@ -307,74 +331,65 @@ async function save() {
     <el-alert v-if="loadError" :title="loadError" type="error" :closable="false"
       ><el-button link type="primary" @click="load">重试</el-button></el-alert
     >
-    <div v-else v-loading="loading">
-      <div class="inbound-summary">
-        <div>
-          <span>供应商</span
-          ><strong :title="supplier">{{ orders[0]?.supplierShortName || supplier }}</strong>
+    <div v-else v-loading="loading" class="inbound-detail-body">
+      <h3 class="purchase-section">入库信息</h3>
+      <div class="inbound-info-card">
+        <div class="inbound-summary">
+          <div>
+            <span>供应商</span
+            ><strong :title="supplier">{{ orders[0]?.supplierShortName || supplier }}</strong>
+          </div>
+          <div>
+            <span>{{ scopeOrder ? '本单入库数量' : '入库总数' }}</span
+            ><strong class="inbound-total">{{ quantity.toLocaleString('zh-CN') }}</strong>
+          </div>
         </div>
-        <div>
-          <span>入库日期<span v-if="!view" class="inbound-required"> *</span></span
-          ><strong v-if="view">{{ receipt.receivedAt }}</strong
-          ><el-date-picker
-            v-else
-            v-model="receipt.receivedAt"
-            type="datetime"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            format="YYYY-MM-DD HH:mm"
-            :clearable="false"
-            @change="dirty = true"
-          />
-        </div>
-        <div>
-          <span>{{ scopeOrder ? '本单入库数量' : '入库总数' }}</span
-          ><strong class="inbound-total">{{ quantity.toLocaleString('zh-CN') }}</strong>
-        </div>
-      </div>
-      <div class="inbound-order-bar">
-        <div class="inbound-order-tags">
-          <span class="inbound-muted">采购单</span
-          ><el-tag
-            v-for="order in orders"
-            :key="order.id"
-            :closable="!view"
-            @close="removeOrder(order.id)"
-            >{{ order.code }}</el-tag
-          >
-        </div>
-        <div v-if="!view" class="inbound-order-picker">
-          <el-select
-            v-model="selectedId"
-            filterable
-            clearable
-            placeholder="选择采购单"
-            aria-label="追加采购单"
-            ><el-option
-              v-for="order in availableOrders"
+        <div class="inbound-order-bar">
+          <div class="inbound-order-tags">
+            <span class="inbound-muted">采购单</span
+            ><el-tag
+              v-for="order in orders"
               :key="order.id"
-              :value="order.id"
-              :label="`${order.code} · ${order.supplierShortName || purchaseSupplierName(order)}`" /></el-select
-          ><el-button :icon="Plus" :disabled="!selectedId" @click="addOrder()">{{ orders.length ? '追加' : '添加' }}</el-button>
+              :closable="!view"
+              @close="removeOrder(order.id)"
+              >{{ order.code }}</el-tag
+            >
+          </div>
+          <div v-if="!view" class="inbound-order-picker">
+            <el-select
+              v-model="selectedId"
+              filterable
+              clearable
+              placeholder="选择采购单"
+              aria-label="追加采购单"
+              ><el-option
+                v-for="order in availableOrders"
+                :key="order.id"
+                :value="order.id"
+                :label="`${order.code} · ${order.supplierShortName || purchaseSupplierName(order)}`" /></el-select
+            ><el-button :icon="Plus" :disabled="!selectedId" @click="addOrder()">{{ orders.length ? '追加' : '添加' }}</el-button>
+          </div>
+        </div>
+        <div v-if="!view && candidateLines.length" class="inbound-line-picker">
+          <span class="inbound-muted">本次入库产品</span
+          ><el-select
+            v-model="selectedLines"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            :max-collapse-tags="2"
+            placeholder="选择本次收到的产品"
+            aria-label="本次入库产品"
+            ><el-option
+              v-for="entry in candidateLines"
+              :key="entry.line.id"
+              :value="entry.line.id"
+              :label="`${entry.line.model} · ${entry.order.code}`"
+        /></el-select>
         </div>
       </div>
-      <div v-if="!view && candidateLines.length" class="inbound-line-picker">
-        <span class="inbound-muted">本次入库产品</span
-        ><el-select
-          v-model="selectedLines"
-          multiple
-          filterable
-          collapse-tags
-          collapse-tags-tooltip
-          :max-collapse-tags="2"
-          placeholder="选择本次收到的产品"
-          aria-label="本次入库产品"
-          ><el-option
-            v-for="entry in candidateLines"
-            :key="entry.line.id"
-            :value="entry.line.id"
-            :label="`${entry.line.model} · ${entry.order.code}`"
-        /></el-select>
-      </div>
+      <h3 class="purchase-section">入库产品明细 <small>{{ products.length }} 个产品</small></h3>
       <div class="inbound-products">
         <el-empty v-if="!products.length && !loading" description="暂无入库产品" />
         <section v-for="product in products" :key="product.productId" class="inbound-product">
@@ -498,14 +513,36 @@ async function save() {
           </el-table>
         </section>
       </div>
-      <section v-if="!view || receipt.photos.length" class="purchase-section">
-        <h3>入库照片</h3>
+      <section class="inbound-confirm-section">
+        <h3 class="purchase-section">入库确认</h3>
+        <div class="inbound-confirm-row">
+          <div class="inbound-confirm-field">
+            <span>入库确认</span>
+            <el-checkbox
+              v-model="receipt.confirmed"
+              :disabled="view"
+              aria-label="入库确认"
+              @change="onConfirmChange"
+            />
+          </div>
+          <div class="inbound-confirm-field inbound-confirm-time">
+            <span>入库时间</span>
+            <el-date-picker
+              v-model="receipt.receivedAt"
+              type="datetime"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              :disabled="view || !receipt.confirmed"
+              placeholder="勾选后自动填写当前时间"
+              aria-label="入库时间"
+            />
+          </div>
+        </div>
+        <p class="purchase-tip">入库回签件为必传，支持 PDF、图片等格式。</p>
         <AttachmentTiles
-          v-if="receipt.photos.length || !view"
           :attachments="receipt.photos"
-          :types="inboundPhotoTypes"
-          :uploadable="!view"
-          :removable="!view"
+          :types="inboundReceiptTypes"
+          :uploadable="!saving"
+          :removable="!saving"
           @upload="uploadPhotos"
           @remove="removePhoto"
         />
@@ -542,11 +579,29 @@ async function save() {
 .inbound-dialog-heading > .el-button {
   margin-left: auto;
 }
+.inbound-detail-body {
+  padding-bottom: 4px;
+}
+.inbound-detail-body .purchase-section:not(:first-child) {
+  margin-top: 20px;
+}
+.inbound-detail-body .purchase-section small {
+  margin-left: 8px;
+  color: #8a94a6;
+  font-size: 12px;
+  font-weight: 400;
+}
+.inbound-info-card {
+  padding: 12px 16px 14px;
+  border: 1px solid #e3e7ed;
+  border-radius: 6px;
+  background: #f8fafc;
+}
 .inbound-summary {
   display: flex;
   flex-wrap: wrap;
   gap: 16px 36px;
-  padding: 4px 0 18px;
+  padding: 0 0 10px;
   border-bottom: 1px solid #e8ebef;
 }
 .inbound-summary > div {
@@ -554,6 +609,36 @@ async function save() {
   align-items: center;
   gap: 12px;
   min-height: 32px;
+}
+.inbound-confirm-section {
+  padding-top: 2px;
+}
+.inbound-confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 40px;
+  padding: 2px 0 8px;
+}
+.inbound-confirm-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #7a8291;
+}
+.inbound-confirm-field > span {
+  white-space: nowrap;
+}
+.inbound-confirm-time :deep(.el-date-editor) {
+  width: 210px;
+}
+.inbound-confirm-field :deep(.el-checkbox.is-disabled.is-checked .el-checkbox__inner) {
+  background-color: #86c5ba;
+  border-color: #86c5ba;
+}
+.inbound-confirm-field :deep(.el-checkbox.is-disabled.is-checked .el-checkbox__inner::after) {
+  border-color: #fff;
 }
 .inbound-summary > div > span,
 .inbound-muted {
@@ -573,7 +658,7 @@ async function save() {
   width: 190px;
 }
 .inbound-order-bar {
-  padding: 14px 0;
+  padding: 10px 0 0;
   display: flex;
   gap: 12px;
   align-items: center;
@@ -597,7 +682,7 @@ async function save() {
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-bottom: 12px;
+  margin: 10px 0 0;
 }
 .inbound-line-picker .el-select {
   flex: 1;

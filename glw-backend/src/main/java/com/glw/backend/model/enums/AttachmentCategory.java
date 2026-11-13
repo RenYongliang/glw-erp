@@ -16,6 +16,7 @@ public enum AttachmentCategory {
     SUPPLIER_QUOTE("供应商报价单", AttachmentBizType.PURCHASE_ORDER, false),
     RECEIPT_SIGN("收货回签", AttachmentBizType.PURCHASE_ORDER, true),
     INVOICE("发票", AttachmentBizType.PURCHASE_ORDER, true),
+    INBOUND_RECEIPT("入库回签件", AttachmentBizType.INBOUND_ORDER, true),
     INBOUND_PHOTO("入库照片", AttachmentBizType.INBOUND_ORDER, true),
     OUTBOUND_PHOTO("发货照片", AttachmentBizType.OUTBOUND_ORDER, true),
     /** 销售、采购、出入库共用的自由附件。 */
