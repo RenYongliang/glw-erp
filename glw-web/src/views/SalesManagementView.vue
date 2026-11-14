@@ -1448,7 +1448,7 @@ function confirmImport() {
   text-align: left;
 }
 .sales-management-table tbody > tr:nth-child(even of :not(.purchase-group)) > td {
-  background: #eef2f6;
+  background: #f8fafc;
 }
 .sales-management-table tbody > tr:nth-child(even of :not(.purchase-group)):hover > td {
   background: #f4fbfa;

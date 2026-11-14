@@ -1108,7 +1108,7 @@ function confirmImport() {
 .purchase-packaging-compact .purchase-product-cell { width: 160px; }
 .purchase-packaging-compact .purchase-product-cell > div { overflow: hidden; text-overflow: ellipsis; }
 .purchase-table tbody > tr:nth-child(even of :not(.purchase-group)) > td {
-  background: #eef2f6;
+  background: #f8fafc;
 }
 .purchase-table tbody > tr:nth-child(even of :not(.purchase-group)):hover > td {
   background: #f4fbfa;

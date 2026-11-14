@@ -172,7 +172,7 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); generation++ })
 .inventory-table .el-table__expanded-cell { padding: 0 !important; }
 .inventory-table .el-table__body > tbody > tr:nth-child(even of .el-table__row) > td.el-table__cell,
 .inventory-batch-table .el-table__body > tbody > tr:nth-child(even of .el-table__row) > td.el-table__cell {
-  background: #eef2f6;
+  background: #f8fafc;
 }
 .inventory-table .el-table__body > tbody > tr.el-table__row:hover > td.el-table__cell,
 .inventory-batch-table .el-table__body > tbody > tr.el-table__row:hover > td.el-table__cell {
