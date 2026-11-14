@@ -270,7 +270,7 @@ async function selectPhotos(files: File[]) {
   <el-dialog
     :model-value="true"
     title="新增入库"
-    width="820px"
+    width="min(1000px, 96vw)"
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog multi-inbound-dialog"

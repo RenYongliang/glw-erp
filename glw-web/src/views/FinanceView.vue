@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Download, DocumentChecked } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import {
   financeApi as api,
   exportStatement,
+  financeStatementJumpKey,
   type Direction,
   type FinanceQuery,
   type OpenItem,
@@ -24,11 +24,13 @@ import '../assets/purchase.css'
 
 const props = defineProps<{ kind: 'open-items' | 'statements' | 'payments' | 'profiles' }>()
 const auth = useAuthStore()
-const route = useRoute()
-const direction = ref<Direction>('AR'),
+// 记住上次停留的应收/应付子页签，切走再回来时保持原方向。
+const directionStorageKey = `glw.finance-direction.v1:${props.kind}`
+const savedDirection = sessionStorage.getItem(directionStorageKey)
+const direction = ref<Direction>(savedDirection === 'AP' ? 'AP' : 'AR'),
   partnerId = ref<number>(),
   period = ref(''),
-  keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : ''),
+  keyword = ref(''),
   status = ref('')
 const unsettled = ref(false),
   overdue = ref(false),
@@ -618,9 +620,12 @@ watch(
 )
 watch(
   direction,
-  () => {
+  (value) => {
+    sessionStorage.setItem(directionStorageKey, value)
     partnerId.value = undefined
     status.value = ''
+    // 应收/应付各自维护筛选，切换方向时清空搜索词，避免跳转单号串到另一方向。
+    keyword.value = ''
   },
   { flush: 'sync' },
 )
@@ -637,14 +642,24 @@ watch(keyword, () => {
   clearTimeout(timer)
   timer = setTimeout(firstPage, 300)
 })
-// 从订单财务明细点对账单号跳转过来时，用查询参数预填搜索。
-watch(
-  () => route.query.keyword,
-  (value) => {
-    keyword.value = typeof value === 'string' ? value : ''
+// 从订单财务明细点对账单号跳转过来时，用暂存单号预填搜索框，不在 URL 中携带筛选条件。
+function applyStatementJump() {
+  const raw = sessionStorage.getItem(financeStatementJumpKey)
+  if (!raw) return
+  sessionStorage.removeItem(financeStatementJumpKey)
+  try {
+    const jump = JSON.parse(raw) as { keyword?: string; direction?: string; at?: number }
+    if (typeof jump.keyword !== 'string') return
+    if (jump.at && Date.now() - jump.at > 60_000) return
+    // 销售订单跳到应收、采购订单跳到应付，筛选词只在对应方向下回显。
+    if (jump.direction === 'AP' || jump.direction === 'AR') direction.value = jump.direction
+    keyword.value = jump.keyword
     page.value = 1
-  },
-)
+  } catch {
+    // 跳转数据损坏时按正常进入处理。
+  }
+}
+applyStatementJump()
 onMounted(load)
 onBeforeUnmount(() => {
   generation++
@@ -1402,7 +1417,8 @@ onBeforeUnmount(() => {
   width: 125px;
 }
 .finance-filters > .el-input {
-  width: 170px;
+  width: 230px;
+  flex: none;
 }
 .finance-options {
   display: flex;

@@ -17,18 +17,40 @@ function quantity(receipt: PurchaseReceipt) {
   return receipt.lines.reduce((sum, line) => sum + line.arrived - line.rejected, 0)
 }
 function rows(receipt: PurchaseReceipt) {
-  return receipt.lines.flatMap(line => {
+  // 同一入库单下品牌/型号/封装/Date Code/Lot Code 相同的批次合并为一行并累加数量。
+  const grouped = new Map<string, {
+    id: string
+    brand: string
+    model: string
+    packaging: string
+    dateCode: string
+    lotCode: string
+    quantity: number
+  }>()
+  for (const line of receipt.lines) {
     const product = props.order.lines.find(item => item.id === line.lineId)
-    return line.batches.map(batch => ({
-      id: `${receipt.id}-${line.lineId}-${batch.id}`,
-      brand: line.brand || product?.brand || '—',
-      model: line.model || product?.model || '—',
-      packaging: line.packaging || product?.packaging || '—',
-      dateCode: batch.dateCode || '—',
-      lotCode: batch.lotCode || '—',
-      quantity: batch.quantity,
-    }))
-  })
+    const brand = line.brand || product?.brand || '—'
+    const model = line.model || product?.model || '—'
+    const packaging = line.packaging || product?.packaging || '—'
+    for (const batch of line.batches) {
+      const dateCode = batch.dateCode || '—'
+      const lotCode = batch.lotCode || '—'
+      const key = [brand, model, packaging, dateCode, lotCode].join('\u0000')
+      const existing = grouped.get(key)
+      if (existing) existing.quantity += Number(batch.quantity) || 0
+      else
+        grouped.set(key, {
+          id: `${receipt.id}-${key}`,
+          brand,
+          model,
+          packaging,
+          dateCode,
+          lotCode,
+          quantity: Number(batch.quantity) || 0,
+        })
+    }
+  }
+  return [...grouped.values()]
 }
 /** 所有入库记录展平成一张表，入库单号、入库日期按单合并单元格。 */
 const allRows = computed(() =>
@@ -73,7 +95,7 @@ onMounted(load)
 </script>
 
 <template>
-  <el-dialog :model-value="true" width="min(1060px,96vw)" :fullscreen="full"
+  <el-dialog :model-value="true" width="min(1000px,96vw)" :fullscreen="full"
     class="purchase-dialog purchase-inbound-history" :close-on-click-modal="false" @close="emit('close')">
     <template #header>
       <div class="history-heading"><strong>采购单入库记录</strong><span>{{ order.code }}</span>
@@ -115,8 +137,8 @@ onMounted(load)
           <el-table-column label="入库日期" width="150">
             <template #default="{ row }">{{ row.receipt.receivedAt || '—' }}</template>
           </el-table-column>
-          <el-table-column prop="brand" label="品牌" width="80" show-overflow-tooltip />
           <el-table-column prop="model" label="型号" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="brand" label="品牌" width="80" show-overflow-tooltip />
           <el-table-column prop="packaging" label="封装" min-width="130" show-overflow-tooltip />
           <el-table-column prop="dateCode" label="Date Code" width="100" show-overflow-tooltip />
           <el-table-column prop="lotCode" label="Lot Code" width="120" show-overflow-tooltip />

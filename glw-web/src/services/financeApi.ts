@@ -182,6 +182,8 @@ export interface Summary {
   overdueAmount: Money
   unallocatedAmount: Money
 }
+/** 从订单财务明细点击对账单号跳转时暂存筛选词，避免把单号带到 URL。 */
+export const financeStatementJumpKey = 'glw.finance-statement-jump.v1'
 export interface PaymentInput {
   requestKey: string
   direction: Direction

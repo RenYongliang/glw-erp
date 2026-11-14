@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { emptyPurchaseOrderFilters, purchaseFilterCount, matchesPurchaseOrderFilters } from "../domain/purchaseOrderFilters";
+import { emptyPurchaseOrderFilters, purchaseFilterCount, matchesPurchaseOrderFilters, type PurchaseOrderFilters } from "../domain/purchaseOrderFilters";
+import { emptyPurchaseReceiptFilters, matchesPurchaseReceiptFilters, purchaseReceiptFilterCount, type PurchaseReceiptFilters } from "../domain/purchaseReceiptFilters";
+import { brandOptions, packageTypeOptions, partNoOptions, productFilterOptions, type ProductFilterOption } from "../domain/productFilterOptions";
+import { fetchSalesProducts } from "../services/productApi";
 import { orderStatusBadge } from "../domain/orderStatusBadge";
 import { useListPagination } from "../composables/useListPagination";
 import { computed, ref, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
@@ -31,6 +35,8 @@ import { financeApi, type SettleOrderResult } from '../services/financeApi'
 import {
   suppliers,
   purchaseSupplierName,
+  purchaseListJumpKey,
+  purchaseOrderRestoreKey,
   purchaseContact,
   purchasePhone,
   products,
@@ -55,18 +61,15 @@ import {
 import { encodeCsv, parseCsv } from '../domain/crm'
 import { downloadExport } from '../services/exportApi'
 import '../assets/purchase.css'
-const props = defineProps<{ kind: PurchaseKind }>(),
+const route = useRoute(),
+  props = defineProps<{ kind: PurchaseKind }>(),
   store = usePurchaseStore(),
   isOrder = props.kind === 'orders'
 const tabs = isOrder
   ? ['全部订单', '待收货', '待付款', '已完结']
   : ['全部入库', '已入库', '待入库']
 const tab = ref(tabs[0]!),
-  keyword = ref(''),
-  filterOpen = ref(false),
-  filterKey = ref('supplier'),
-  filterOperator = ref('包含'),
-  filterValue = ref(''),
+  keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : ''),
   grouped = ref(true),
   collapsed = ref<string[]>([]),
   sortKey = ref(''),
@@ -78,13 +81,38 @@ const tab = ref(tabs[0]!),
 const orderFilterOpen = ref(false)
 const orderFilters = ref(emptyPurchaseOrderFilters())
 const draftFilters = ref(emptyPurchaseOrderFilters())
-const activeFilterCount = computed(() => purchaseFilterCount(orderFilters.value))
+const receiptFilterOpen = ref(false)
+const receiptFilters = ref(emptyPurchaseReceiptFilters())
+const receiptDraftFilters = ref(emptyPurchaseReceiptFilters())
+const activeFilterCount = computed(() =>
+  isOrder ? purchaseFilterCount(orderFilters.value) : purchaseReceiptFilterCount(receiptFilters.value),
+)
 const filterSuppliers = computed(() => [...new Set(store.state.orders.map(purchaseSupplierName).filter(Boolean))])
-const productTextFilters = [{key:'brand',label:'品牌'}, {key:'model',label:'型号'}, {key:'packaging',label:'封装'}] as const
+const productOptions = ref<ProductFilterOption[]>([])
+let productOptionsLoaded = false
+async function loadProductOptions() {
+  if (productOptionsLoaded) return
+  try {
+    productOptions.value = productFilterOptions(await fetchSalesProducts())
+    productOptionsLoaded = true
+  } catch {
+    // 产品选项加载失败时仍可直接输入关键词。
+  }
+}
 function openFilters() {
-  if (!isOrder) { filterOpen.value = !filterOpen.value; return }
+  void loadProductOptions()
+  if (!isOrder) {
+    receiptDraftFilters.value = JSON.parse(JSON.stringify(receiptFilters.value))
+    receiptFilterOpen.value = true
+    return
+  }
   draftFilters.value = JSON.parse(JSON.stringify(orderFilters.value))
   orderFilterOpen.value = true
+}
+function applyReceiptFilters() {
+  receiptFilters.value = JSON.parse(JSON.stringify(receiptDraftFilters.value))
+  receiptFilterOpen.value = false
+  collapsed.value = []
 }
 function applyOrderFilters() {
   orderFilters.value = JSON.parse(JSON.stringify(draftFilters.value))
@@ -92,6 +120,102 @@ function applyOrderFilters() {
   collapsed.value = []
 }
 const groupMode = ref<'month' | 'supplier' | 'none'>('month')
+// 列表筛选状态跨路由保留：切到其他页面再回来时恢复搜索词、页签与高级筛选。
+const listViewStorageKey = `glw.purchase-list-view.v1:${props.kind}`
+interface SavedListViewState {
+  tab?: string
+  keyword?: string
+  orderFilters?: PurchaseOrderFilters
+  receiptFilters?: PurchaseReceiptFilters
+  sortKey?: string
+  sortDirection?: 'asc' | 'desc'
+  hidden?: string[]
+  groupMode?: 'month' | 'supplier' | 'none'
+  grouped?: boolean
+}
+function restoreListViewState() {
+  const raw = sessionStorage.getItem(listViewStorageKey)
+  if (!raw) return
+  try {
+    const saved = JSON.parse(raw) as SavedListViewState
+    if (saved.tab && tabs.includes(saved.tab)) tab.value = saved.tab
+    // 从入库单号跳转回来时以路由参数为准，其余情况恢复上次搜索词。
+    if (typeof saved.keyword === 'string' && typeof route.query.keyword !== 'string')
+      keyword.value = saved.keyword
+    if (saved.orderFilters) {
+      const defaults = emptyPurchaseOrderFilters()
+      orderFilters.value = {
+        ...defaults,
+        ...saved.orderFilters,
+        product: { ...defaults.product, ...saved.orderFilters.product },
+      }
+    }
+    if (saved.receiptFilters) {
+      const defaults = emptyPurchaseReceiptFilters()
+      receiptFilters.value = {
+        ...defaults,
+        ...saved.receiptFilters,
+        text: { ...defaults.text, ...saved.receiptFilters.text },
+        product: { ...defaults.product, ...saved.receiptFilters.product },
+      }
+    }
+    if (typeof saved.sortKey === 'string') sortKey.value = saved.sortKey
+    if (saved.sortDirection === 'asc' || saved.sortDirection === 'desc')
+      sortDirection.value = saved.sortDirection
+    if (Array.isArray(saved.hidden)) hidden.value = saved.hidden.filter((key) => typeof key === 'string')
+    if (saved.groupMode && ['month', 'supplier', 'none'].includes(saved.groupMode))
+      groupMode.value = saved.groupMode
+    if (typeof saved.grouped === 'boolean') grouped.value = saved.grouped
+  } catch {
+    // 存档损坏时按默认筛选处理。
+  }
+}
+restoreListViewState()
+// 从订单详情点击入库单号跳转时，直接用单号填入搜索框，不把单号带到 URL。
+function applyListJump() {
+  const key = `${purchaseListJumpKey}:${props.kind}`
+  const raw = sessionStorage.getItem(key)
+  if (!raw) return
+  sessionStorage.removeItem(key)
+  try {
+    const jump = JSON.parse(raw) as { keyword?: string; at?: number }
+    if (typeof jump.keyword !== 'string') return
+    if (jump.at && Date.now() - jump.at > 60_000) return
+    keyword.value = jump.keyword
+    tab.value = tabs[0]!
+    // 同时写入高级筛选条件，让筛选按钮计数和筛选弹窗回显该单号。
+    if (!isOrder) {
+      const defaults = emptyPurchaseReceiptFilters()
+      receiptFilters.value = {
+        ...defaults,
+        text: { ...defaults.text, code: jump.keyword },
+      }
+    }
+  } catch {
+    // 跳转数据损坏时按正常进入处理。
+  }
+}
+applyListJump()
+watch(
+  [tab, keyword, orderFilters, receiptFilters, sortKey, sortDirection, hidden, groupMode, grouped],
+  () => {
+    sessionStorage.setItem(
+      listViewStorageKey,
+      JSON.stringify({
+        tab: tab.value,
+        keyword: keyword.value,
+        orderFilters: orderFilters.value,
+        receiptFilters: receiptFilters.value,
+        sortKey: sortKey.value,
+        sortDirection: sortDirection.value,
+        hidden: hidden.value,
+        groupMode: groupMode.value,
+        grouped: grouped.value,
+      }),
+    )
+  },
+  { deep: true },
+)
 function changeGrouping(mode: 'month' | 'supplier' | 'none') {
   groupMode.value = mode
   grouped.value = mode !== 'none'
@@ -253,16 +377,7 @@ const filtered = computed(() => {
     )
       return false
     if (isOrder && r.order) return matchesPurchaseOrderFilters(r.order, products, purchaseSupplierName(r.order), Number(r.values.total), store.state.payments.filter(p => p.orderId === r.order!.id).reduce((sum, p) => sum + p.amount, 0), store.state.receipts, orderFilters.value)
-    if (!filterOpen.value) return true
-    const v = String(r.values[filterKey.value] ?? '')
-    if (filterOperator.value === '为空') return !v
-    if (filterOperator.value === '不为空') return !!v
-    if (!filterValue.value) return true
-    if (filterOperator.value === '等于') return v === filterValue.value
-    if (filterOperator.value === '不等于') return v !== filterValue.value
-    return filterOperator.value === '不包含'
-      ? !v.includes(filterValue.value)
-      : v.includes(filterValue.value)
+    return matchesPurchaseReceiptFilters(r.values, receiptFilters.value)
   })
   if (sortKey.value)
     rows.sort((a, b) => {
@@ -292,6 +407,14 @@ const allGroups = computed(() => {
 const paginationSource = computed(() => allGroups.value.flatMap(group => group.rows));
 const { page, pageSize, pageRows } = useListPagination(paginationSource);
 watch([page, pageSize], () => { collapsed.value = []; });
+// 从订单产品入库页签点入库单号跳转过来时，用查询参数预填筛选。
+watch(
+  () => route.query.keyword,
+  (value) => {
+    keyword.value = typeof value === 'string' ? value : '';
+    page.value = 1;
+  },
+);
 const groups = computed(() => {
   const visible = new Set(pageRows.value.map(row => row.id));
   return allGroups.value.map(group => ({ ...group, rows: group.rows.filter(row => visible.has(row.id)) })).filter(group => group.rows.length);
@@ -305,7 +428,9 @@ function display(row: TableRow, key: string) {
   const value = row.values[key]
   return typeof value === 'number' && key !== 'quantity' ? money(value) : value
 }
-function open(row?: TableRow, read = false) {
+const restoreTab = ref('')
+function open(row?: TableRow, read = false, initialTab = '') {
+  restoreTab.value = initialTab
   scopeOrder.value = undefined
   editorKind.value = props.kind
   editingOrder.value = isOrder ? row?.order : undefined
@@ -314,6 +439,28 @@ function open(row?: TableRow, read = false) {
   readonly.value = read
   editorVersion.value++
   editor.value = true
+}
+// 从入库/对账单列表返回时，在首帧渲染前直接用暂存的订单快照打开弹窗。
+if (isOrder) {
+  const saved = sessionStorage.getItem(purchaseOrderRestoreKey)
+  if (saved) {
+    sessionStorage.removeItem(purchaseOrderRestoreKey)
+    try {
+      const state = JSON.parse(saved) as {
+        order?: PurchaseOrder
+        tab?: string
+        at?: number
+      }
+      if (state.order && (!state.at || Date.now() - state.at <= 10 * 60 * 1000))
+        open(
+          { id: state.order.id, group: '', values: {}, order: state.order },
+          true,
+          state.tab || '订单附件',
+        )
+    } catch {
+      // 恢复数据损坏时按正常进入处理。
+    }
+  }
 }
 function canCancelOrder(order: PurchaseOrder) {
   return (
@@ -513,10 +660,9 @@ async function exportData() {
   try {
     await downloadExport(isOrder ? 'purchase-orders' : 'inbound-orders', {
       keyword: keyword.value, tab: tab.value, purchase: orderFilters.value,
+      receipt: receiptFilters.value,
       selectedIds: [], columns: shownColumns.value.map(c => c.key),
       sortKey: sortKey.value, sortDirection: sortDirection.value,
-      filterOpen: filterOpen.value, filterKey: filterKey.value,
-      filterOperator: filterOperator.value, filterValue: filterValue.value,
     }, `${isOrder ? '采购订单' : '产品入库'}-${today()}`)
     ElMessage.success('导出成功')
   } catch (e) { ElMessage.error((e as Error).message) }
@@ -740,10 +886,10 @@ function confirmImport() {
       <div class="purchase-toolbar-search">
         <el-button
           :icon="Filter"
-          :type="(isOrder ? activeFilterCount > 0 : filterOpen) ? 'primary' : ''"
+          :type="activeFilterCount > 0 ? 'primary' : ''"
           plain
           @click="openFilters"
-          >筛选{{ isOrder && activeFilterCount ? `（${activeFilterCount}）` : "" }}</el-button
+          >筛选{{ activeFilterCount ? `（${activeFilterCount}）` : "" }}</el-button
         >
         <el-popover trigger="click" width="220"
           ><template #reference
@@ -784,29 +930,18 @@ function confirmImport() {
         />
       </div>
     </div>
-    <div v-if="isOrder && activeFilterCount" class="purchase-active-filters"><span>已应用 {{ activeFilterCount }} 项筛选条件</span><el-button text type="primary" @click="orderFilters = emptyPurchaseOrderFilters(); collapsed = []">清空筛选</el-button></div>
-    <div v-if="!isOrder && filterOpen" class="purchase-filters">
-      <el-select v-model="filterKey" aria-label="筛选字段"
-        ><el-option v-for="c in columns" :key="c.key" :value="c.key" :label="c.label" /></el-select
-      ><el-select v-model="filterOperator" aria-label="筛选方式"
-        ><el-option
-          v-for="n in ['包含', '不包含', '等于', '不等于', '为空', '不为空']"
-          :key="n"
-          :value="n" /></el-select
-      ><el-input
-        v-if="!['为空', '不为空'].includes(filterOperator)"
-        v-model="filterValue"
-        placeholder="请输入筛选内容"
-        clearable
-      /><el-button
+    <div v-if="activeFilterCount" class="purchase-active-filters">
+      <span>已应用 {{ activeFilterCount }} 项筛选条件</span>
+      <el-button
+        text
+        type="primary"
         @click="
-          () => {
-            filterValue = ''
-            filterOperator = '包含'
-            filterOpen = false
-          }
+          isOrder
+            ? (orderFilters = emptyPurchaseOrderFilters())
+            : (receiptFilters = emptyPurchaseReceiptFilters());
+          collapsed = [];
         "
-        >重置</el-button
+        >清空筛选</el-button
       >
     </div>
     <div
@@ -962,9 +1097,33 @@ function confirmImport() {
         <el-form-item label="订单日期"><el-date-picker v-model="draftFilters.dates" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选订单日期" /></el-form-item>
       </div>
       <h3>产品信息</h3>
-      <div class="purchase-filter-grid"><el-form-item v-for="field in productTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.product[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item></div>
+      <div class="purchase-filter-grid">
+        <el-form-item label="型号"><el-select v-model="draftFilters.product.model" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选型号"><el-option v-for="value in partNoOptions(productOptions, draftFilters.product.brand)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="品牌"><el-select v-model="draftFilters.product.brand" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选品牌"><el-option v-for="value in brandOptions(productOptions)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="封装"><el-select v-model="draftFilters.product.packaging" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选封装"><el-option v-for="value in packageTypeOptions(productOptions, draftFilters.product.brand, draftFilters.product.model)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+      </div>
     </el-form>
     <template #footer><el-button @click="draftFilters = emptyPurchaseOrderFilters()">重置条件</el-button><el-button @click="orderFilterOpen = false">取消</el-button><el-button type="primary" @click="applyOrderFilters">应用筛选</el-button></template>
+  </el-dialog>
+  <el-dialog v-if="!isOrder" v-model="receiptFilterOpen" title="产品入库筛选" width="min(900px,94vw)" top="5vh" append-to-body class="purchase-order-filter-dialog">
+    <p class="purchase-filter-tip">填写的条件同时生效；留空表示不限。产品条件匹配同一条产品明细。</p>
+    <el-form label-position="top" @submit.prevent="applyReceiptFilters">
+      <h3>入库信息</h3>
+      <div class="purchase-filter-grid">
+        <el-form-item label="入库单号"><el-input v-model="receiptDraftFilters.text.code" aria-label="筛选入库单号" placeholder="包含关键词" clearable /></el-form-item>
+        <el-form-item label="采购单号"><el-input v-model="receiptDraftFilters.text.orderCode" aria-label="筛选采购单号" placeholder="包含关键词" clearable /></el-form-item>
+        <el-form-item label="供应商名称"><el-select v-model="receiptDraftFilters.text.supplier" filterable clearable placeholder="全部供应商" aria-label="筛选供应商名称"><el-option v-for="name in filterSuppliers" :key="name" :label="name" :value="name" /></el-select></el-form-item>
+        <el-form-item label="入库状态"><el-select v-model="receiptDraftFilters.status" clearable placeholder="不限" aria-label="筛选入库状态"><el-option v-for="status in ['已入库','待入库']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="入库日期"><el-date-picker v-model="receiptDraftFilters.dates" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选入库日期" /></el-form-item>
+      </div>
+      <h3>产品信息</h3>
+      <div class="purchase-filter-grid">
+        <el-form-item label="型号"><el-select v-model="receiptDraftFilters.product.productNames" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选型号"><el-option v-for="value in partNoOptions(productOptions, receiptDraftFilters.product.brands)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="品牌"><el-select v-model="receiptDraftFilters.product.brands" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选品牌"><el-option v-for="value in brandOptions(productOptions)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="封装"><el-select v-model="receiptDraftFilters.product.models" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选封装"><el-option v-for="value in packageTypeOptions(productOptions, receiptDraftFilters.product.brands, receiptDraftFilters.product.productNames)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+      </div>
+    </el-form>
+    <template #footer><el-button @click="receiptDraftFilters = emptyPurchaseReceiptFilters()">重置条件</el-button><el-button @click="receiptFilterOpen = false">取消</el-button><el-button type="primary" @click="applyReceiptFilters">应用筛选</el-button></template>
   </el-dialog>
   <PurchaseRecordDialog
     v-if="editor && (editorKind === 'orders' || singleReceipt)"
@@ -974,6 +1133,7 @@ function confirmImport() {
     :receipt="editingReceipt"
     :related-order="relatedOrder"
     :readonly="readonly"
+    :initial-tab="restoreTab"
     @close="editor = false"
     @saved="saved"
     @receive="receive"

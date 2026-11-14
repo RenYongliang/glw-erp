@@ -310,6 +310,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .purchase-form-footer .el-button {
   min-width: 90px;
@@ -506,6 +507,50 @@
 .purchase-dialog .el-table {
   font-size: 13px;
   margin: 10px 0;
+}
+/* 订单执行跟踪内的表格斑马纹，颜色与销售订单/采购订单列表一致。 */
+.business-zebra {
+  --el-fill-color-lighter: #f8fafc;
+  --el-table-row-hover-bg-color: #f4fbfa;
+}
+/* 财务明细：只保留一条固定在弹窗底部的横向滚动条，不覆盖表格内容。 */
+.finance-table .el-scrollbar__bar.is-horizontal {
+  display: none;
+}
+.finance-footer-scroll {
+  flex: 0 0 100%;
+  order: -1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 20px;
+  margin: 0 0 4px;
+}
+.finance-footer-scroll > div {
+  height: 1px;
+}
+.finance-footer-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.finance-footer-scroll::-webkit-scrollbar-track {
+  background: #f4f6f9;
+  border-radius: 4px;
+}
+.finance-footer-scroll::-webkit-scrollbar-thumb {
+  background: #c3cedd;
+  border-radius: 4px;
+}
+.finance-footer-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a9b7c9;
+}
+/* 按出库单/入库单分组的斑马纹：同一单据的所有产品行使用同一底色。 */
+.business-zebra-doc {
+  --el-table-row-hover-bg-color: #f4fbfa;
+}
+.business-zebra-doc .el-table__body tr.doc-striped > td.el-table__cell {
+  background: #f8fafc;
+}
+.business-zebra-doc .el-table__body tr.doc-striped:hover > td.el-table__cell {
+  background: #f4fbfa;
 }
 .purchase-dialog .el-table th {
   background: #f0f2f7;

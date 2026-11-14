@@ -21,7 +21,10 @@ import {
   RefreshLeft,
   CircleCloseFilled,
 } from "@element-plus/icons-vue";
-import { emptySalesOrderFilters, salesFulfillmentStatus, salesOrderMonth, salesFilterCount, matchesSalesOrderFilters, type FulfillmentStatus } from "../domain/salesOrderFilters";
+import { emptySalesOrderFilters, salesFulfillmentStatus, salesOrderMonth, salesFilterCount, matchesSalesOrderFilters, type FulfillmentStatus, type SalesOrderFilters } from "../domain/salesOrderFilters";
+import { emptySalesShipmentFilters, matchesSalesShipmentFilters, salesShipmentFilterCount, type SalesShipmentFilters } from "../domain/salesShipmentFilters";
+import { brandOptions, packageTypeOptions, partNoOptions, productFilterOptions, type ProductFilterOption } from "../domain/productFilterOptions";
+import { fetchSalesProducts } from "../services/productApi";
 import { orderStatusBadge } from "../domain/orderStatusBadge";
 import SalesRecordDialog from "../components/sales/SalesRecordDialog.vue";
 import MultiOrderOutboundDialog from "../components/sales/MultiOrderOutboundDialog.vue";
@@ -32,6 +35,7 @@ import {
   customers,
   orderCustomerName,
   salesOrderRestoreKey,
+  salesListJumpKey,
   salesLineProduct,
   products,
   money,
@@ -62,10 +66,6 @@ const tabs = isOrder
   : ["全部出库", "已出库", "待出库"];
 const tab = ref(tabs[0]!),
   keyword = ref(typeof route.query.keyword === "string" ? route.query.keyword : ""),
-  filterOpen = ref(false),
-  filterKey = ref(isOrder ? "code" : "name"),
-  filterOperator = ref("包含"),
-  filterValue = ref(""),
   grouped = ref(true),
   collapsed = ref<string[]>([]),
   sortKey = ref(""),
@@ -78,17 +78,140 @@ const groupMode = ref<'month' | 'customer' | 'none'>('month');
 const orderFilterOpen = ref(false);
 const orderFilters = ref(emptySalesOrderFilters());
 const draftFilters = ref(emptySalesOrderFilters());
-const activeFilterCount = computed(() => salesFilterCount(orderFilters.value));
+const shipmentFilterOpen = ref(false);
+const shipmentFilters = ref(emptySalesShipmentFilters());
+const shipmentDraftFilters = ref(emptySalesShipmentFilters());
+const activeFilterCount = computed(() =>
+  isOrder ? salesFilterCount(orderFilters.value) : salesShipmentFilterCount(shipmentFilters.value),
+);
+// 列表筛选状态跨路由保留：切到其他页面再回来时恢复搜索词、页签与高级筛选。
+const listViewStorageKey = `glw.sales-list-view.v1:${props.kind}`;
+interface SavedListViewState {
+  tab?: string;
+  keyword?: string;
+  orderFilters?: SalesOrderFilters;
+  shipmentFilters?: SalesShipmentFilters;
+  sortKey?: string;
+  sortDirection?: "asc" | "desc";
+  hidden?: string[];
+  groupMode?: "month" | "customer" | "none";
+  grouped?: boolean;
+}
+function restoreListViewState() {
+  const raw = sessionStorage.getItem(listViewStorageKey);
+  if (!raw) return;
+  try {
+    const saved = JSON.parse(raw) as SavedListViewState;
+    if (saved.tab && tabs.includes(saved.tab)) tab.value = saved.tab;
+    // 从单号跳转回来时以路由参数为准，其余情况恢复上次搜索词。
+    if (typeof saved.keyword === "string" && typeof route.query.keyword !== "string")
+      keyword.value = saved.keyword;
+    if (saved.orderFilters) {
+      const defaults = emptySalesOrderFilters();
+      orderFilters.value = {
+        ...defaults,
+        ...saved.orderFilters,
+        text: { ...defaults.text, ...saved.orderFilters.text },
+        dates: { ...defaults.dates, ...saved.orderFilters.dates },
+        numbers: { ...defaults.numbers, ...saved.orderFilters.numbers },
+      };
+    }
+    if (saved.shipmentFilters) {
+      const defaults = emptySalesShipmentFilters();
+      shipmentFilters.value = {
+        ...defaults,
+        ...saved.shipmentFilters,
+        text: { ...defaults.text, ...saved.shipmentFilters.text },
+        product: { ...defaults.product, ...saved.shipmentFilters.product },
+      };
+    }
+    if (typeof saved.sortKey === "string") sortKey.value = saved.sortKey;
+    if (saved.sortDirection === "asc" || saved.sortDirection === "desc")
+      sortDirection.value = saved.sortDirection;
+    if (Array.isArray(saved.hidden)) hidden.value = saved.hidden.filter((key) => typeof key === "string");
+    if (saved.groupMode && ["month", "customer", "none"].includes(saved.groupMode))
+      groupMode.value = saved.groupMode;
+    if (typeof saved.grouped === "boolean") grouped.value = saved.grouped;
+  } catch {
+    // 存档损坏时按默认筛选处理。
+  }
+}
+restoreListViewState();
+// 从订单详情点击出库单号跳转时，直接用单号填入搜索框，不把单号带到 URL。
+function applyListJump() {
+  const key = `${salesListJumpKey}:${props.kind}`;
+  const raw = sessionStorage.getItem(key);
+  if (!raw) return;
+  sessionStorage.removeItem(key);
+  try {
+    const jump = JSON.parse(raw) as { keyword?: string; at?: number };
+    if (typeof jump.keyword !== "string") return;
+    if (jump.at && Date.now() - jump.at > 60_000) return;
+    keyword.value = jump.keyword;
+    tab.value = tabs[0]!;
+    // 同时写入高级筛选条件，让筛选按钮计数和筛选弹窗回显该单号。
+    if (!isOrder) {
+      const defaults = emptySalesShipmentFilters();
+      shipmentFilters.value = {
+        ...defaults,
+        text: { ...defaults.text, code: jump.keyword },
+      };
+    }
+  } catch {
+    // 跳转数据损坏时按正常进入处理。
+  }
+}
+applyListJump();
+watch(
+  [tab, keyword, orderFilters, shipmentFilters, sortKey, sortDirection, hidden, groupMode, grouped],
+  () => {
+    sessionStorage.setItem(
+      listViewStorageKey,
+      JSON.stringify({
+        tab: tab.value,
+        keyword: keyword.value,
+        orderFilters: orderFilters.value,
+        shipmentFilters: shipmentFilters.value,
+        sortKey: sortKey.value,
+        sortDirection: sortDirection.value,
+        hidden: hidden.value,
+        groupMode: groupMode.value,
+        grouped: grouped.value,
+      }),
+    );
+  },
+  { deep: true },
+);
 const orderTextFilters = [
   {key:'code',label:'订单编号'},
   {key:'purchaseNumber',label:'客户采购单号'}, {key:'term',label:'账期'},
 ] as const;
-const productTextFilters = [{key:'brands',label:'品牌'}, {key:'productNames',label:'型号'}, {key:'models',label:'封装'}] as const;
 const filterCustomers = computed(() => [...new Set(store.state.orders.map(orderCustomerName).filter(Boolean))]);
+const productOptions = ref<ProductFilterOption[]>([]);
+let productOptionsLoaded = false;
+async function loadProductOptions() {
+  if (productOptionsLoaded) return;
+  try {
+    productOptions.value = productFilterOptions(await fetchSalesProducts());
+    productOptionsLoaded = true;
+  } catch {
+    // 产品选项加载失败时仍可直接输入关键词。
+  }
+}
 function openFilters() {
-  if (!isOrder) { filterOpen.value = !filterOpen.value; return; }
+  void loadProductOptions();
+  if (!isOrder) {
+    shipmentDraftFilters.value = structuredClone(JSON.parse(JSON.stringify(shipmentFilters.value)));
+    shipmentFilterOpen.value = true;
+    return;
+  }
   draftFilters.value = structuredClone(JSON.parse(JSON.stringify(orderFilters.value)));
   orderFilterOpen.value = true;
+}
+function applyShipmentFilters() {
+  shipmentFilters.value = JSON.parse(JSON.stringify(shipmentDraftFilters.value));
+  shipmentFilterOpen.value = false;
+  collapsed.value = [];
 }
 function applyOrderFilters() {
   for (const range of Object.values(draftFilters.value.numbers)) {
@@ -357,16 +480,7 @@ const filtered = computed(() => {
     )
       return false;
     if (isOrder && r.order) return matchesSalesOrderFilters(r.order, products, orderCustomerName(r.order), Number(r.values.total), r.values.fulfillmentStatus as FulfillmentStatus, orderFilters.value, store.state.payments.filter(p => p.orderId === r.order!.id).reduce((sum,p) => sum + p.amount,0));
-    if (!filterOpen.value) return true;
-    const v = String(r.values[filterKey.value] ?? "");
-    if (filterOperator.value === "为空") return !v;
-    if (filterOperator.value === "不为空") return !!v;
-    if (!filterValue.value) return true;
-    if (filterOperator.value === "等于") return v === filterValue.value;
-    if (filterOperator.value === "不等于") return v !== filterValue.value;
-    return filterOperator.value === "不包含"
-      ? !v.includes(filterValue.value)
-      : v.includes(filterValue.value);
+    return matchesSalesShipmentFilters(r.values, shipmentFilters.value);
   });
   if (sortKey.value)
     rows.sort((a, b) => {
@@ -654,10 +768,9 @@ async function exportData() {
   try {
     await downloadExport(isOrder ? 'sales-orders' : 'outbound-orders', {
       keyword: keyword.value, tab: tab.value, sales: orderFilters.value,
+      outbound: shipmentFilters.value,
       selectedIds: [], columns: shownColumns.value.map(c => c.key),
       sortKey: sortKey.value, sortDirection: sortDirection.value,
-      filterOpen: filterOpen.value, filterKey: filterKey.value,
-      filterOperator: filterOperator.value, filterValue: filterValue.value,
     }, `${isOrder ? '销售订单' : '产品出库'}-${today()}`);
     ElMessage.success('导出成功');
   } catch (e) { ElMessage.error((e as Error).message); }
@@ -878,10 +991,10 @@ function confirmImport() {
       <div class="purchase-toolbar-search">
         <el-button
           :icon="Filter"
-          :type="(isOrder ? activeFilterCount > 0 : filterOpen) ? 'primary' : ''"
+          :type="activeFilterCount > 0 ? 'primary' : ''"
           plain
           @click="openFilters"
-          >筛选{{ isOrder && activeFilterCount ? `（${activeFilterCount}）` : "" }}</el-button
+          >筛选{{ activeFilterCount ? `（${activeFilterCount}）` : "" }}</el-button
         >
         <el-popover trigger="click" width="220"
           ><template #reference
@@ -933,35 +1046,18 @@ function confirmImport() {
         />
       </div>
     </div>
-    <div v-if="isOrder && activeFilterCount" class="sales-active-filters">
-      <span>已应用 {{ activeFilterCount }} 项筛选条件</span><el-button text type="primary" @click="orderFilters = emptySalesOrderFilters(); collapsed = []">清空筛选</el-button>
-    </div>
-    <div v-if="!isOrder && filterOpen" class="purchase-filters">
-      <el-select v-model="filterKey" aria-label="筛选字段"
-        ><el-option
-          v-for="c in columns"
-          :key="c.key"
-          :value="c.key"
-          :label="c.label" /></el-select
-      ><el-select v-model="filterOperator" aria-label="筛选方式"
-        ><el-option
-          v-for="n in ['包含', '不包含', '等于', '不等于', '为空', '不为空']"
-          :key="n"
-          :value="n" /></el-select
-      ><el-input
-        v-if="!['为空', '不为空'].includes(filterOperator)"
-        v-model="filterValue"
-        placeholder="请输入筛选内容"
-        clearable
-      /><el-button
+    <div v-if="activeFilterCount" class="sales-active-filters">
+      <span>已应用 {{ activeFilterCount }} 项筛选条件</span>
+      <el-button
+        text
+        type="primary"
         @click="
-          () => {
-            filterValue = '';
-            filterOperator = '包含';
-            filterOpen = false;
-          }
+          isOrder
+            ? (orderFilters = emptySalesOrderFilters())
+            : (shipmentFilters = emptySalesShipmentFilters());
+          collapsed = [];
         "
-        >重置</el-button
+        >清空筛选</el-button
       >
     </div>
     <div
@@ -1182,10 +1278,33 @@ function confirmImport() {
       </div>
       <h3>产品信息</h3>
       <div class="sales-filter-grid">
-        <el-form-item v-for="field in productTextFilters" :key="field.key" :label="field.label"><el-input v-model="draftFilters.text[field.key]" :aria-label="'筛选' + field.label" placeholder="包含关键词" clearable /></el-form-item>
+        <el-form-item label="型号"><el-select v-model="draftFilters.text.productNames" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选型号"><el-option v-for="value in partNoOptions(productOptions, draftFilters.text.brands)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="品牌"><el-select v-model="draftFilters.text.brands" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选品牌"><el-option v-for="value in brandOptions(productOptions)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="封装"><el-select v-model="draftFilters.text.models" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选封装"><el-option v-for="value in packageTypeOptions(productOptions, draftFilters.text.brands, draftFilters.text.productNames)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
       </div>
     </el-form>
     <template #footer><el-button @click="draftFilters = emptySalesOrderFilters()">重置条件</el-button><el-button @click="orderFilterOpen = false">取消</el-button><el-button type="primary" @click="applyOrderFilters">应用筛选</el-button></template>
+  </el-dialog>
+  <el-dialog v-if="!isOrder" v-model="shipmentFilterOpen" title="产品出库筛选" width="min(900px,94vw)" top="5vh" append-to-body class="sales-order-filter-dialog">
+    <p class="sales-filter-tip">填写的条件同时生效；留空表示不限。产品条件匹配同一条产品明细。</p>
+    <el-form label-position="top" @submit.prevent="applyShipmentFilters">
+      <h3>出库信息</h3>
+      <div class="sales-filter-grid">
+        <el-form-item label="出库单号"><el-input v-model="shipmentDraftFilters.text.code" placeholder="包含关键词" clearable aria-label="筛选出库单号" /></el-form-item>
+        <el-form-item label="订单编号"><el-input v-model="shipmentDraftFilters.text.orderCode" placeholder="包含关键词" clearable aria-label="筛选订单编号" /></el-form-item>
+        <el-form-item label="客户名称"><el-select v-model="shipmentDraftFilters.text.customer" filterable clearable placeholder="全部客户" aria-label="筛选客户名称"><el-option v-for="name in filterCustomers" :key="name" :label="name" :value="name" /></el-select></el-form-item>
+        <el-form-item label="客户采购单号"><el-input v-model="shipmentDraftFilters.text.purchaseNumber" placeholder="包含关键词" clearable aria-label="筛选客户采购单号" /></el-form-item>
+        <el-form-item label="出库状态"><el-select v-model="shipmentDraftFilters.status" clearable placeholder="不限" aria-label="筛选出库状态"><el-option v-for="status in ['已出库','待出库']" :key="status" :label="status" :value="status" /></el-select></el-form-item>
+        <el-form-item label="出库日期"><el-date-picker v-model="shipmentDraftFilters.dates" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="筛选出库日期" /></el-form-item>
+      </div>
+      <h3>产品信息</h3>
+      <div class="sales-filter-grid">
+        <el-form-item label="型号"><el-select v-model="shipmentDraftFilters.product.productNames" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选型号"><el-option v-for="value in partNoOptions(productOptions, shipmentDraftFilters.product.brands)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="品牌"><el-select v-model="shipmentDraftFilters.product.brands" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选品牌"><el-option v-for="value in brandOptions(productOptions)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+        <el-form-item label="封装"><el-select v-model="shipmentDraftFilters.product.models" filterable allow-create default-first-option clearable placeholder="选择或输入" aria-label="筛选封装"><el-option v-for="value in packageTypeOptions(productOptions, shipmentDraftFilters.product.brands, shipmentDraftFilters.product.productNames)" :key="value" :label="value" :value="value" /></el-select></el-form-item>
+      </div>
+    </el-form>
+    <template #footer><el-button @click="shipmentDraftFilters = emptySalesShipmentFilters()">重置条件</el-button><el-button @click="shipmentFilterOpen = false">取消</el-button><el-button type="primary" @click="applyShipmentFilters">应用筛选</el-button></template>
   </el-dialog>
   <MultiOrderOutboundDialog v-if="multiOutbound" @close="multiOutbound = false" @saved="saved" />
   <SalesRecordDialog

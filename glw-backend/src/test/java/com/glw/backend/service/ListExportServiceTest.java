@@ -66,14 +66,29 @@ class ListExportServiceTest {
         assertThat(ListExportService.matches("followups", visit, q)).isFalse();
     }
 
-    @Test void receiptAndShipmentFiltersRespectTabsAndOperators() {
-        var q = new ListExportDTO(); q.setTab("已入库"); q.setFilterOpen(true); q.setFilterKey("supplier"); q.setFilterValue("Alpha");
-        var receipt = row(Map.of("status", "已入库", "supplier", "Alpha"), List.of());
+    @Test void receiptAndShipmentFiltersRespectTabsTextStatusAndProducts() {
+        var q = new ListExportDTO();
+        q.setTab("已入库");
+        q.getReceipt().getText().put("supplier", "alpha");
+        q.getReceipt().getProduct().put("productNames", "et5");
+        var receipt = row(
+                Map.of("status", "已入库", "code", "IN20261010001", "supplier", "Alpha", "receivedAt", "2026-10-10"),
+                List.of(Map.of("brands", "Alpha", "productNames", "ET5", "models", "SOP8")));
         assertThat(ListExportService.matches("inbound-orders", receipt, q)).isTrue();
-        q.setFilterOperator("不等于");
+
+        q.getReceipt().setStatus("待入库");
         assertThat(ListExportService.matches("inbound-orders", receipt, q)).isFalse();
+        q.getReceipt().setStatus("");
+        q.getReceipt().setDates(List.of("2026-10-11", "2026-10-12"));
+        assertThat(ListExportService.matches("inbound-orders", receipt, q)).isFalse();
+        q.getReceipt().setDates(null);
+        q.getReceipt().getProduct().put("models", "QFN");
+        assertThat(ListExportService.matches("inbound-orders", receipt, q)).isFalse();
+
         q.setTab("待出库");
         assertThat(ListExportService.matches("outbound-orders", row(Map.of("status", "已出库"), List.of()), q)).isFalse();
+        q.setTab("已出库");
+        assertThat(ListExportService.matches("outbound-orders", row(Map.of("status", "已出库"), List.of()), q)).isTrue();
     }
 
     @Test void exportReadsAllPagesAndAppliesSelectionAndColumnOrderOnServer() {

@@ -86,6 +86,7 @@ function print() {
       <span class="action-icon">
         <el-button
           class="action-icon-btn delivery-note-icon"
+          size="small"
           circle
           text
           :icon="Document"

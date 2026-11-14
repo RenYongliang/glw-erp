@@ -168,6 +168,10 @@ export interface PurchaseState {
   logs: { id: string; time: string; action: string; name: string }[]
 }
 export const purchaseStorageKey = 'glw.purchase.v1'
+/** 订单详情点击入库单号跳转时暂存筛选词，避免把单号带到 URL。 */
+export const purchaseListJumpKey = 'glw.purchase-list-jump.v1'
+/** 从采购订单详情跳转后返回时，恢复弹窗与页签。 */
+export const purchaseOrderRestoreKey = 'glw.purchase-order-restore.v1'
 export const suppliers: Supplier[] = [
   {
     id: 's1',

@@ -261,6 +261,28 @@ public class ListExportService {
             return p.values().stream().allMatch(x -> s(x).trim().isEmpty()) || row.lines().stream().anyMatch(l -> includes(l.get("brands"), p.get("brand"))
                     && includes(l.get("productNames"), p.get("model")) && includes(l.get("models"), p.get("packaging")));
         }
+        if ("outbound-orders".equals(kind)) {
+            if (!s(q.getTab()).isEmpty() && !q.getTab().startsWith("全部") && !s(v.get("status")).equals(q.getTab())) return false;
+            var f = q.getOutbound();
+            for (String key : List.of("code", "orderCode", "customer", "purchaseNumber"))
+                if (!includes(v.get(key), f.getText().get(key))) return false;
+            if (!equalFilter(v.get("status"), f.getStatus()) || !dateRange(v.get("shippedAt"), f.getDates())) return false;
+            var p = f.getProduct();
+            boolean product = p.values().stream().anyMatch(x -> !s(x).trim().isEmpty());
+            return !product || row.lines().stream().anyMatch(l -> includes(l.get("brands"), p.get("brands"))
+                    && includes(l.get("productNames"), p.get("productNames")) && includes(l.get("models"), p.get("models")));
+        }
+        if ("inbound-orders".equals(kind)) {
+            if (!s(q.getTab()).isEmpty() && !q.getTab().startsWith("全部") && !s(v.get("status")).equals(q.getTab())) return false;
+            var f = q.getReceipt();
+            for (String key : List.of("code", "orderCode", "supplier"))
+                if (!includes(v.get(key), f.getText().get(key))) return false;
+            if (!equalFilter(v.get("status"), f.getStatus()) || !dateRange(v.get("receivedAt"), f.getDates())) return false;
+            var p = f.getProduct();
+            boolean product = p.values().stream().anyMatch(x -> !s(x).trim().isEmpty());
+            return !product || row.lines().stream().anyMatch(l -> includes(l.get("brands"), p.get("brands"))
+                    && includes(l.get("productNames"), p.get("productNames")) && includes(l.get("models"), p.get("models")));
+        }
         if (!s(q.getTab()).isEmpty() && !q.getTab().startsWith("全部") && !s(v.get("status")).equals(q.getTab())) return false;
         if (!q.isFilterOpen()) return true;
         String value = s(v.get(q.getFilterKey())), term = s(q.getFilterValue());

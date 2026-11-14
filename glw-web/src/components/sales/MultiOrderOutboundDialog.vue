@@ -298,7 +298,7 @@ async function close() {
   <el-dialog
     :model-value="true"
     title="新增出库"
-    width="820px"
+    width="min(1000px, 96vw)"
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog multi-outbound-dialog"

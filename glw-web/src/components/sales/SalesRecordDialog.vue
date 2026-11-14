@@ -8,11 +8,12 @@ import ShipmentShippingForm from "./ShipmentShippingForm.vue";
 import ShipmentBatchPicker from "./ShipmentBatchPicker.vue";
 import AttachmentTiles from "../common/AttachmentTiles.vue";
 import { validateBatchSelection, type ShipmentBatch } from "../../domain/shipmentBatches";
+import { useStickyTableScroll } from "../../composables/useStickyTableScroll";
 import { useSalesStore } from "../../stores/sales";
 import { fetchSalesProducts, fetchProductCostBatches } from "../../services/productApi";
 import { fetchCustomerOptions, type CustomerOption } from "../../services/customerApi";
 import { fetchCustomerProductCodes } from "../../services/customerProductCodeApi";
-import { financeApi, type OpenItem } from "../../services/financeApi";
+import { financeApi, financeStatementJumpKey, type OpenItem } from "../../services/financeApi";
 import {
   deleteOrderAttachment,
   fetchOrderAttachments,
@@ -28,6 +29,7 @@ import {
 import {
   orderCustomerName,
   salesOrderRestoreKey,
+  salesListJumpKey,
   salesLineProduct,
   defaultShippingInfo,
   warehouses,
@@ -218,6 +220,67 @@ const baseFields = computed(() => [
 const linkedShipments = computed(() =>
   store.state.shipments.filter((r) => shipmentMatchesOrder(r, order.value.id)),
 );
+/** 与采购订单“产品入库”一致的出库明细：同一出库单下相同产品/Date Code/Lot Code 合并并累加数量。 */
+const linkedShipmentRows = computed(() =>
+  linkedShipments.value.flatMap((shipment) => {
+    const grouped = new Map<string, {
+      id: string
+      shipment: SalesShipment
+      brand: string
+      model: string
+      packaging: string
+      dateCode: string
+      lotCode: string
+      quantity: number
+    }>()
+    for (const line of shipment.lines) {
+      const source = shipmentLineSource(shipment, line.lineId, store.state.orders)
+      const product = salesLineProduct(source?.line)
+      const brand = product.brand || '—'
+      const model = product.name || '—'
+      const packaging = product.model || '—'
+      const batches = line.batches?.length
+        ? line.batches
+        : [{ dateCode: '', lotCode: '', quantity: line.arrived }]
+      for (const batch of batches) {
+        const dateCode = batch.dateCode || '—'
+        const lotCode = batch.lotCode || '—'
+        const key = [brand, model, packaging, dateCode, lotCode].join('\u0000')
+        const existing = grouped.get(key)
+        const quantity = Number(batch.quantity) || 0
+        if (existing) existing.quantity += quantity
+        else
+          grouped.set(key, {
+            id: `${shipment.id}-${key}`,
+            shipment,
+            brand,
+            model,
+            packaging,
+            dateCode,
+            lotCode,
+            quantity,
+          })
+      }
+    }
+    return [...grouped.values()]
+  }),
+);
+/** 斑马纹按出库单分组，同一出库单的所有产品行使用同一底色。 */
+function shipmentRowClass({ row }: { row: (typeof linkedShipmentRows.value)[number] }) {
+  const index = linkedShipments.value.findIndex((item) => item.id === row.shipment.id);
+  return index % 2 === 1 ? "doc-striped" : "";
+}
+function shipmentSpan({ rowIndex, columnIndex }: { rowIndex: number; columnIndex: number }): [number, number] {
+  if (columnIndex > 1) return [1, 1]
+  const list = linkedShipmentRows.value
+  const current = list[rowIndex]
+  if (!current) return [1, 1]
+  let start = rowIndex
+  while (start > 0 && list[start - 1]!.shipment.id === current.shipment.id) start--
+  let end = rowIndex
+  while (end + 1 < list.length && list[end + 1]!.shipment.id === current.shipment.id) end++
+  return rowIndex === start ? [end - start + 1, 1] : [0, 0]
+}
 const linkedPayments = computed(() =>
   store.state.payments.filter((r) => r.orderId === order.value.id),
 );
@@ -228,6 +291,13 @@ const linkedReturns = computed(() =>
 const financeItems = ref<OpenItem[]>([]),
   financeLoading = ref(false),
   financeError = ref("");
+const financeTableRef = ref<{ $el?: HTMLElement }>();
+const {
+  scroller: financeScroller,
+  scrollWidth: financeScrollWidth,
+  refresh: refreshFinanceScroll,
+  onScroll: onFinanceScroll,
+} = useStickyTableScroll(financeTableRef);
 async function loadFinance() {
   if (!isOrder || !order.value.code || !/^\d+$/.test(order.value.id)) return;
   financeLoading.value = true;
@@ -244,6 +314,7 @@ async function loadFinance() {
     financeError.value = e instanceof Error ? e.message : "财务数据加载失败";
   } finally {
     financeLoading.value = false;
+    void refreshFinanceScroll();
   }
 }
 watch(tab, (value) => {
@@ -282,17 +353,23 @@ function rememberOrderDetail() {
 function openShipmentList(code?: string) {
   if (!code) return;
   rememberOrderDetail();
-  void router.push({ name: "sales-shipments", query: { keyword: code } });
+  // 通过会话暂存单号，由产品出库列表直接填入搜索框，不在 URL 中携带筛选条件。
+  sessionStorage.setItem(
+    `${salesListJumpKey}:shipments`,
+    JSON.stringify({ keyword: code, at: Date.now() }),
+  );
+  void router.push({ name: "sales-shipments" });
 }
 /** 跳转到对账单列表，并把当前对账单号带过去作为筛选条件。 */
 function openStatementList(statementNo?: string | null) {
   if (!statementNo) return;
   rememberOrderDetail();
-  void router.push({ name: "finance-statements", query: { keyword: statementNo } });
-}
-
-function batchCount(shipment: SalesShipment) {
-  return shipment.lines.reduce((sum, line) => sum + (line.batches?.length || 0), 0);
+  // 通过会话暂存对账单号，由对账单列表直接填入搜索框，不在 URL 中携带筛选条件。
+  sessionStorage.setItem(
+    financeStatementJumpKey,
+    JSON.stringify({ keyword: statementNo, direction: "AR", at: Date.now() }),
+  );
+  void router.push({ name: "finance-statements" });
 }
 const locked = computed(
   () =>
@@ -943,7 +1020,7 @@ function quickFill() {
   <el-dialog
     :model-value="true"
     :title="title"
-    width="820px"
+    width="min(1000px, 96vw)"
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog"
@@ -1305,33 +1382,34 @@ function quickFill() {
           </div>
         </template>
         <template v-else-if="tab === '产品出库'">
-          <el-table :data="linkedShipments" border empty-text="暂无出库记录">
-            <el-table-column label="出库单号" min-width="170">
+          <el-table
+            :data="linkedShipmentRows"
+            row-key="id"
+            size="small"
+            border
+            class="business-zebra-doc"
+            empty-text="暂无出库记录"
+            :span-method="shipmentSpan"
+            :row-class-name="shipmentRowClass"
+          >
+            <el-table-column label="出库单号" min-width="160">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openShipmentList(row.code)">{{ row.code }}</el-button>
+                <div class="sales-shipment-code">
+                  <el-button link type="primary" @click="openShipmentList(row.shipment.code)">{{ row.shipment.code }}</el-button>
+                  <DeliveryNoteActions compact :order="order" :orders="shipmentOrders(row.shipment, store.state.orders)" :shipment="row.shipment" />
+                </div>
               </template>
             </el-table-column>
-            <el-table-column label="出库日期" width="110">
-              <template #default="{ row }">{{ row.shippedAt || '—' }}</template>
+            <el-table-column label="出库日期" width="95">
+              <template #default="{ row }">{{ row.shipment.shippedAt?.slice(0, 10) || '—' }}</template>
             </el-table-column>
-            <el-table-column label="出库数量" width="95" align="right">
-              <template #default="{ row }">{{ shipmentTotals(row, order).quantity }}</template>
-            </el-table-column>
-            <el-table-column label="金额" width="110" align="right">
-              <template #default="{ row }">{{ money(shipmentTotals(row, order).total) }}</template>
-            </el-table-column>
-            <el-table-column label="批次" width="70" align="right">
-              <template #default="{ row }">{{ batchCount(row) }}</template>
-            </el-table-column>
-            <el-table-column label="状态" width="90">
-              <template #default="{ row }">
-                <el-tag size="small" effect="plain" :type="row.confirmed ? 'success' : 'warning'">{{ row.confirmed ? '已出库' : '待出库' }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="发货单" width="100">
-              <template #default="{ row }">
-                <DeliveryNoteActions compact :order="order" :orders="shipmentOrders(row, store.state.orders)" :shipment="row" />
-              </template>
+            <el-table-column prop="model" label="型号" min-width="110" show-overflow-tooltip />
+            <el-table-column prop="brand" label="品牌" width="75" show-overflow-tooltip />
+            <el-table-column prop="packaging" label="封装" min-width="150" show-overflow-tooltip />
+            <el-table-column prop="dateCode" label="Date Code" width="90" show-overflow-tooltip />
+            <el-table-column prop="lotCode" label="Lot Code" width="110" show-overflow-tooltip />
+            <el-table-column label="出库数量" width="105">
+              <template #default="{ row }">{{ row.quantity.toLocaleString('zh-CN') }}</template>
             </el-table-column>
           </el-table>
           <el-button v-if="view && order.lines.some(l => pendingShipmentQuantity(order, l, store.state.shipments) > 0)" type="primary" @click="emit('ship', order)">发货</el-button>
@@ -1353,7 +1431,7 @@ function quickFill() {
               <el-descriptions-item label="未收金额">{{ money(financeSummary.outstanding) }}</el-descriptions-item>
               <el-descriptions-item label="逾期金额">{{ money(financeSummary.overdue) }}</el-descriptions-item>
             </el-descriptions>
-            <el-table :data="financeItems" border empty-text="暂无财务记录">
+            <el-table ref="financeTableRef" :data="financeItems" border stripe class="business-zebra finance-table" empty-text="暂无财务记录">
               <el-table-column prop="sourceNo" label="出库单号" width="150" />
               <el-table-column label="对账单号" width="150">
                 <template #default="{ row }">
@@ -1459,6 +1537,14 @@ function quickFill() {
     </div>
     <template #footer
       ><div class="purchase-form-footer">
+        <div
+          v-if="isOrder && tab === '财务明细'"
+          class="finance-footer-scroll"
+          ref="financeScroller"
+          @scroll.passive="onFinanceScroll"
+        >
+          <div :style="{ width: financeScrollWidth + 'px' }"></div>
+        </div>
         <template v-if="view"
           ><el-button
             v-if="!isOrder || (!locked && order.orderStatus !== '已取消')"
@@ -1737,6 +1823,11 @@ function quickFill() {
   height: 7px;
   background: #1384ff;
   border-radius: 0 8px 0 6px;
+}
+.sales-shipment-code {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .sales-business-counts {
   margin-left: 12px;

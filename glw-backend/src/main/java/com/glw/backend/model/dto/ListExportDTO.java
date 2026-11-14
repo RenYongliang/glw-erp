@@ -28,6 +28,8 @@ public class ListExportDTO {
     private List<String> dates = new ArrayList<>();
     @Valid @NotNull private PurchaseFilters purchase = new PurchaseFilters();
     @Valid @NotNull private SalesFilters sales = new SalesFilters();
+    @Valid @NotNull private OutboundFilters outbound = new OutboundFilters();
+    @Valid @NotNull private ReceiptFilters receipt = new ReceiptFilters();
     @Valid @NotNull private InventoryPageDTO inventory = new InventoryPageDTO();
 
     @Data
@@ -38,6 +40,22 @@ public class ListExportDTO {
         private String receiptStatus = "";
         private List<String> dates;
         @NotNull private Map<String, String> product = new HashMap<>();
+    }
+
+    @Data
+    public static class OutboundFilters {
+        @NotNull private Map<String, String> text = new HashMap<>();
+        @NotNull private Map<String, String> product = new HashMap<>();
+        private List<String> dates;
+        private String status = "";
+    }
+
+    @Data
+    public static class ReceiptFilters {
+        @NotNull private Map<String, String> text = new HashMap<>();
+        @NotNull private Map<String, String> product = new HashMap<>();
+        private List<String> dates;
+        private String status = "";
     }
 
     @Data

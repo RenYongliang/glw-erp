@@ -348,7 +348,7 @@ async function save() {
   <el-dialog
     :model-value="true"
     :title="title"
-    width="min(1060px,96vw)"
+    width="min(1000px,96vw)"
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog inbound-receipt-dialog"

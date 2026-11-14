@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useStickyTableScroll } from '../../composables/useStickyTableScroll'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Document, FullScreen } from '@element-plus/icons-vue'
 import PurchaseContractActions from './PurchaseContractActions.vue'
@@ -8,7 +10,7 @@ import { usePurchaseStore } from '../../stores/purchase'
 import { useAuthStore } from '../../stores/auth'
 import { fetchSuppliers } from '../../services/supplierApi'
 import { fetchSalesProducts } from '../../services/productApi'
-import { financeApi, type OpenItem } from '../../services/financeApi'
+import { financeApi, financeStatementJumpKey, type OpenItem } from '../../services/financeApi'
 import {
   deleteOrderAttachment,
   fetchOrderAttachments,
@@ -23,6 +25,8 @@ import {
 import { purchaseContractPdf } from '../../domain/purchaseContract'
 import {
   purchaseSupplierName,
+  purchaseListJumpKey,
+  purchaseOrderRestoreKey,
   purchaseContact,
   purchasePhone,
   purchaseLineProductText,
@@ -35,7 +39,6 @@ import {
   receiptMatchesOrder,
   receiptOrderIds,
   remainingQuantity,
-  pendingDeliveryQuantity,
   type Product,
   type PurchaseKind,
   type PurchaseOrder,
@@ -51,13 +54,18 @@ const props = defineProps<{
   receipt?: PurchaseReceipt
   relatedOrder?: PurchaseOrder
   readonly?: boolean
+  /** 从其他列表返回时恢复上次停留的执行跟踪页签。 */
+  initialTab?: string
 }>()
 const emit = defineEmits<{ close: []; saved: []; receive: [order: PurchaseOrder] }>()
 const store = usePurchaseStore(),
+  router = useRouter(),
   auth = useAuthStore(),
   view = ref(!!props.readonly),
   full = ref(false),
-  tab = ref('订单附件'),
+  // 从其他列表返回时跳过弹窗出现动画，进入页面即呈现打开状态。
+  instantOpen = ref(!!props.initialTab),
+  tab = ref(props.initialTab || '订单附件'),
   picker = ref(''),
   pickerQuery = ref(''),
   productSelection = ref<string[]>([]),
@@ -177,6 +185,7 @@ onMounted(() => {
   if (isOrder && order.value.code) void loadFinance()
   if (isOrder && order.value.code) void loadAttachments()
   if (!isOrder) void loadInboundReceipts()
+  if (instantOpen.value) setTimeout(() => { instantOpen.value = false }, 200)
 })
 async function loadInboundReceipts() {
   if (!/^\d+$/.test(receipt.value.id)) return
@@ -216,6 +225,96 @@ const baseFields = computed(() => [
 const linkedReceipts = computed(() =>
   store.state.receipts.filter((r) => receiptMatchesOrder(r, order.value.id)),
 )
+/**
+ * 与“采购单入库记录”弹窗一致的入库明细行：
+ * 同一入库单下品牌/型号/封装/Date Code/Lot Code 相同的批次合并为一行并累加数量。
+ */
+const linkedReceiptRows = computed(() =>
+  linkedReceipts.value.flatMap((receipt) => {
+    const grouped = new Map<string, {
+      id: string
+      receipt: PurchaseReceipt
+      brand: string
+      model: string
+      packaging: string
+      dateCode: string
+      lotCode: string
+      quantity: number
+    }>()
+    for (const line of receipt.lines) {
+      const brand = line.brand || '—'
+      const model = line.model || '—'
+      const packaging = line.packaging || '—'
+      for (const batch of line.batches) {
+        const dateCode = batch.dateCode || '—'
+        const lotCode = batch.lotCode || '—'
+        const key = [brand, model, packaging, dateCode, lotCode].join('\u0000')
+        const existing = grouped.get(key)
+        if (existing) existing.quantity += Number(batch.quantity) || 0
+        else
+          grouped.set(key, {
+            id: `${receipt.id}-${key}`,
+            receipt,
+            brand,
+            model,
+            packaging,
+            dateCode,
+            lotCode,
+            quantity: Number(batch.quantity) || 0,
+          })
+      }
+    }
+    return [...grouped.values()]
+  }),
+)
+/** 离开订单详情前记住当前订单和页签，返回采购订单页时恢复弹窗。 */
+function rememberOrderDetail() {
+  sessionStorage.setItem(
+    purchaseOrderRestoreKey,
+    JSON.stringify({
+      order: { ...order.value, attachments: [] },
+      tab: tab.value,
+      at: Date.now(),
+    }),
+  )
+}
+/** 跳转到产品入库列表，并把当前入库单号带过去作为筛选条件。 */
+function openReceiptList(code?: string) {
+  if (!code) return
+  rememberOrderDetail()
+  // 通过会话暂存单号，由产品入库列表直接填入搜索框，不在 URL 中携带筛选条件。
+  sessionStorage.setItem(
+    `${purchaseListJumpKey}:receipts`,
+    JSON.stringify({ keyword: code, at: Date.now() }),
+  )
+  void router.push({ name: 'purchase-receipts' })
+}
+/** 跳转到对账单列表，并把当前对账单号带过去作为筛选条件。 */
+function openStatementList(statementNo?: string | null) {
+  if (!statementNo) return
+  rememberOrderDetail()
+  sessionStorage.setItem(
+    financeStatementJumpKey,
+    JSON.stringify({ keyword: statementNo, direction: 'AP', at: Date.now() }),
+  )
+  void router.push({ name: 'finance-statements' })
+}
+/** 斑马纹按入库单分组，同一入库单的所有产品行使用同一底色。 */
+function linkedReceiptRowClass({ row }: { row: (typeof linkedReceiptRows.value)[number] }) {
+  const index = linkedReceipts.value.findIndex((item) => item.id === row.receipt.id)
+  return index % 2 === 1 ? 'doc-striped' : ''
+}
+function receiptSpan({ rowIndex, columnIndex }: { rowIndex: number; columnIndex: number }): [number, number] {
+  if (columnIndex > 1) return [1, 1]
+  const list = linkedReceiptRows.value
+  const current = list[rowIndex]
+  if (!current) return [1, 1]
+  let start = rowIndex
+  while (start > 0 && list[start - 1]!.receipt.id === current.receipt.id) start--
+  let end = rowIndex
+  while (end + 1 < list.length && list[end + 1]!.receipt.id === current.receipt.id) end++
+  return rowIndex === start ? [end - start + 1, 1] : [0, 0]
+}
 const linkedPayments = computed(() =>
   store.state.payments.filter((r) => r.orderId === order.value.id),
 )
@@ -232,6 +331,13 @@ const locked = computed(
 const financeItems = ref<OpenItem[]>([]),
   financeLoading = ref(false),
   financeError = ref('')
+const financeTableRef = ref<{ $el?: HTMLElement }>()
+const {
+  scroller: financeScroller,
+  scrollWidth: financeScrollWidth,
+  refresh: refreshFinanceScroll,
+  onScroll: onFinanceScroll,
+} = useStickyTableScroll(financeTableRef)
 async function loadFinance() {
   if (!isOrder || !order.value.code || !/^\d+$/.test(order.value.id)) return
   financeLoading.value = true
@@ -248,6 +354,7 @@ async function loadFinance() {
     financeError.value = e instanceof Error ? e.message : '财务数据加载失败'
   } finally {
     financeLoading.value = false
+    void refreshFinanceScroll()
   }
 }
 watch(tab, (value) => {
@@ -679,7 +786,7 @@ function quickFill() {
   <el-dialog
     :model-value="true"
     :title="title"
-    :width="isOrder ? '820px' : '1000px'"
+    width="min(1000px, 96vw)"
     top="3vh"
     :fullscreen="full"
     class="purchase-dialog"
@@ -687,6 +794,7 @@ function quickFill() {
     :close-on-click-modal="false"
     :before-close="close"
     destroy-on-close
+    :transition="instantOpen ? 'none' : undefined"
   >
     <template #header
       ><div class="purchase-dialog-heading">
@@ -804,7 +912,7 @@ function quickFill() {
         <el-table-column type="index" label="序号" width="52" />
         <el-table-column label="规格" min-width="110"><template #default="{row}">{{ purchaseLineProductText(row, 'model') }}</template></el-table-column>
         <el-table-column label="品牌" min-width="80"><template #default="{row}">{{ purchaseLineProductText(row, 'brand') }}</template></el-table-column>
-        <el-table-column label="封装" min-width="80"><template #default="{row}">{{ purchaseLineProductText(row, 'packaging') }}</template></el-table-column>
+        <el-table-column label="封装" min-width="150"><template #default="{row}">{{ purchaseLineProductText(row, 'packaging') }}</template></el-table-column>
         <el-table-column label="数量" width="125"><template #default="{row}"><el-input-number v-model="row.quantity" :disabled="view" :min="1" :max="100000000" :step="100" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
         <el-table-column :label="taxIncludedOrder ? '含税单价' : '未税单价'" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价" /></template></el-table-column>
         <el-table-column label="税率(%)" width="110"><template #default="{row}"><el-input-number v-model="row.tax" :disabled="view" :min="0" :max="100" :precision="0" controls-position="right" aria-label="税率(%)" /></template></el-table-column>
@@ -973,24 +1081,38 @@ function quickFill() {
             @remove="removeAttachment"
           />
         </template>
-        <template v-else-if="tab === '产品入库'"
-          ><el-table :data="linkedReceipts" border empty-text="暂无入库记录"
-            ><el-table-column prop="code" label="采购入库单编号" /><el-table-column label="入库产品总数"
-              ><template #default="{ row }">{{
-                receiptTotals(row, order).quantity
-              }}</template></el-table-column
-            ><el-table-column label="状态"
-              ><template #default="{ row }">{{
-                row.confirmed ? '已入库' : '待入库'
-              }}</template></el-table-column
-            ></el-table
-          ><el-button
-            v-if="view && order.lines.some(l => pendingDeliveryQuantity(order, l, store.state.receipts) > 0)"
-            type="primary"
-            @click="emit('receive', order)"
-            >采购入库</el-button
-          ></template
-        >
+        <template v-else-if="tab === '产品入库'">
+          <el-table
+            :data="linkedReceiptRows"
+            row-key="id"
+            size="small"
+            border
+            class="business-zebra-doc"
+            empty-text="暂无入库记录"
+            :span-method="receiptSpan"
+            :row-class-name="linkedReceiptRowClass"
+          >
+            <el-table-column label="入库单号" min-width="160">
+              <template #default="{ row }">
+                <div class="purchase-inbound-code">
+                  <el-button link type="primary" @click="openReceiptList(row.receipt.code)">{{ row.receipt.code }}</el-button>
+                  <el-tag v-if="!row.receipt.confirmed" type="info" size="small" effect="plain">未完成</el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="入库日期" width="100">
+              <template #default="{ row }">{{ row.receipt.receivedAt?.slice(0, 10) || '—' }}</template>
+            </el-table-column>
+            <el-table-column prop="model" label="型号" min-width="110" show-overflow-tooltip />
+            <el-table-column prop="brand" label="品牌" width="75" show-overflow-tooltip />
+            <el-table-column prop="packaging" label="封装" min-width="150" show-overflow-tooltip />
+            <el-table-column prop="dateCode" label="Date Code" width="90" show-overflow-tooltip />
+            <el-table-column prop="lotCode" label="Lot Code" width="105" show-overflow-tooltip />
+            <el-table-column label="入库数量" width="95">
+              <template #default="{ row }">{{ row.quantity.toLocaleString('zh-CN') }}</template>
+            </el-table-column>
+          </el-table>
+        </template>
         <el-table v-else-if="tab === '采购退货'" :data="linkedReturns" border empty-text="暂无退货记录"
           ><el-table-column prop="date" label="退货日期" /><el-table-column label="产品"
             ><template #default="{ row }">{{
@@ -1009,8 +1131,20 @@ function quickFill() {
               <el-descriptions-item label="未付金额">{{ money(financeSummary.outstanding) }}</el-descriptions-item>
               <el-descriptions-item label="逾期金额">{{ money(financeSummary.overdue) }}</el-descriptions-item>
             </el-descriptions>
-            <el-table :data="financeItems" border empty-text="暂无财务记录">
+            <el-table ref="financeTableRef" :data="financeItems" border stripe class="business-zebra finance-table" empty-text="暂无财务记录">
               <el-table-column prop="sourceNo" label="入库单号" width="150" />
+              <el-table-column label="对账单号" width="150">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="row.statementNo"
+                    link
+                    type="primary"
+                    @click="openStatementList(row.statementNo)"
+                    >{{ row.statementNo }}</el-button
+                  >
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="bizDate" label="业务日期" width="105" />
               <el-table-column prop="partNo" label="型号" min-width="120" />
               <el-table-column prop="quantity" label="数量" width="85" align="right" />
@@ -1077,6 +1211,14 @@ function quickFill() {
     </div>
     <template #footer
       ><div class="purchase-form-footer">
+        <div
+          v-if="isOrder && tab === '财务明细'"
+          class="finance-footer-scroll"
+          ref="financeScroller"
+          @scroll.passive="onFinanceScroll"
+        >
+          <div :style="{ width: financeScrollWidth + 'px' }"></div>
+        </div>
         <template v-if="view"
           ><el-button v-if="!isOrder || (!locked && order.orderStatus !== '已取消')" type="primary" @click="view = false"
             >编辑</el-button
@@ -1287,6 +1429,8 @@ function quickFill() {
   border-radius: 0 8px 0 6px;
 }
 .purchase-business-counts { margin-left: 12px; color: #8a94a6; font-size: 12px; font-weight: 400; }
+.purchase-inbound-code { display: flex; align-items: center; gap: 8px; }
+.purchase-inbound-code strong { color: #334155; }
 .purchase-dialog-controls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .purchase-custom-supplier { display: flex; gap: 16px; align-items: center; margin: 12px 0; color: #8491a4; }
 .purchase-finance-summary { margin-bottom: 12px; }
