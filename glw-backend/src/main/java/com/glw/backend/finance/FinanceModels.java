@@ -29,7 +29,7 @@ public final class FinanceModels {
     }
     public record Page<T>(List<T> records, long total) {}
     @Data public static class OpenItem {
-        private Long id, sourceId, sourceLineId, orderId, partnerId, productId, statementId;
+        private Long id, sourceId, sourceLineId, orderId, orderLineId, partnerId, productId, statementId;
         private String direction, sourceType, sourceNo, orderNo, partnerOrderNo, partnerName, statementNo;
         private String brand, partNo, packageType, currency, period, settleMonth, reconcileStatus;
         private Integer quantity, taxIncluded, taxRate, basisReady;

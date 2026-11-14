@@ -132,20 +132,21 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); generation++ })
           <div class="inventory-batch-detail">
             <el-table :data="row.batches" row-key="inventoryId" border class="inventory-batch-table" empty-text="暂无可出库批次">
               <el-table-column type="index" width="45" align="center" />
-              <el-table-column prop="dateCode" label="Date Code" width="120" show-overflow-tooltip><template #default="{ row: batch }">{{ batch.dateCode || '—' }}</template></el-table-column>
-              <el-table-column prop="lotCode" label="Lot Code" min-width="150" show-overflow-tooltip><template #default="{ row: batch }">{{ batch.lotCode || '—' }}</template></el-table-column>
-              <el-table-column prop="batchNo" label="批次号" width="205" show-overflow-tooltip />
+              <el-table-column prop="batchNo" label="批次号" width="240" show-overflow-tooltip />
               <el-table-column label="入库日期" width="110"><template #default="{ row: batch }">{{ date(batch.inboundTime) }}</template></el-table-column>
+              <el-table-column prop="dateCode" label="Date Code" width="120" show-overflow-tooltip><template #default="{ row: batch }">{{ batch.dateCode || '—' }}</template></el-table-column>
+              <el-table-column prop="lotCode" label="Lot Code" width="150" show-overflow-tooltip><template #default="{ row: batch }">{{ batch.lotCode || '—' }}</template></el-table-column>
+              <el-table-column label="单位成本" width="110" align="right"><template #default="{ row: batch }">{{ cost(batch.unitCost) }}</template></el-table-column>
               <el-table-column label="剩余库存" width="105" align="right"><template #default="{ row: batch }">{{ quantity(batch.quantity) }}</template></el-table-column>
               <el-table-column label="可出库库存" width="110" align="right"><template #default="{ row: batch }"><strong class="inventory-available">{{ quantity(batch.availableQuantity) }}</strong></template></el-table-column>
-              <el-table-column label="单位成本" width="110" align="right"><template #default="{ row: batch }">{{ cost(batch.unitCost) }}</template></el-table-column>
               <el-table-column label="库存金额" width="125" align="right"><template #default="{ row: batch }">{{ amount(batch.stockValue) }}</template></el-table-column>
+              <el-table-column label="" min-width="200" />
             </el-table>
           </div>
         </template>
       </el-table-column>
       <el-table-column type="index" label="#" width="50" align="center" :index="(index: number) => (page - 1) * pageSize + index + 1" />
-      <el-table-column prop="partNo" label="型号" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="partNo" label="型号" width="220" show-overflow-tooltip />
       <el-table-column prop="brand" label="品牌" width="65" show-overflow-tooltip />
       <el-table-column prop="packageType" label="封装" width="160" show-overflow-tooltip />
       <el-table-column label="可出库库存" width="125" align="right"><template #default="{ row }"><strong class="inventory-available">{{ quantity(row.availableQuantity) }}</strong></template></el-table-column>
@@ -153,6 +154,7 @@ onBeforeUnmount(() => { clearTimeout(searchTimer); generation++ })
       <el-table-column label="平均成本" width="115" align="right"><template #default="{ row }">{{ cost(row.averageCost) }}</template></el-table-column>
       <el-table-column label="成本范围" width="185" align="right"><template #default="{ row }">{{ range(row) }}</template></el-table-column>
       <el-table-column label="库存金额" width="135" align="right"><template #default="{ row }">{{ amount(row.stockValue) }}</template></el-table-column>
+      <el-table-column label="" min-width="240" />
     </el-table>
     <footer class="inventory-pagination">
       <span class="inventory-total">共 {{ total }} 个产品</span>

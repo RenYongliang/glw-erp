@@ -54,7 +54,8 @@
     <choose>
       <when test="direction == 'AP'">
         SELECT 'AP' direction,'INBOUND' source_type,a.id source_line_id,h.id source_id,h.inbound_order_no source_no,
-          a.purchase_order_id order_id,a.purchase_order_no order_no,NULL partner_order_no,
+          a.purchase_order_id order_id,a.purchase_order_item_id order_line_id,
+          a.purchase_order_no order_no,NULL partner_order_no,
           h.supplier_id partner_id,h.supplier_name partner_name,i.product_id,i.brand,i.part_no,i.package_type,
           a.allocated_quantity quantity,a.unit_price,a.tax_included,a.tax_rate,a.amount gross_amount,a.currency,
           DATE(h.inbound_time) biz_date,DATE(h.inbound_time) basis_date,1 basis_ready
@@ -65,7 +66,8 @@
       </when>
       <otherwise>
         SELECT 'AR' direction,'OUTBOUND' source_type,a.id source_line_id,h.id source_id,h.outbound_order_no source_no,
-          a.sales_order_id order_id,a.sales_order_no order_no,a.customer_order_no partner_order_no,
+          a.sales_order_id order_id,a.sales_order_item_id order_line_id,
+          a.sales_order_no order_no,a.customer_order_no partner_order_no,
           h.customer_id partner_id,h.customer_name partner_name,i.product_id,i.brand,i.part_no,i.package_type,
           a.allocated_quantity quantity,a.unit_price,a.tax_included,a.tax_rate,a.amount gross_amount,a.currency,
           DATE(h.outbound_time) biz_date,DATE(h.sign_time) basis_date,IF(h.sign_time IS NULL,0,1) basis_ready

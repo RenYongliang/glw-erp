@@ -33,6 +33,7 @@ import {
   orderTotals,
   receiptTotals,
   receiptMatchesOrder,
+  receiptOrderIds,
   remainingQuantity,
   pendingDeliveryQuantity,
   type Product,
@@ -120,7 +121,7 @@ const receipt = ref<PurchaseReceipt>(
       },
 )
 const inboundReceiptTypes: AttachmentTypeDef[] = [
-  { key: 'INBOUND_RECEIPT', label: '入库回签件', slots: 'unlimited' },
+  { key: 'INBOUND_RECEIPT', label: '收货回签', slots: 'unlimited' },
 ]
 const pendingReceipts = ref<{ file: File; preview: Attachment }[]>([])
 const isOrder = props.kind === 'orders',
@@ -180,10 +181,19 @@ onMounted(() => {
 async function loadInboundReceipts() {
   if (!/^\d+$/.test(receipt.value.id)) return
   try {
-    const rows = await fetchOrderAttachments('INBOUND_ORDER', Number(receipt.value.id))
-    receipt.value.photos = rows
-      .filter(item => item.category === 'INBOUND_RECEIPT')
-      .map(toAttachment)
+    // 入库单自己的收货回签 + 关联采购订单上的收货回签，统一视为同一组文件。
+    const orderIds = receiptOrderIds(receipt.value).filter(id => /^\d+$/.test(id))
+    const [rows, ...orderGroups] = await Promise.all([
+      fetchOrderAttachments('INBOUND_ORDER', Number(receipt.value.id)),
+      ...orderIds.map(id => fetchOrderAttachments('PURCHASE_ORDER', Number(id))),
+    ])
+    receipt.value.photos = [
+      ...rows.filter(item => item.category === 'INBOUND_RECEIPT').map(toAttachment),
+      ...orderGroups
+        .flat()
+        .filter(item => item.category === 'RECEIPT_SIGN')
+        .map(item => ({ ...toAttachment(item), type: 'INBOUND_RECEIPT' })),
+    ]
   } catch (error) {
     ElMessage.error((error as Error).message)
   }
@@ -449,7 +459,7 @@ async function save() {
     receipt.value.keeper = auth.user?.name || receipt.value.keeper
     receipt.value.department = auth.user?.department || receipt.value.department
     if (!pendingReceipts.value.length && !receipt.value.photos.length)
-      throw Error('请上传入库回签件')
+      throw Error('请上传收货回签')
     const created = await store.saveReceipt(receipt.value)
     if (pendingReceipts.value.length && created?.id) {
       let failed = 0
@@ -460,7 +470,7 @@ async function save() {
           failed++
         }
       }
-      if (failed) ElMessage.warning(`${failed} 个回签件上传失败，可在入库详情中重新上传`)
+      if (failed) ElMessage.warning(`${failed} 个收货回签文件上传失败，可在入库详情中重新上传`)
     }
     dirty.value = false
     ElMessage.success('入库已确认')
@@ -506,8 +516,18 @@ async function loadAttachments() {
   attachmentsLoading.value = true
   attachmentError.value = ''
   try {
-    const rows = await fetchOrderAttachments('PURCHASE_ORDER', Number(order.value.id))
-    attachments.value = rows.map(toAttachment)
+    // 订单本身的附件 + 关联入库单的收货回签，统一展示在“收货回签”类型下。
+    const [rows, ...inboundGroups] = await Promise.all([
+      fetchOrderAttachments('PURCHASE_ORDER', Number(order.value.id)),
+      ...linkedReceipts.value
+        .filter((receipt) => /^\d+$/.test(receipt.id))
+        .map((receipt) => fetchOrderAttachments('INBOUND_ORDER', Number(receipt.id))),
+    ])
+    const inboundReceipts = inboundGroups
+      .flat()
+      .filter((item) => item.category === 'INBOUND_RECEIPT')
+      .map((item) => ({ ...toAttachment(item), type: 'RECEIPT_SIGN' }))
+    attachments.value = [...rows.map(toAttachment), ...inboundReceipts]
   } catch (e) {
     attachmentError.value = e instanceof Error ? e.message : '附件加载失败'
   } finally {
@@ -569,7 +589,7 @@ function onReceiptConfirmChange(value: boolean | string | number) {
 async function attachReceipts(files: File[]) {
   for (const file of files) {
     if (file.size > 10 * 1024 * 1024) {
-      ElMessage.warning('单个回签件不超过 10MB')
+      ElMessage.warning('单个收货回签不超过 10MB')
       continue
     }
     const url = await new Promise<string>((resolve, reject) => {
@@ -786,7 +806,6 @@ function quickFill() {
         <el-table-column label="品牌" min-width="80"><template #default="{row}">{{ purchaseLineProductText(row, 'brand') }}</template></el-table-column>
         <el-table-column label="封装" min-width="80"><template #default="{row}">{{ purchaseLineProductText(row, 'packaging') }}</template></el-table-column>
         <el-table-column label="数量" width="125"><template #default="{row}"><el-input-number v-model="row.quantity" :disabled="view" :min="1" :max="100000000" :step="100" :precision="0" controls-position="right" aria-label="数量" /></template></el-table-column>
-        <el-table-column label="单位" width="55"><template #default>pcs</template></el-table-column>
         <el-table-column :label="taxIncludedOrder ? '含税单价' : '未税单价'" width="120"><template #default="{row}"><el-input-number v-model="row.price" :disabled="view" :min="0" :max="10000000" :precision="2" controls-position="right" aria-label="单价" /></template></el-table-column>
         <el-table-column label="税率(%)" width="110"><template #default="{row}"><el-input-number v-model="row.tax" :disabled="view" :min="0" :max="100" :precision="0" controls-position="right" aria-label="税率(%)" /></template></el-table-column>
         <el-table-column label="合计" width="105"><template #default="{$index}">{{ money(totals.details[$index]?.total || 0) }}</template></el-table-column>
@@ -1044,7 +1063,7 @@ function quickFill() {
             />
           </div>
         </div>
-        <p class="purchase-tip">入库回签件为必传，支持 PDF、图片等格式。</p>
+        <p class="purchase-tip">收货回签为必传，支持 PDF、图片等格式。</p>
         <AttachmentTiles
           v-if="receipt.photos.length || !view"
           :attachments="receipt.photos"

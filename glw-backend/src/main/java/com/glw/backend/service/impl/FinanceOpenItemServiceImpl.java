@@ -44,7 +44,7 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
     public int project(String direction, Long sourceId) {
         lockService.lock();
         int added = 0;
-        for (OpenItem item : finOpenItemMapper.sources(direction, sourceId)) {
+        for (OpenItem item : mergeSources(finOpenItemMapper.sources(direction, sourceId))) {
             if (finOpenItemMapper.bySource(item.getSourceType(), item.getSourceLineId()) != null) continue;
             prepare(item, finProfileMapper.profile(direction, item.getPartnerId()));
             finOpenItemMapper.insertOpen(item);
@@ -52,6 +52,32 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
             added++;
         }
         return added;
+    }
+
+    /**
+     * 同一出入库单、同一订单行、同一价格口径的多个库存批次合并为一条应收/应付。
+     * Date Code / Lot Code 只影响库存批次，不应拆成多笔往来款。
+     */
+    private static List<OpenItem> mergeSources(List<OpenItem> sources) {
+        Map<String, OpenItem> merged = new java.util.LinkedHashMap<>();
+        for (OpenItem item : sources) {
+            String key = String.join("|",
+                    item.getSourceType(),
+                    String.valueOf(item.getSourceId()),
+                    String.valueOf(item.getOrderLineId()),
+                    String.valueOf(item.getUnitPrice()),
+                    String.valueOf(item.getTaxIncluded()),
+                    String.valueOf(item.getTaxRate()),
+                    item.getCurrency());
+            OpenItem existing = merged.get(key);
+            if (existing == null) {
+                merged.put(key, item);
+                continue;
+            }
+            existing.setQuantity(existing.getQuantity() + item.getQuantity());
+            existing.setGrossAmount(existing.getGrossAmount().add(item.getGrossAmount()));
+        }
+        return List.copyOf(merged.values());
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

@@ -41,7 +41,7 @@ const loadError = ref('')
 const dirty = ref(false)
 const selectedId = ref('')
 const inboundReceiptTypes: AttachmentTypeDef[] = [
-  { key: 'INBOUND_RECEIPT', label: '入库回签件', slots: 'unlimited' },
+  { key: 'INBOUND_RECEIPT', label: '收货回签', slots: 'unlimited' },
 ]
 const pendingPhotos = ref<{ file: File; preview: PurchaseReceipt['photos'][number] }[]>([])
 const receipt = ref<PurchaseReceipt>(
@@ -147,7 +147,38 @@ function orderFor(line: ReceiptLine) {
   return orders.value.find((order) => order.lines.some((item) => item.id === line.lineId))
 }
 function rows(lines: ReceiptLine[]) {
-  return lines.flatMap((line) => line.batches.map((batch, index) => ({ line, batch, index })))
+  const list = lines.flatMap((line) =>
+    line.batches.map((batch, index) => ({ line, batch, index })),
+  )
+  if (!view) return list
+  // 详情态按 Date Code、Lot Code 归组，让相同编码的批次相邻，便于合并单元格。
+  const key = (row: (typeof list)[number]) =>
+    `${row.batch.dateCode || ''}\u0000${row.batch.lotCode || ''}`
+  return [...list].sort((a, b) => key(a).localeCompare(key(b)))
+}
+/**
+ * Date Code、Lot Code 相同的相邻批次合并单元格。
+ * 当前表格前两列就是这两列，其余列保持默认。
+ */
+function batchSpan(lines: ReceiptLine[], rowIndex: number, columnIndex: number): [number, number] {
+  if (columnIndex > 1) return [1, 1]
+  const list = rows(lines)
+  const current = list[rowIndex]
+  if (!current) return [1, 1]
+  const key = (row: (typeof list)[number]) =>
+    `${row.batch.dateCode || ''}\u0000${row.batch.lotCode || ''}`
+  const currentKey = key(current)
+  let start = rowIndex
+  while (start > 0 && key(list[start - 1]!) === currentKey) start--
+  let end = rowIndex
+  while (end + 1 < list.length && key(list[end + 1]!) === currentKey) end++
+  return rowIndex === start ? [end - start + 1, 1] : [0, 0]
+}
+function batchSpanMethod(lines: ReceiptLine[]) {
+  // 仅详情态合并；新增入库仍需逐批填写 Date Code / Lot Code。
+  if (!view) return () => [1, 1]
+  return ({ rowIndex, columnIndex }: { rowIndex: number; columnIndex: number }) =>
+    batchSpan(lines, rowIndex, columnIndex)
 }
 function addProductBatch(lines: ReceiptLine[], id: string) {
   const line = lines.find((line) => line.lineId === id)
@@ -178,10 +209,19 @@ async function load() {
   try {
     receipt.value = await fetchInboundDetail(props.receipt.id, props.scopeOrder?.id)
     if (/^\d+$/.test(receipt.value.id)) {
-      const files = await fetchOrderAttachments('INBOUND_ORDER', Number(receipt.value.id))
-      receipt.value.photos = files
-        .filter(file => file.category === 'INBOUND_RECEIPT')
-        .map(attachment)
+      // 入库单自己的收货回签 + 所关联采购订单上的收货回签，视为同一组文件。
+      const orderIds = receiptOrderIds(receipt.value).filter(id => /^\d+$/.test(id))
+      const [files, ...orderGroups] = await Promise.all([
+        fetchOrderAttachments('INBOUND_ORDER', Number(receipt.value.id)),
+        ...orderIds.map(id => fetchOrderAttachments('PURCHASE_ORDER', Number(id))),
+      ])
+      receipt.value.photos = [
+        ...files.filter(file => file.category === 'INBOUND_RECEIPT').map(attachment),
+        ...orderGroups
+          .flat()
+          .filter(file => file.category === 'RECEIPT_SIGN')
+          .map(file => ({ ...attachment(file), type: 'INBOUND_RECEIPT' })),
+      ]
     }
   } catch (error) {
     loadError.value = (error as Error).message
@@ -208,7 +248,7 @@ function onConfirmChange(value: boolean | string | number) {
 async function uploadPhotos(files: File[]) {
   for (const file of files) {
     if (file.size > 10 * 1024 * 1024) {
-      ElMessage.warning('单个回签件不超过 10MB')
+      ElMessage.warning('单个收货回签不超过 10MB')
       continue
     }
     if (/^\d+$/.test(receipt.value.id)) {
@@ -220,7 +260,7 @@ async function uploadPhotos(files: File[]) {
           file,
         )
         receipt.value.photos.push(attachment(uploaded))
-        ElMessage.success('入库回签件已上传')
+        ElMessage.success('收货回签已上传')
       } catch (error) {
         ElMessage.error((error as Error).message)
       }
@@ -281,7 +321,7 @@ async function save() {
     if (!receipt.value.confirmed) throw Error('请勾选入库确认')
     if (!receipt.value.receivedAt) throw Error('请填写入库时间')
     if (!pendingPhotos.value.length && !receipt.value.photos.length)
-      throw Error('请上传入库回签件')
+      throw Error('请上传收货回签')
     const created = await store.saveReceipt(receipt.value)
     if (pendingPhotos.value.length && created?.id) {
       let failed = 0
@@ -292,7 +332,7 @@ async function save() {
           failed++
         }
       }
-      if (failed) ElMessage.warning(`${failed} 个回签件上传失败，可在入库详情中重新上传`)
+      if (failed) ElMessage.warning(`${failed} 个收货回签文件上传失败，可在入库详情中重新上传`)
     }
     ElMessage.success('入库成功')
     emit('saved')
@@ -440,18 +480,10 @@ async function save() {
             :data="rows(product.lines)"
             class="inbound-allocation-table"
             size="small"
+            border
             :row-key="rowKey"
+            :span-method="batchSpanMethod(product.lines)"
           >
-            <el-table-column label="分配采购单" min-width="177"
-              ><template #default="{ row }"
-                ><div class="inbound-allocation-order">
-                  {{ orderFor(row.line)?.code || '—'
-                  }}<small v-if="!view"
-                    >待交 {{ remaining(row.line).toLocaleString('zh-CN') }}</small
-                  >
-                </div></template
-              ></el-table-column
-            >
             <el-table-column min-width="140"
               ><template #header
                 >Date Code<span v-if="!view" class="inbound-required"> *</span></template
@@ -482,6 +514,16 @@ async function save() {
                   aria-label="Lot Code"
                   @input="dirty = true" /></template
             ></el-table-column>
+            <el-table-column label="分配采购单" min-width="177"
+              ><template #default="{ row }"
+                ><div class="inbound-allocation-order">
+                  {{ orderFor(row.line)?.code || '—'
+                  }}<small v-if="!view"
+                    >待交 {{ remaining(row.line).toLocaleString('zh-CN') }}</small
+                  >
+                </div></template
+              ></el-table-column
+            >
             <el-table-column width="170" align="right"
               ><template #header
                 >入库数量<span v-if="!view" class="inbound-required"> *</span></template
@@ -537,7 +579,7 @@ async function save() {
             />
           </div>
         </div>
-        <p class="purchase-tip">入库回签件为必传，支持 PDF、图片等格式。</p>
+        <p class="purchase-tip">收货回签为必传，支持 PDF、图片等格式。</p>
         <AttachmentTiles
           :attachments="receipt.photos"
           :types="inboundReceiptTypes"

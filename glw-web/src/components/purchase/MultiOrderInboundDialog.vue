@@ -40,7 +40,7 @@ const requestKey = crypto.randomUUID()
 const photos = ref<PurchaseReceipt['photos']>([])
 const pendingPhotos = ref<{ file: File; preview: PurchaseReceipt['photos'][number] }[]>([])
 const inboundReceiptTypes: AttachmentTypeDef[] = [
-  { key: 'INBOUND_RECEIPT', label: '入库回签件', slots: 'unlimited' },
+  { key: 'INBOUND_RECEIPT', label: '收货回签', slots: 'unlimited' },
 ]
 const pendingLines = computed(() =>
   store.state.orders.flatMap((order) =>
@@ -172,7 +172,7 @@ async function save() {
   try {
     if (!confirmed.value) return ElMessage.warning('请勾选入库确认')
     if (!receivedAt.value) return ElMessage.warning('请填写入库时间')
-    if (!photos.value.length) return ElMessage.warning('请上传入库回签件')
+    if (!photos.value.length) return ElMessage.warning('请上传收货回签')
     const lines = buildMultiInboundLines(products.value, pendingLines.value, orderIds.value)
     const first = selectedOrders.value[0]!.order
     const receipt: PurchaseReceipt = {
@@ -205,7 +205,7 @@ async function save() {
           failed++
         }
       }
-      if (failed) ElMessage.warning(`${failed} 个回签件上传失败，可在入库详情中重新上传`)
+      if (failed) ElMessage.warning(`${failed} 个收货回签文件上传失败，可在入库详情中重新上传`)
     }
     dirty.value = false
     ElMessage.success('入库成功')
@@ -248,7 +248,7 @@ async function removePhoto(photo: PurchaseReceipt['photos'][number]) {
 async function selectPhotos(files: File[]) {
   for (const file of files) {
     if (file.size > 10 * 1024 * 1024) {
-      ElMessage.warning('单个回签件不超过 10MB')
+      ElMessage.warning('单个收货回签不超过 10MB')
       continue
     }
     const url = await new Promise<string>((resolve, reject) => {
@@ -550,7 +550,7 @@ async function selectPhotos(files: File[]) {
         />
       </div>
     </div>
-    <p class="purchase-tip">入库回签件为必传，支持 PDF、图片等格式。</p>
+    <p class="purchase-tip">收货回签为必传，支持 PDF、图片等格式。</p>
     <AttachmentTiles
       :attachments="photos"
       :types="inboundReceiptTypes"
