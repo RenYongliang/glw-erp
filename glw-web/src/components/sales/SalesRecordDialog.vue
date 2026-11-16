@@ -41,7 +41,6 @@ import {
   shipmentOrders,
   shipmentLineSource,
   remainingQuantity,
-  pendingShipmentQuantity,
   type SalesKind,
   type SalesOrder,
   type SalesShipment,
@@ -1412,7 +1411,6 @@ function quickFill() {
               <template #default="{ row }">{{ row.quantity.toLocaleString('zh-CN') }}</template>
             </el-table-column>
           </el-table>
-          <el-button v-if="view && order.lines.some(l => pendingShipmentQuantity(order, l, store.state.shipments) > 0)" type="primary" @click="emit('ship', order)">发货</el-button>
         </template>
         <el-table v-else-if="tab === '销售退货'" :data="linkedReturns" border empty-text="暂无退货记录">
           <el-table-column prop="date" label="退货日期" width="110" />
