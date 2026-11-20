@@ -1,0 +1,16 @@
+# 测试环境：连接测试环境 MySQL/Redis，可用环境变量覆盖。
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://43.142.173.92:3306/glw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:ryl123}
+  data:
+    redis:
+      host: ${REDIS_HOST:43.142.173.92}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:ryl123}
+      database: ${REDIS_DATABASE:0}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-development-signing-secret-change-me}
