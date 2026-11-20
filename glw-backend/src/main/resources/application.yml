@@ -1,6 +1,9 @@
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+  # #让 Spring Boot 应用信任并解析反向代理（如 Nginx、网关）传来的 X-Forwarded-* 头，从而还原客户端的真实 IP、协议（http/https）、主机和端口‌。
+  # 默认情况下 Spring Boot 会忽略这些头，导致 request.getRemoteAddr() 拿到代理的 IP、request.getScheme() 误判为 http，进而引发重定向到 http、跨域、生成错误的绝对 URL 等问题
+  forward-headers-strategy: framework
 spring:
   application:
     name: glw-backend
