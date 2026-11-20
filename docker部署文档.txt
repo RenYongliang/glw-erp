@@ -79,19 +79,60 @@ sudo docker update --memory=1g --memory-swap=1280m glw-backend
 sudo docker update --memory=128m --memory-swap=256m glw-web
 
 
+# 构建后端镜像
+sudo docker build -t glw-backend:1.0.0 .
 
-# 运行后端容器
+# 构建前端镜像
+sudo docker build -t glw-web:1.0.0 .
+
+
+# 运行mysql
+docker run -d \
+  --name mysql \
+  --network glw-network \
+  -p 3306:3306 \
+  -e MYSQL_ROOT_PASSWORD='ryl123' \
+  -e TZ=Asia/Shanghai \
+  -v /data/mysql/data:/var/lib/mysql \
+  mysql:8.4
+
+
+# 运行redis
+docker run -d \
+  --name redis \
+  --network glw-network \
+  -p 6379:6379 \
+  -v /data/redis/data:/data \
+  redis:8.2 \
+  redis-server --requirepass 'ryl123'
+
+
+# 运行silo
+docker run -d \
+  --name silo \
+  --network glw-network \
+  -p 9000:9000 \
+  -p 9001:9001 \
+  -e MINIO_ROOT_USER=root \
+  -e MINIO_ROOT_PASSWORD='3306ryl^Coder' \
+  -v /data/silo/data:/data \
+  docker.io/pgsty/silo:RELEASE.2026-11-12T00-00-00Z \
+  server /data --console-address ":9001"
+
+
+# 运行后端
 sudo docker run -d \
   --name glw-backend \
   --network glw-network \
   -e SPRING_PROFILES_ACTIVE=dev \
   -e DB_URL='jdbc:mysql://mysql:3306/glw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai' \
   -e REDIS_HOST=redis \
+  -e MINIO_ENDPOINT=http://minio:9000 \
   -e JAVA_TOOL_OPTIONS="-Xms256m -Xmx768m" \
   -e TZ=Asia/Shanghai \
   glw-backend:1.0.0
 
-# 运行前端容器
+# 运行前端
 sudo docker run -d \
   --name glw-web \
   --network glw-network \
@@ -99,8 +140,7 @@ sudo docker run -d \
   -p 443:443 \
   glw-web:1.0.0
 
-# 构建前端镜像
-sudo docker build -t glw-web:1.0.0 .
+
 
 
 

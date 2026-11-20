@@ -14,3 +14,7 @@ spring:
 app:
   jwt:
     secret: ${JWT_SECRET:dev-development-signing-secret-change-me}
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://43.142.173.92:9000}
+    access-key: ${MINIO_ACCESS_KEY:zQeRUrzihO8TKYvBFzTj}
+    secret-key: ${MINIO_SECRET_KEY:P138TXLSBq6n97xQTGpRha9Rt7QvmnTmVKeylCTj}
