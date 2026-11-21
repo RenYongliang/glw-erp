@@ -35,9 +35,9 @@ max_connections = 20
 
 # 默认值：28800 秒（8 小时）
 # 调整原因：默认 8 小时太长，空闲连接会一直占用资源。
-#           改为 60 秒，闲置连接 1 分钟后自动断开，快速释放会话内存。
-wait_timeout = 60
-interactive_timeout = 60
+#           改为 1800 秒，闲置连接 30 分钟后自动断开，快速释放会话内存。
+wait_timeout=1800
+interactive_timeout=1800
 
 # ---------- 每连接缓冲（保持保守默认值）----------
 # 默认值：256K
@@ -96,6 +96,10 @@ docker run -d \
   -v /data/mysql/data:/var/lib/mysql \
   mysql:8.4
 
+# 宿主机上先创建redis相关目录并把owner改为容器内 Redis Server 进程的 UID/GID (999
+sudo mkdir -p /data/redis
+sudo chown -R 999:999 /data/redis
+sudo chmod 750 /data/redis
 
 # 运行redis
 docker run -d \
@@ -127,7 +131,7 @@ sudo docker run -d \
   -e SPRING_PROFILES_ACTIVE=dev \
   -e DB_URL='jdbc:mysql://mysql:3306/glw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai' \
   -e REDIS_HOST=redis \
-  -e MINIO_ENDPOINT=http://minio:9000 \
+  -e MINIO_ENDPOINT=http://silo:9000 \
   -e JAVA_TOOL_OPTIONS="-Xms256m -Xmx768m" \
   -e TZ=Asia/Shanghai \
   glw-backend:1.0.0

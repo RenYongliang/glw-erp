@@ -16,9 +16,26 @@ spring:
     password: ${DB_PASSWORD:mock-password-change-me}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 10
+      # 连接池的最大连接数
+      maximum-pool-size: 20
+      # 最小空闲连接数，不会因为 idle-timeout 到了被回收，但会因为 max-lifetime 被回收，
+      # 被回收后 hikari 会重新创建 minimum-idle 个新连接，尽量维持始终存在 minimum-idle 个空闲连接
       minimum-idle: 2
+      # 连接最长存活时间，所有连接存活时长到达 max-lifetime 就会被回收，如果连接当前正在工作，那么会等待工作执行完毕再回收
+      max-lifetime: 1500000
+      # 空闲连接最大存活时间，此处空闲连接不包括 minimum-idle
+      idle-timeout: 600000
+      # 空闲连接保活间隔（毫秒）
+      # Hikari 定期检查连接池中的空闲连接，避免连接因长时间空闲 被 MySQL（wait_timeout）或其他中间设备提前关闭。
+      # 白话讲就是当hikari的空闲存活时间 > Mysql自身的空闲存活时间时，防止某个连接由于一直空闲先被Mysql回收了，所以要假装工作一下让Mysql觉得这个连接还在工作没有空闲，就不会被回收
+      # 生产实践中最好要配置 hikari的空闲存活时间 < Mysql自身的空闲存活时间时
+      # 如果连接有效，则完成保活操作，重置 MySQL 的空闲计时；
+      # 如果连接失效，则淘汰该连接，后续按需创建新连接。
+      keepalive-time: 180000
+      # 获取连接超时时间
       connection-timeout: 5000
+      # 验证连接超时时间
+      validation-timeout: 5000
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
