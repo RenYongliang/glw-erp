@@ -119,6 +119,10 @@
     WHERE direction=#{direction} AND order_id=#{orderId} AND gross_amount > settled_amount
     ORDER BY COALESCE(basis_date,biz_date), id
   </select>
+  <select id="orderIdsWithOpenItems" resultType="java.lang.Long">
+    SELECT DISTINCT order_id FROM fin_open_item
+    WHERE direction=#{direction} AND order_id IS NOT NULL
+  </select>
   <select id="statementCandidates" resultType="com.glw.backend.finance.FinanceModels$OpenItem">
     SELECT * FROM fin_open_item
     WHERE direction=#{direction} AND partner_id=#{partnerId} AND basis_ready=1

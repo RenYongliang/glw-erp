@@ -24,6 +24,28 @@ function downloadFileName(response: Response): string {
   }
   return /filename="?([^";]+)"?/i.exec(disposition)?.[1] || ''
 }
+/** 兼容不支持 AbortSignal.timeout/any 的旧版移动浏览器。 */
+function requestSignal(signal: AbortSignal | null | undefined, timeout: number): AbortSignal {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeout)
+  const abort = () => {
+    clearTimeout(timer)
+    controller.abort()
+  }
+  if (signal) {
+    if (signal.aborted) abort()
+    else signal.addEventListener('abort', abort, { once: true })
+  }
+  controller.signal.addEventListener(
+    'abort',
+    () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+    },
+    { once: true },
+  )
+  return controller.signal
+}
 export class ApiError extends Error {
   status: number
   code: number
@@ -129,9 +151,7 @@ export class AuthClient {
       headers,
       credentials: 'omit',
       cache: 'no-store',
-      signal: init.signal
-        ? AbortSignal.any([init.signal, AbortSignal.timeout(binary ? 120000 : 15000)])
-        : AbortSignal.timeout(binary ? 120000 : 15000),
+      signal: requestSignal(init.signal, binary ? 120000 : 15000),
     })
     if (binary && response.ok) {
       const blob = await response.blob()

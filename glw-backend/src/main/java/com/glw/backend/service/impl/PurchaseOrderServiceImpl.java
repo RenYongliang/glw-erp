@@ -239,17 +239,14 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             filterOrderIds = findOrderIdsByItem(pageDTO, filterBrand, filterPartNo, filterPackageType);
             if (CollectionUtils.isEmpty(filterOrderIds)) return emptyPage(pageDTO);
         }
-        List<Long> paymentOrderIds = pageDTO.getPaymentStatus() != null
-                ? financeMapper.orderIdsByStatus("AP", pageDTO.getPaymentStatus().getCode()) : null;
-        if (paymentOrderIds != null && paymentOrderIds.isEmpty()) paymentOrderIds = List.of(-1L);
-
         Page<PurchaseOrder> page = lambdaQuery()
-                .in(paymentOrderIds != null, PurchaseOrder::getId, paymentOrderIds)
                 .in(filterOrderIds != null, PurchaseOrder::getId, filterOrderIds)
                 .eq(pageDTO.getId() != null, PurchaseOrder::getId, pageDTO.getId())
                 .eq(StringUtils.hasText(pageDTO.getPurchaseOrderNo()), PurchaseOrder::getPurchaseOrderNo, pageDTO.getPurchaseOrderNo())
                 .eq(pageDTO.getSupplierId() != null, PurchaseOrder::getSupplierId, pageDTO.getSupplierId())
                 .like(StringUtils.hasText(pageDTO.getSupplierName()), PurchaseOrder::getSupplierName, pageDTO.getSupplierName())
+                // 付款状态已随核销同步落库，筛选直接走订单表。
+                .eq(pageDTO.getPaymentStatus() != null, PurchaseOrder::getPaymentStatus, pageDTO.getPaymentStatus())
                 .eq(pageDTO.getOrderStatus() != null, PurchaseOrder::getOrderStatus, pageDTO.getOrderStatus())
                 .ge(StringUtils.hasText(pageDTO.getOrderTimeStart()), PurchaseOrder::getOrderTimeStart, pageDTO.getOrderTimeStart())
                 .le(StringUtils.hasText(pageDTO.getOrderTimeEnd()), PurchaseOrder::getOrderTimeEnd, pageDTO.getOrderTimeEnd())
@@ -286,21 +283,16 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (CollectionUtils.isEmpty(records)) return;
 
         List<Long> orderIds = records.stream().map(PurchaseOrderVO::getId).toList();
-        var financialStatuses = financeMapper.orderStatuses("AP", orderIds).stream().collect(Collectors.toMap(
-                com.glw.backend.finance.FinanceOrderStatus.OrderStatus::orderId,
-                com.glw.backend.finance.FinanceOrderStatus.OrderStatus::paymentStatus));
         Map<Long, BigDecimal> prepayments = financeMapper.orderPrepayments("AP", orderIds).stream()
                 .collect(Collectors.toMap(
                         com.glw.backend.finance.FinanceOrderStatus.Prepayment::orderId,
                         com.glw.backend.finance.FinanceOrderStatus.Prepayment::amount));
         records.forEach(order -> {
             order.setPrepaymentAmount(prepayments.getOrDefault(order.getId(), BigDecimal.ZERO));
-            if (financialStatuses.containsKey(order.getId())) order.setPaymentStatus(
-                    com.glw.backend.model.enums.PurchasePaymentStatus.fromCode(financialStatuses.get(order.getId())));
             // 兜底：已全部收货且已付款的历史数据即使漏了重算，也显示为已完结。
             if (order.getOrderStatus() == PurchaseOrderStatus.CONFIRMED
                     && order.getReceiptStatus() == PurchaseReceiptStatus.RECEIVED
-                    && PurchasePaymentStatus.PAID.name().equals(financialStatuses.get(order.getId())))
+                    && order.getPaymentStatus() == PurchasePaymentStatus.PAID)
                 order.setOrderStatus(PurchaseOrderStatus.COMPLETED);
         });
         List<Long> supplierIds = records.stream().map(PurchaseOrderVO::getSupplierId)
@@ -372,12 +364,20 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                 || order.getOrderStatus() == PurchaseOrderStatus.PENDING_APPROVAL) return;
         String paymentStatus = financeMapper.orderStatuses("AP", List.of(orderId)).stream()
                 .findFirst().map(com.glw.backend.finance.FinanceOrderStatus.OrderStatus::paymentStatus).orElse(null);
+        PurchasePaymentStatus targetPayment = paymentStatus == null ? null : PurchasePaymentStatus.fromCode(paymentStatus);
         PurchaseOrderStatus target = order.getReceiptStatus() == PurchaseReceiptStatus.RECEIVED
                 && PurchasePaymentStatus.PAID.name().equals(paymentStatus)
                 ? PurchaseOrderStatus.COMPLETED : PurchaseOrderStatus.CONFIRMED;
+        boolean changed = false;
         if (order.getOrderStatus() != target) {
             order.setOrderStatus(target);
-            updateById(order);
+            changed = true;
         }
+        // 付款状态以财务开项为准落库，避免订单表长期停留在 UNPAID。
+        if (targetPayment != null && order.getPaymentStatus() != targetPayment) {
+            order.setPaymentStatus(targetPayment);
+            changed = true;
+        }
+        if (changed) updateById(order);
     }
 }

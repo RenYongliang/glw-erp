@@ -15,6 +15,8 @@ import com.glw.backend.model.entity.FinOpenItem;
 import com.glw.backend.service.FinanceOpenItemService;
 import com.glw.backend.service.FinanceAuditService;
 import com.glw.backend.service.FinanceLockService;
+import com.glw.backend.service.SalesOrderService;
+import com.glw.backend.service.PurchaseOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,8 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
     private final FinProfileMapper finProfileMapper;
     private final FinanceLockService lockService;
     private final FinanceAuditService auditService;
+    private final SalesOrderService salesOrderService;
+    private final PurchaseOrderService purchaseOrderService;
 
     @Transactional(propagation = Propagation.MANDATORY)
     @Override
@@ -111,8 +115,19 @@ public class FinanceOpenItemServiceImpl extends ServiceImpl<FinOpenItemMapper, F
     @Override
     public int rebuild() {
         int added = project("AR", null) + project("AP", null);
+        // 开项补齐后，把应收/应付状态同步落库到订单表。
+        refreshOrderPaymentStatuses();
         auditService.record("OPEN_ITEM", 0L, "REBUILD", "added=" + added);
         return added;
+    }
+
+    private void refreshOrderPaymentStatuses() {
+        for (Long orderId : finOpenItemMapper.orderIdsWithOpenItems("AR")) {
+            salesOrderService.refreshCompletionStatus(orderId);
+        }
+        for (Long orderId : finOpenItemMapper.orderIdsWithOpenItems("AP")) {
+            purchaseOrderService.refreshCompletionStatus(orderId);
+        }
     }
 
     public static void prepare(OpenItem item, FinanceModels.Profile profile) {

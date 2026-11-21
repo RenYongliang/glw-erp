@@ -37,7 +37,8 @@ abstract class FinanceTestFixture {
     final DocumentNumberService numbers = mock(DocumentNumberService.class);
     final FinanceStatementTemplateService statementTemplates = mock(FinanceStatementTemplateService.class);
     final FinanceProfileServiceImpl profile = new FinanceProfileServiceImpl(finProfile, finOpenItem, lock, audit);
-    final FinanceOpenItemServiceImpl open = new FinanceOpenItemServiceImpl(finOpenItem, finProfile, lock, audit);
+    final FinanceOpenItemServiceImpl open = new FinanceOpenItemServiceImpl(finOpenItem, finProfile, lock, audit,
+            mock(com.glw.backend.service.SalesOrderService.class), mock(com.glw.backend.service.PurchaseOrderService.class));
     final FinanceStatementServiceImpl statements = new FinanceStatementServiceImpl(finStatement, finOpenItem, finStatementItem, finAllocation, lock, audit, open, statementTemplates, finProfile, numbers);
     final FinancePaymentServiceImpl cash = new FinancePaymentServiceImpl(finPayment, finAllocation, lock, audit, profile, numbers);
     final FinanceAllocationServiceImpl clearing = new FinanceAllocationServiceImpl(finAllocation, finPayment, finOpenItem, lock, audit, open, cash, mock(com.glw.backend.service.SalesOrderService.class), mock(com.glw.backend.service.PurchaseOrderService.class), mock(com.glw.backend.mapper.SalesOrderMapper.class), mock(com.glw.backend.mapper.PurchaseOrderMapper.class));

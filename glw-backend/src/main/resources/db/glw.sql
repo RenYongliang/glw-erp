@@ -392,7 +392,8 @@ CREATE TABLE `purchase_order`  (
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_purchase_order_no`(`purchase_order_no`) USING BTREE,
-  INDEX `idx_purchase_order_supplier_id`(`supplier_id`) USING BTREE
+  INDEX `idx_purchase_order_supplier_id`(`supplier_id`) USING BTREE,
+  INDEX `idx_payment_status`(`payment_status`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '采购订单表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -469,7 +470,8 @@ CREATE TABLE `sales_order`  (
   `updated_by` bigint(0) NULL DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_order_no`(`order_no`) USING BTREE,
-  INDEX `idx_customer_order_no`(`customer_order_no`) USING BTREE
+  INDEX `idx_customer_order_no`(`customer_order_no`) USING BTREE,
+  INDEX `idx_payment_status`(`payment_status`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '销售订单表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
