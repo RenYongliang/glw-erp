@@ -5,3 +5,5 @@ target/
 logs/
 envs/
 .runlogs/
+# SSL 证书只存在于部署服务器，不进入仓库和镜像
+glw-web/ssl/

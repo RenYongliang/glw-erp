@@ -1,0 +1,9 @@
+.git
+.idea
+node_modules
+dist
+dist.zip
+ssl
+.env
+.env.*
+*.iml

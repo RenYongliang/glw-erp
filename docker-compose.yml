@@ -84,7 +84,7 @@ services:
 
 
   glw-backend:
-    image: glw-backend:${IMAGE_TAG:-1.0.0}
+    image: ${BACKEND_IMAGE:-glw-backend:1.0.0}
     container_name: glw-backend
     mem_limit: 1g
     restart: unless-stopped
@@ -123,7 +123,7 @@ services:
 
 
   glw-web:
-    image: glw-web:${IMAGE_TAG:-1.0.0}
+    image: ${WEB_IMAGE:-glw-web:1.0.0}
     container_name: glw-web
     mem_limit: 128m
     restart: unless-stopped
@@ -134,6 +134,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    volumes:
+      - ${SSL_DIR:-./glw-web/ssl}:/etc/nginx/ssl:ro
     networks:
       - glw-network
     healthcheck:

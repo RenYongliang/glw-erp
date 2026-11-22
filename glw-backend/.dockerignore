@@ -1,5 +1,5 @@
 .git
 .idea
-.mvn
-src
+target
 *.iml
+.runlogs
