@@ -3,5 +3,5 @@ target/
 *.iml
 .vscode/
 logs/
-.env
+envs/
 .runlogs/

@@ -10,10 +10,6 @@ spring:
   profiles:
     default: mock
   datasource:
-    # 占位配置；mock profile 不初始化 DataSource。
-    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/glw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
-    username: ${DB_USERNAME:glw_mock}
-    password: ${DB_PASSWORD:mock-password-change-me}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       # 连接池的最大连接数
@@ -38,10 +34,10 @@ spring:
       validation-timeout: 5000
   data:
     redis:
-      host: ${REDIS_HOST:127.0.0.1}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:mock-password-change-me}
-      database: ${REDIS_DATABASE:0}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE}
       connect-timeout: 3s
       timeout: 3s
       repositories:
@@ -69,7 +65,7 @@ app:
   jwt:
     issuer: glw-backend
     # 真实 profile 必须设置该变量；mock profile 单独提供演示密钥。
-    secret: ${JWT_SECRET:}
+    secret: ${JWT_SECRET}
     access-ttl: 15m
     refresh-ttl: 8h
     remember-ttl: 7d
@@ -113,3 +109,6 @@ logging:
   level:
     root: INFO
     com.glw.backend: INFO
+  # 面向服务器直接查看的可读格式：时间、级别、线程、类名、消息。
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{40} - %msg%n"

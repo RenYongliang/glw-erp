@@ -1,20 +1,21 @@
-# 测试环境：连接测试环境 MySQL/Redis，可用环境变量覆盖。
+# 测试环境：所有连接信息与密钥由启动环境（Docker/envs/dev.env）提供，仓库不保存默认凭据。
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://43.142.173.92:3306/glw?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:ryl123}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   data:
     redis:
-      host: ${REDIS_HOST:43.142.173.92}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:ryl123}
-      database: ${REDIS_DATABASE:0}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE}
 
 app:
   jwt:
-    secret: ${JWT_SECRET:dev-development-signing-secret-change-me}
+    secret: ${JWT_SECRET}
   minio:
-    endpoint: ${MINIO_ENDPOINT:http://43.142.173.92:9000}
-    access-key: ${MINIO_ACCESS_KEY:zQeRUrzihO8TKYvBFzTj}
-    secret-key: ${MINIO_SECRET_KEY:P138TXLSBq6n97xQTGpRha9Rt7QvmnTmVKeylCTj}
+    # 测试环境由容器启动参数传入，避免把真实密钥写入仓库。
+    endpoint: ${MINIO_ENDPOINT}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}

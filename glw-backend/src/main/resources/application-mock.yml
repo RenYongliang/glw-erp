@@ -3,6 +3,13 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  # mock 不使用 Redis，但需要可解析的占位值，避免基础配置改成必填后绑定失败。
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: ""
+      database: 0
 app:
   jwt:
     secret: ${JWT_SECRET:glw-mock-only-signing-key-replace-before-production-2026}

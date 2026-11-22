@@ -155,3 +155,109 @@ sudo docker stats --no-stream
 sudo docker network inspect glw-network
 
 
+
+SSH 隧道是把服务器上的端口，通过加密 SSH 连接映射到你本地：
+
+ssh -L 9001:127.0.0.1:9001 originalme@43.142.173.92
+
+执行后，在你 Windows 浏览器打开：
+
+http://localhost:9001
+
+实际访问的是服务器上的 MinIO 控制台，但：
+
+- 不需要把 9001 暴露到公网
+- 只有你本人通过 SSH 登录后才能访问
+- 流量走 SSH 加密
+
+它不是"对外开放"，而是私有访问。
+
+前提是服务器上的 9001 至少监听在 127.0.0.1。Compose 里可以这样：
+
+silo:
+  ports:
+    - "127.0.0.1:9001:9001"
+
+
+
+2. 怎么删除旧网络
+
+你现在的 compose 已经改成：
+
+networks:
+  glw-network:
+    name: glw-network
+
+这个网络会由 Compose 创建和管理。旧网络是手工创建的，缺少 Compose 标签，直接启动可能报：
+
+network glw-network was found but has incorrect label ...
+
+
+
+
+隧道映射正确顺序：
+
+cd /opt/project/glw
+
+# 1. 查看网络里还有哪些容器
+docker network inspect glw-network --format '{{range .Containers}}{{.Name}} {{end}}'
+
+# 2. 删除旧容器（数据在 /data，不会丢）
+docker rm -f mysql redis silo glw-backend glw-web
+
+# 3. 删除旧网络
+docker network rm glw-network
+
+# 4. 用 compose 创建新网络并启动
+docker compose --env-file envs/dev.env up -d
+
+如果第 3 步报 network has active endpoints，说明还有其他容器连着它，先停掉或断开那些容器。
+
+
+正确做法：本地端口和服务器端口错开
+
+Compose 里服务器侧仍然只绑定回环：
+正确做法：本地端口和服务器端口错开
+
+Compose 里服务器侧仍然只绑定回环：
+
+  mysql:
+    ports:
+      - "127.0.0.1:3306:3306"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  silo:
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+本地建隧道时映射到不同端口，例如：
+
+ssh -N \
+  -L 13306:127.0.0.1:3306 \
+  -L 16379:127.0.0.1:6379 \
+  -L 19000:127.0.0.1:9000 \
+  -L 19001:127.0.0.1:9001 \
+  originalme@43.142.173.92
+
+含义：
+
+本地 13306 → 服务器的 127.0.0.1:3306（MySQL）
+本地 16379 → 服务器的 127.0.0.1:6379（Redis）
+本地 19001 → 服务器的 127.0.0.1:9001（MinIO 控制台）
+
+
+服务器怎么看日志
+
+# 实时滚动查看后端日志
+docker compose logs -f --tail=200 glw-backend
+
+# 查看最近 500 行
+docker compose logs --tail=500 glw-backend
+
+# 只看某个时间之后
+docker compose logs --since 10m glw-backend
+
