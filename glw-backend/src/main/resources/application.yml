@@ -87,6 +87,8 @@ app:
     endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
     # 浏览器访问 MinIO 的地址；Docker 内部 endpoint 为 silo:9000 时，测试/生产环境需设为公网或反向代理地址。
     public-endpoint: ${MINIO_PUBLIC_ENDPOINT:}
+    # 预签名区域；MinIO/Silo 默认 us-east-1，显式指定可避免生成 URL 时回连对象存储。
+    region: ${MINIO_REGION:us-east-1}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket: ${MINIO_BUCKET:glw}

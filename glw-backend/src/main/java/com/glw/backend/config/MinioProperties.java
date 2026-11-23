@@ -18,6 +18,8 @@ public record MinioProperties(
         @NotBlank String endpoint,
         /** 浏览器可访问的地址，仅用于生成预签名下载 URL；为空时退回 endpoint。 */
         String publicEndpoint,
+        /** 预签名客户端使用的区域；显式指定可避免为生成 URL 再访问一次对象存储。 */
+        @NotBlank String region,
         @NotBlank String accessKey,
         @NotBlank String secretKey,
         @NotBlank String bucket,

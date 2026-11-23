@@ -35,6 +35,7 @@ public class AttachmentStorage {
                 ? minioClient
                 : MinioClient.builder()
                         .endpoint(presignEndpoint)
+                        .region(properties.region())
                         .credentials(properties.accessKey(), properties.secretKey())
                         .build();
     }
