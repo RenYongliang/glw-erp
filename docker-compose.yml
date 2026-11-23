@@ -107,6 +107,8 @@ services:
       REDIS_DATABASE: ${REDIS_DATABASE:-0}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://silo:9000}
+      # 浏览器访问 MinIO 的地址，例如 https://43.142.173.92:9443
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:?MINIO_PUBLIC_ENDPOINT is required}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
       MINIO_BUCKET: ${MINIO_BUCKET:-glw}
@@ -134,8 +136,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "9443:9443"
     volumes:
-      - ${SSL_DIR:-./glw-web/ssl}:/etc/nginx/ssl:ro
+      - ./glw-web/ssl:/etc/nginx/ssl:ro
+      - ./glw-web/nginx/conf.d:/etc/nginx/conf.d:ro
     networks:
       - glw-network
     healthcheck:

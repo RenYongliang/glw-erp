@@ -85,10 +85,13 @@ app:
   minio:
     # 附件对象存储；桶保持私有，下载使用短时效预签名地址。
     endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+    # 浏览器访问 MinIO 的地址；Docker 内部 endpoint 为 silo:9000 时，测试/生产环境需设为公网或反向代理地址。
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket: ${MINIO_BUCKET:glw}
-    presign-ttl: 15m
+    # 预签名下载地址有效期。
+    presign-ttl: 24h
     max-file-size: 10MB
     allowed-extensions: pdf,jpg,jpeg,png,xlsx,xls,doc,docx
   finance:

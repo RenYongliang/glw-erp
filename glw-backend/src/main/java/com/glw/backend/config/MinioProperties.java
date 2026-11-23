@@ -11,14 +11,21 @@ import org.springframework.validation.annotation.Validated;
 import java.time.Duration;
 import java.util.List;
 
-/** 附件对象存储配置；桶保持私有，下载使用短时效预签名地址。 */
+/** 附件对象存储配置；桶保持私有，下载使用临时预签名地址。 */
 @Validated
 @ConfigurationProperties("app.minio")
 public record MinioProperties(
         @NotBlank String endpoint,
+        /** 浏览器可访问的地址，仅用于生成预签名下载 URL；为空时退回 endpoint。 */
+        String publicEndpoint,
         @NotBlank String accessKey,
         @NotBlank String secretKey,
         @NotBlank String bucket,
         @NotNull Duration presignTtl,
         @NotNull DataSize maxFileSize,
-        @NotEmpty List<String> allowedExtensions) {}
+        @NotEmpty List<String> allowedExtensions) {
+
+    public String presignEndpoint() {
+        return publicEndpoint == null || publicEndpoint.isBlank() ? endpoint : publicEndpoint;
+    }
+}

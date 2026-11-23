@@ -17,5 +17,7 @@ app:
   minio:
     # 测试环境由容器启动参数传入，避免把真实密钥写入仓库。
     endpoint: ${MINIO_ENDPOINT}
+    # 浏览器下载地址；为空时退回内部 endpoint（仅适合本机直连 MinIO）。
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:}
     access-key: ${MINIO_ACCESS_KEY}
     secret-key: ${MINIO_SECRET_KEY}
